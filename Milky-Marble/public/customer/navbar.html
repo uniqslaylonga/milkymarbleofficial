@@ -1,0 +1,72 @@
+<!-- DESKTOP & TOP NAVBAR -->
+<header class="navbar-wrapper" id="mainNavbarWrapper"> 
+  <div class="navbar-container">
+    <a href="home.html#drinks" class="brand-container-nav" id="mainBrandContainer">
+      <img src="images/logo.png" alt="Milky Marble Logo" class="brand-logo-img-nav"> 
+      <span class="brand-name-nav">Milky Marble</span> 
+    </a>
+
+    <!-- Desktop Menu Pills -->
+    <nav class="nav-pill-menu desktop-nav-menu" id="mainNavPills">
+      <a href="home.html#drinks" class="nav-pill-link" id="nav-drinks" data-nav="drinks">
+        <i class="fa-solid fa-mug-hot"></i> 
+        <span>Drinks</span>
+      </a> 
+      <a href="home.html#customize" class="nav-pill-link" id="nav-customize" data-nav="customize">
+        <i class="fa-solid fa-shapes"></i> 
+        <span>Customize</span>
+      </a> 
+      <a href="javascript:void(0)" class="nav-pill-link" id="nav-orders" data-nav="orders">
+        <i class="fa-solid fa-tags"></i> 
+        <span>Orders</span>
+      </a> 
+      <a href="home.html#about" class="nav-pill-link" id="nav-about" data-nav="about">
+        <i class="fa-solid fa-circle-info"></i> 
+        <span>About</span>
+      </a> 
+    </nav>
+
+    <!-- Right-Side Actions -->
+    <div class="nav-actions">
+      <div class="nav-search-box" id="globalNavSearchBox">
+        <input type="text" id="globalNavSearchInput" placeholder="Search for anything..." aria-label="Search"> 
+        <button type="button" class="search-icon-btn" id="globalNavSearchBtn" title="Search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button> 
+      </div>
+      
+      <a href="cart.html" class="nav-icon-btn" id="navCartBtn" title="Shopping Cart">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <span class="nav-cart-badge" id="navCartCount" style="display: none;">0</span>
+      </a> 
+
+      <div class="nav-notif-container" id="navNotifContainer">
+        <!-- Kusang niloload ng navbar.js kapag guest o authenticated user -->
+      </div>
+
+      <div class="nav-user-slot" id="navUserSlot">
+        <!-- Kusang niloload ng navbar.js (Avatar profile dropdown o Login icon) -->
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- MOBILE BOTTOM NAVIGATION -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+  <a href="home.html#drinks" class="nav-pill-link" id="m-nav-drinks" data-nav="drinks">
+    <i class="fa-solid fa-mug-hot"></i> 
+    <span>Drinks</span>
+  </a> 
+  <a href="home.html#customize" class="nav-pill-link" id="m-nav-customize" data-nav="customize">
+    <i class="fa-solid fa-shapes"></i> 
+    <span>Customize</span>
+  </a> 
+  <a href="javascript:void(0)" class="nav-pill-link" id="m-nav-orders" data-nav="orders">
+    <i class="fa-solid fa-tags"></i> 
+    <span>Orders</span>
+  </a> 
+  <a href="home.html#about" class="nav-pill-link" id="m-nav-about" data-nav="about">
+    <i class="fa-solid fa-circle-info"></i> 
+    <span>About</span>
+  </a> 
+</nav>
