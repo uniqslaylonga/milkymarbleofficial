@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const authRoutes = require('./src/routes/authRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const promoRoutes = require('./src/routes/promoRoutes');
-const { router: paymentRoutes, webhookHandler: paymongoWebhookHandler } = require('./src/routes/paymentRoutes');
+const paymongoRoutes = require('./src/routes/paymongoRoutes');
 
 let bcrypt = null;
 try {
@@ -71,58 +71,6 @@ try {
   console.warn('[Notice] @supabase/supabase-js not loaded.');
 }
 
-// ==========================================
-// OTP STORAGE (Supabase-backed, with in-memory fallback)
-// ==========================================
-// Plain JS Maps don't survive across serverless invocations reliably
-// (Vercel can route requests to different warm instances), so OTPs and
-// cart state should live in Supabase when it's configured. The Maps
-// below are kept only as a fallback for local dev without Supabase.
-async function setOtp(key, data) {
-  if (supabase) {
-    try {
-      const { error } = await supabase.from('otp_codes').upsert({
-        key,
-        code: data.code,
-        email: data.email || null,
-        expires_at: new Date(data.expiresAt).toISOString()
-      });
-      if (!error) return;
-    } catch (e) {
-      console.warn('[OTP] Supabase write failed, using memory fallback:', e.message);
-    }
-  }
-  const store = key.startsWith('pwd:') ? passwordOtpStore : emailOtpStore;
-  store.set(key, data);
-}
-
-async function getOtp(key) {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('otp_codes')
-        .select('code, email, expires_at')
-        .eq('key', key)
-        .single();
-      if (!error && data) {
-        return { code: data.code, email: data.email, expiresAt: new Date(data.expires_at).getTime() };
-      }
-    } catch (e) {}
-  }
-  const store = key.startsWith('pwd:') ? passwordOtpStore : emailOtpStore;
-  return store.get(key);
-}
-
-async function deleteOtp(key) {
-  if (supabase) {
-    try {
-      await supabase.from('otp_codes').delete().eq('key', key);
-    } catch (e) {}
-  }
-  const store = key.startsWith('pwd:') ? passwordOtpStore : emailOtpStore;
-  store.delete(key);
-}
-
 // Native CORS Headers
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -132,11 +80,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// PayMongo webhook needs the raw body for signature verification —
-// must be registered BEFORE express.json()
-app.post('/api/payments/paymongo/webhook', express.raw({ type: 'application/json' }), paymongoWebhookHandler);
-
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  // Keep the raw bytes around so /api/paymongo/webhook can verify PayMongo's
+  // HMAC signature. JSON.stringify(req.body) would NOT reliably reproduce
+  // the exact bytes PayMongo signed, so we must capture them here.
+  verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); }
+}));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ==========================================
@@ -145,9 +95,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/customer', express.static(path.join(__dirname, 'public/customer')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/images/uploads', express.static(
-  process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'public/images/uploads')
-));
+app.use('/images/uploads', express.static(path.join(__dirname, 'public/images/uploads')));
 app.use('/customer/images', express.static(path.join(__dirname, 'public/images')));
 
 // REDIRECT ALIAS: Awtomatikong dadalhin sa login.html kung tawagin man ang customerlogin.html
@@ -306,7 +254,7 @@ app.post('/api/cart', async (req, res) => {
     const cIdStr = String(customerId);
     const { action, item, id, quantity, is_selected } = req.body;
 
-    let cart = await getCustomerCart(customerId);
+    let cart = memoryCartStore.get(cIdStr) || [];
 
     if (action === 'add' && item) {
       const topStr = Array.isArray(item.toppings) ? item.toppings.join(', ') : (item.toppings || '');
@@ -486,14 +434,7 @@ app.put('/api/customer/profile', async (req, res) => {
     const userUpdate = {};
 
     if (avatar && avatar.startsWith('data:image')) {
-      // NOTE: Vercel's filesystem is read-only except for /tmp, and /tmp is
-      // wiped between invocations, so avatars saved here will NOT persist in
-      // production. This keeps the upload from crashing the request, but for
-      // real persistence, this should be changed to upload to Supabase
-      // Storage (or S3/Cloudinary/etc.) instead of local disk.
-      const uploadDir = process.env.VERCEL
-        ? path.join('/tmp', 'uploads')
-        : path.join(__dirname, 'public/images/uploads');
+      const uploadDir = path.join(__dirname, 'public/images/uploads');
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -623,7 +564,7 @@ app.post('/api/customer/email-otp', async (req, res) => {
     const cleanEmail = new_email.toLowerCase().trim();
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await setOtp(cleanEmail, {
+    emailOtpStore.set(cleanEmail, {
       code: otpCode,
       expiresAt: Date.now() + 10 * 60 * 1000
     });
@@ -663,13 +604,13 @@ app.post('/api/customer/email-otp/verify', async (req, res) => {
     const targetCustomerId = customer_id || getCustomerId(req);
     const cleanEmail = (new_email || '').toLowerCase().trim();
 
-    const storedOtp = await getOtp(cleanEmail);
+    const storedOtp = emailOtpStore.get(cleanEmail);
     const isCodeValid = Boolean(storedOtp && storedOtp.code === String(otp_code).trim() && Date.now() <= storedOtp.expiresAt);
     if (!isCodeValid) {
       return res.status(400).json({ status: 'error', message: 'Invalid or expired confirmation code.' });
     }
 
-    await deleteOtp(cleanEmail);
+    emailOtpStore.delete(cleanEmail);
 
     if (!supabase) {
       return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
@@ -733,7 +674,7 @@ app.post('/api/customer/request-password-otp', async (req, res) => {
     const cleanEmail = (targetEmail || '').toLowerCase().trim();
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await setOtp(`pwd:${customerId}`, {
+    passwordOtpStore.set(customerId.toString(), {
       code: otpCode,
       email: cleanEmail,
       expiresAt: Date.now() + 10 * 60 * 1000
@@ -775,7 +716,7 @@ app.post('/api/customer/change-password', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Please provide all required fields.' });
     }
 
-    const storedOtp = await getOtp(`pwd:${customerId}`);
+    const storedOtp = passwordOtpStore.get(customerId.toString());
     const isCodeValid = Boolean(storedOtp && storedOtp.code === String(otp_code).trim() && Date.now() <= storedOtp.expiresAt);
 
     if (!isCodeValid) {
@@ -823,7 +764,7 @@ app.post('/api/customer/change-password', async (req, res) => {
 
     if (passUpdateErr) return res.status(400).json({ status: 'error', message: passUpdateErr.message });
 
-    await deleteOtp(`pwd:${customerId}`);
+    passwordOtpStore.delete(customerId.toString());
 
     return res.json({ status: 'success', message: 'Your password has been changed successfully!' });
   } catch (err) {
@@ -885,7 +826,7 @@ app.post('/api/customer/deactivate', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/promo', promoRoutes);
-app.use('/api/payments/paymongo', paymentRoutes);
+app.use('/api/paymongo', paymongoRoutes);
 
 app.post('/api/auth/logout', (req, res) => res.json({ status: 'success', message: 'Logged out successfully.' }));
 
@@ -894,13 +835,7 @@ app.use((req, res) => {
   res.status(404).json({ status: 'error', message: 'Endpoint not found.' });
 });
 
-// Only bind a port when run directly (local dev / Docker).
-// On Vercel the app is imported as a serverless function handler instead.
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server is running inside Docker on internal port ${PORT}`);
-    console.log(`Access in browser at http://localhost:8001/customer/home.html`);
-  });
-}
-
-module.exports = app;
+app.listen(PORT, () => {
+  console.log(`Server is running inside Docker on internal port ${PORT}`);
+  console.log(`Access in browser at http://localhost:8001/customer/home.html`);
+});
