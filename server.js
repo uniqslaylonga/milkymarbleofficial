@@ -164,7 +164,7 @@ app.get('/customer/:page', (req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/customer/index.html'));
+  res.redirect('/customer/index.html');
 });
 
 function getCustomerId(req) {
