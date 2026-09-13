@@ -540,7 +540,8 @@ function getToppingUnitPrice(toppingName) {
 
 function getLayer1ImagePath(flavor, jelly, isLarge) {
   const folder = isLarge ? 'Large Flavors' : 'Small Flavors';
-  const fName = (flavor || 'Pandan').toLowerCase();
+  const rawFlavor = flavor || 'Pandan';
+  const fName = rawFlavor.charAt(0).toUpperCase() + rawFlavor.slice(1).toLowerCase();
   const jName = (jelly || 'Cube').toLowerCase();
   return `images/Layer 1/${folder}/${fName} ${jName}.png`;
 }
