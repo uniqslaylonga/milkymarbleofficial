@@ -1,7 +1,7 @@
 :root {
   --font-logo: "Kawaii RT", "Fredoka", sans-serif;
-  --font-header: "Fredoka", "Baloo 2", sans-serif;
-  --font-body: "Fredoka", "Urbanist", sans-serif;
+  --font-header: "Baloo 2", "Urbanist", sans-serif;
+  --font-body: "Urbanist", sans-serif;
 
   /* Color palette */
   --coral: #f69299;
@@ -75,7 +75,7 @@ html {
 
 body {
   margin: 0;
-  padding: 0 !important; /* Inalis ang 56px green padding na nag-o-overlay sa itaas */
+  padding: 0 !important;
   min-height: 100vh;
   background: var(--bg-main);
   font-family: var(--font-body);
@@ -103,7 +103,7 @@ body {
   display: flex;
   align-items: center;
   background: var(--bg-main);
-  padding: 0 48px;
+  padding: 8px 48px 0 48px;;
   box-sizing: border-box;
   z-index: 1000;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -115,7 +115,7 @@ body {
   justify-content: space-between;
   width: 100%;
   max-width: 1400px;
-  margin: 0 auto; /* Inalis ang 30px margin top */
+  margin: 0 auto;
 }
 
 .brand-container-nav {
@@ -159,8 +159,8 @@ body {
   border-radius: 24px;
   color: var(--brown);
   text-decoration: none;
-  font-family: "Fredoka", var(--font-body), sans-serif;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 700;
   font-size: 14px;
   transition: all 0.2s ease;
 }
@@ -197,7 +197,7 @@ body {
   background: transparent;
   font-size: 13.5px;
   color: var(--brown-soft);
-  font-family: "Fredoka", var(--font-body), sans-serif;
+  font-family: var(--font-body);
   font-weight: 500;
 }
 
@@ -209,7 +209,7 @@ body {
 .hero {
   flex-wrap: wrap;
   gap: 40px;
-  padding: 8px 48px 36px 48px; /* Mas maliit na top padding para dikit at maayos ang space */
+  padding: 8px 48px 36px 48px;
 }
 
 .hero-art {
@@ -231,24 +231,24 @@ body {
   min-width: 320px;
 }
 
+/* Restored Baloo 2 font and warm brown color */
 .hero-copy h1 {
-  font-family: "Fredoka", var(--font-header), sans-serif;
-  font-weight: 700;
-  color: var(--brown);
-  font-size: 74px;
-  line-height: 1.02;
-  letter-spacing: -0.5px;
-  margin: 0 0 18px 0;
+  font-family: var(--font-header);
+  font-weight: 800;
+  color: var(--brown-soft);
+  font-size: 72px;
+  line-height: 1.05;
+  letter-spacing: 1px;
+  margin: 0 0 24px 0;
 }
 
 .hero-copy p {
-  font-family: "Fredoka", var(--font-body), sans-serif;
   color: var(--brown);
   font-size: 19px;
-  font-weight: 500;
-  line-height: 1.45;
-  max-width: 540px;
-  margin: 0 0 22px 0;
+  font-weight: 600;
+  line-height: 1.5;
+  max-width: 560px;
+  margin: 0 0 15px 0;
 }
 
 /* HERO ACTIONS LAYOUT */
@@ -257,7 +257,7 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 14px;
-  margin-top: 10px;
+  margin-top: 18px;
 }
 
 .hero-buttons-row {
@@ -275,8 +275,8 @@ body {
   padding: 12px 28px;
   background-color: var(--coral-active);
   color: #ffffff;
-  font-family: "Fredoka", var(--font-body), sans-serif;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 800;
   font-size: 1.05rem;
   border-radius: 99px;
   text-decoration: none;
@@ -295,13 +295,13 @@ body {
   transform: translateY(0);
 }
 
-/* Swirl Back In - Inline Link katabi ng button */
+/* Swirl Back In - Inline Link without underline */
 .hero-login-link {
-  font-family: "Fredoka", var(--font-body), sans-serif;
+  font-family: var(--font-body);
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--coral-active);
-  text-decoration: none; /* Inalis ang underline */
+  text-decoration: none;
   transition: color 0.2s ease;
 }
 
@@ -309,9 +309,9 @@ body {
   color: var(--coral-dark);
 }
 
-/* Continue as Guest - Nasa ibaba nang walang underline */
+/* Continue as Guest - Bottom Link without underline */
 .hero-guest-text {
-  font-family: "Fredoka", var(--font-body), sans-serif;
+  font-family: var(--font-body);
   font-size: 0.95rem;
   margin: 0;
   font-weight: 600;
@@ -320,7 +320,7 @@ body {
 .hero-guest-link {
   color: var(--brown-soft);
   font-weight: 700;
-  text-decoration: none; /* Inalis ang underline */
+  text-decoration: none;
   transition: color 0.2s ease;
 }
 
