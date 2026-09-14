@@ -50,13 +50,13 @@ function resolveCartAssets(title, flavor, variation, size, toppingsList) {
   }
 
   // Custom cup layers
-  let resolvedFlavor = 'pandan';
+  let resolvedFlavor = 'Pandan';
   let accent = '#8bb35c';
   if (flavorLower.includes('strawberry') || titleLower.includes('strawberry')) {
-    resolvedFlavor = 'strawberry';
+    resolvedFlavor = 'Strawberry';
     accent = '#f48a8e';
   } else if (flavorLower.includes('coffee') || titleLower.includes('coffee')) {
-    resolvedFlavor = 'coffee';
+    resolvedFlavor = 'Coffee';
     accent = '#664638';
   }
 

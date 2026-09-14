@@ -553,7 +553,10 @@ function getToppingUnitPrice(toppingName) {
 
 function getLayer1ImagePath(flavor, jelly, isLarge) {
   const folder = isLarge ? 'Large Flavors' : 'Small Flavors';
-  const fName = (flavor || 'Pandan').toLowerCase();
+  // File names on disk are e.g. "Pandan cube.png" - flavor stays Title Case,
+  // jelly type is lowercase. Lowercasing the flavor breaks this on
+  // case-sensitive filesystems (Vercel/Linux), even though it looks fine locally.
+  const fName = flavor || 'Pandan';
   const jName = (jelly || 'Cube').toLowerCase();
   return `images/Layer 1/${folder}/${fName} ${jName}.png`;
 }
