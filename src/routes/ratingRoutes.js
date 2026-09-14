@@ -41,7 +41,8 @@ router.get('/', async (req, res) => {
         customers (
           users (
             username,
-            full_name
+            full_name,
+            avatar
           )
         )
       `)
@@ -55,6 +56,11 @@ router.get('/', async (req, res) => {
       const user = rev.customers?.users;
       const reviewerName = user?.username || user?.full_name || 'Marble Sips Fan';
 
+      let reviewerAvatar = user?.avatar || null;
+      if (reviewerAvatar && !reviewerAvatar.startsWith('http') && !reviewerAvatar.startsWith('/') && !reviewerAvatar.startsWith('data:image')) {
+        reviewerAvatar = '/' + reviewerAvatar;
+      }
+
       return {
         id: rev.id,
         order_id: rev.order_id,
@@ -64,7 +70,8 @@ router.get('/', async (req, res) => {
         experience_tags: rev.experience_tags,
         review_text: rev.review_text,
         created_at: rev.created_at,
-        reviewer_name: reviewerName
+        reviewer_name: reviewerName,
+        reviewer_avatar: reviewerAvatar
       };
     });
 

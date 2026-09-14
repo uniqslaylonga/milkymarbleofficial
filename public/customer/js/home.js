@@ -523,11 +523,15 @@ function renderFilteredReviewCards(reviewsList) {
       ? new Date(rev.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) 
       : '';
 
+    const avatarHTML = rev.reviewer_avatar
+      ? `<img src="${rev.reviewer_avatar}" alt="${rev.reviewer_name || 'Customer'}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; margin-top: 2px;" onerror="this.outerHTML='<div class=&quot;review-avatar&quot; style=&quot;width: 36px; height: 36px; border-radius: 50%; background: #F48A8E; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; margin-top: 2px;&quot;><i class=&quot;fa-solid fa-user&quot; style=&quot;font-size: 15px;&quot;></i></div>'">`
+      : `<div class="review-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: #F48A8E; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; margin-top: 2px;">
+          <i class="fa-solid fa-user" style="font-size: 15px;"></i>
+        </div>`;
+
     listEl.innerHTML += `
       <div class="modal-review-card" style="margin-bottom: 12px; padding: 12px 14px; background: #fff; border: 1.5px solid #FCE1DD; border-radius: 18px; display: flex; align-items: flex-start; gap: 12px;">
-        <div class="review-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: #F48A8E; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; margin-top: 2px;">
-          <i class="fa-solid fa-user" style="font-size: 15px;"></i>
-        </div>
+        ${avatarHTML}
         <div class="review-body" style="flex: 1; min-width: 0;">
           <div class="review-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
             <span class="review-username" style="font-weight: 800; font-size: 13.5px; color: #4a3427;">${rev.reviewer_name || 'Customer'}</span>
