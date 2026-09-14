@@ -10,8 +10,25 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const APP_BASE_URL_ENV = (process.env.APP_BASE_URL || '').replace(/\/$/, '');
 const SESSION_TAG_REGEX = /PayMongoSession:\s*(\S+)/i;
+
+// Prefer an explicit APP_BASE_URL if it's actually set to something real.
+// Otherwise derive the live URL from the request itself (works automatically
+// on Vercel - including preview deployments - without needing the env var),
+// only falling back to localhost for local dev with no request context.
+function resolveAppBaseUrl(req) {
+  if (APP_BASE_URL_ENV && !APP_BASE_URL_ENV.includes('localhost')) {
+    return APP_BASE_URL_ENV;
+  }
+  if (req) {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const proto = (forwardedProto ? String(forwardedProto).split(',')[0] : req.protocol) || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    if (host) return `${proto}://${host}`;
+  }
+  return APP_BASE_URL_ENV || 'http://localhost:3000';
+}
 
 function extractSessionId(pickupInstructions) {
   const match = String(pickupInstructions || '').match(SESSION_TAG_REGEX);
@@ -69,6 +86,7 @@ router.post('/create-checkout', async (req, res) => {
       }
     }
 
+    const APP_BASE_URL = resolveAppBaseUrl(req);
     const successUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}`;
     const cancelUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}&cancelled=1`;
 
