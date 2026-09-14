@@ -166,6 +166,9 @@ router.post('/login', async (req, res) => {
 // 3. ALL /api/auth/logout
 router.all('/logout', (req, res) => {
   res.clearCookie('remember_user', { path: '/' });
+  res.clearCookie('user_id', { path: '/' });
+  res.clearCookie('customer_id', { path: '/' });
+  res.clearCookie('session_id', { path: '/' });
 
   if (req.session) {
     req.session.destroy(() => {

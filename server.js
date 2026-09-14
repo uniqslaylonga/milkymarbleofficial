@@ -1157,10 +1157,10 @@ app.use('/api/auth', (req, res, next) => {
       const cId = cust?.id || user?.customer_id;
 
       if (uId) {
-        res.cookie('user_id', String(uId), { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.cookie('user_id', String(uId), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 });
       }
       if (cId) {
-        res.cookie('customer_id', String(cId), { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+        res.cookie('customer_id', String(cId), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 });
       }
     }
     return originalJson(body);
