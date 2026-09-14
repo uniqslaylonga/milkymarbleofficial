@@ -4,6 +4,11 @@
 require('dotenv').config();
 
 const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2';
+// Retrieve/Expire Checkout Session only exist under PayMongo's v1 API -
+// there is no v2 equivalent. Hitting v2 for these returns a 404
+// ("The requested route does not exist"), which is why payment verification
+// was failing even though the v2-created session and payment worked fine.
+const PAYMONGO_API_BASE_V1 = 'https://api.paymongo.com/v1';
 const EWALLET_METHOD_TYPES = ['qrph'];
 
 function getSecretKey() {
@@ -25,8 +30,8 @@ function authHeader() {
   return 'Basic ' + Buffer.from(`${key}:`).toString('base64');
 }
 
-async function pmFetch(path, options = {}) {
-  const res = await fetch(`${PAYMONGO_API_BASE}${path}`, {
+async function pmFetch(path, options = {}, base = PAYMONGO_API_BASE) {
+  const res = await fetch(`${base}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -110,7 +115,7 @@ async function retrieveCheckoutSession(sessionId) {
   if (!isConfigured()) {
     throw new Error('PayMongo is not configured. Set PAYMONGO_SECRET_KEY in your .env file.');
   }
-  return pmFetch(`/checkout_sessions/${sessionId}`, { method: 'GET' });
+  return pmFetch(`/checkout_sessions/${sessionId}`, { method: 'GET' }, PAYMONGO_API_BASE_V1);
 }
 
 /** True if the given Checkout Session data object has a successful payment attached. */
