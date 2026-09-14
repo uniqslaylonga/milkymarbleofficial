@@ -638,8 +638,9 @@
       <p class="footer-credits">© 2026 Milky Marble. All rights reserved.</p>
     </footer>
 
-    <script>
+<script>
       document.addEventListener("DOMContentLoaded", function () {
+        // ACCORDION SETUP
         function setupAccordion(triggerSelector, itemSelector, contentSelector) {
           const buttons = document.querySelectorAll(triggerSelector);
 
@@ -681,6 +682,7 @@
         setupAccordion(".faq-question", ".faq-item", ".faq-answer");
         setupAccordion(".terms-header", ".terms-item", ".terms-content");
 
+        // SCROLL SPY LOGIC
         const navLinks = Array.from(document.querySelectorAll(".nav-pill-link"));
         const sections = navLinks
           .map((link) => document.querySelector(link.getAttribute("href")))
@@ -688,9 +690,7 @@
 
         function setActiveLink() {
           let currentId = null;
-          const scrollPos = window.scrollY + (document.querySelector(":root")
-            ? parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")) || 74
-            : 74) + 20;
+          const scrollPos = window.scrollY + 90;
 
           sections.forEach((section) => {
             if (section.offsetTop <= scrollPos) {
@@ -707,7 +707,7 @@
         window.addEventListener("scroll", setActiveLink, { passive: true });
         setActiveLink();
 
-        // FUNCTIONAL SEARCH BAR LOGIC
+        // FUNCTIONAL IN-PAGE SEARCH ENGINE (WALANG REDIRECT SA HOME)
         const searchInput = document.getElementById("indexSearchInput");
         const searchBtn = document.getElementById("indexSearchBtn");
 
@@ -716,35 +716,68 @@
           const query = searchInput.value.trim().toLowerCase();
           if (!query) return;
 
-          // 1. Search in FAQs
+          // 1. Kung naghanap ng buong section name (FAQ, About, Terms)
+          if (query.includes("faq") || query.includes("question") || query.includes("tanong")) {
+            const faqSec = document.getElementById("faq");
+            if (faqSec) {
+              faqSec.scrollIntoView({ behavior: "smooth", block: "start" });
+              flashHighlight(faqSec.querySelector(".faq-card") || faqSec);
+              return;
+            }
+          }
+
+          if (query.includes("about") || query.includes("marble bar") || query.includes("business")) {
+            const aboutSec = document.getElementById("about");
+            if (aboutSec) {
+              aboutSec.scrollIntoView({ behavior: "smooth", block: "start" });
+              flashHighlight(aboutSec.querySelector(".about-card") || aboutSec);
+              return;
+            }
+          }
+
+          if (query.includes("term") || query.includes("condition") || query.includes("rule") || query.includes("policy")) {
+            const termsSec = document.getElementById("terms");
+            if (termsSec) {
+              termsSec.scrollIntoView({ behavior: "smooth", block: "start" });
+              flashHighlight(termsSec.querySelector(".terms-card") || termsSec);
+              return;
+            }
+          }
+
+          // 2. Search sa loob ng FAQ items (tanong o sagot)
           const faqItems = document.querySelectorAll(".faq-item");
           let matchedFaq = null;
           faqItems.forEach((item) => {
-            const text = item.textContent.toLowerCase();
-            if (text.includes(query) && !matchedFaq) {
+            if (item.textContent.toLowerCase().includes(query) && !matchedFaq) {
               matchedFaq = item;
             }
           });
 
           if (matchedFaq) {
+            // Isara ang iba, buksan ang nahanap
+            document.querySelectorAll(".faq-item.open").forEach((el) => {
+              if (el !== matchedFaq) {
+                el.classList.remove("open");
+                const ans = el.querySelector(".faq-answer");
+                if (ans) ans.style.maxHeight = null;
+              }
+            });
+
             matchedFaq.classList.add("open");
             const answer = matchedFaq.querySelector(".faq-answer");
             if (answer) {
               answer.style.maxHeight = answer.scrollHeight + 32 + "px";
             }
             matchedFaq.scrollIntoView({ behavior: "smooth", block: "center" });
-            matchedFaq.style.outline = "2.5px solid var(--coral-active)";
-            matchedFaq.style.borderRadius = "18px";
-            setTimeout(() => { matchedFaq.style.outline = "none"; }, 2500);
+            flashHighlight(matchedFaq);
             return;
           }
 
-          // 2. Search in Terms & Conditions
+          // 3. Search sa Terms & Conditions items
           const termsItems = document.querySelectorAll(".terms-item");
           let matchedTerm = null;
           termsItems.forEach((item) => {
-            const text = item.textContent.toLowerCase();
-            if (text.includes(query) && !matchedTerm) {
+            if (item.textContent.toLowerCase().includes(query) && !matchedTerm) {
               matchedTerm = item;
             }
           });
@@ -756,24 +789,68 @@
               content.style.maxHeight = content.scrollHeight + 32 + "px";
             }
             matchedTerm.scrollIntoView({ behavior: "smooth", block: "center" });
-            matchedTerm.style.outline = "2.5px solid var(--coral-active)";
-            setTimeout(() => { matchedTerm.style.outline = "none"; }, 2500);
+            flashHighlight(matchedTerm);
             return;
           }
 
-          // 3. Search in About Section
-          if (query.includes("about") || query.includes("marble bar") || query.includes("business")) {
+          // 4. Search sa About content
+          const aboutCard = document.querySelector(".about-card");
+          if (aboutCard && aboutCard.textContent.toLowerCase().includes(query)) {
             const aboutSec = document.getElementById("about");
             if (aboutSec) {
               aboutSec.scrollIntoView({ behavior: "smooth", block: "start" });
+              flashHighlight(aboutCard);
               return;
             }
           }
 
-          // 4. Fallback: Drinks o customizer
-          window.location.href = `home.html#drinks`;
+          // 5. Kapag walang match, mag-abiso nang hindi lumilipat ng page
+          showSearchNotice(`No results found for "${searchInput.value.trim()}" on this page.`);
         }
 
+        // Highlight effect sa element
+        function flashHighlight(el) {
+          if (!el) return;
+          el.style.transition = "outline 0.25s ease, box-shadow 0.25s ease";
+          el.style.outline = "3px solid #f48a8e";
+          el.style.boxShadow = "0 4px 20px rgba(244, 138, 142, 0.4)";
+          setTimeout(() => {
+            el.style.outline = "none";
+            el.style.boxShadow = "none";
+          }, 2400);
+        }
+
+        // Floating pill notice kapag walang nahanap
+        function showSearchNotice(msg) {
+          let notice = document.getElementById("indexSearchNotice");
+          if (!notice) {
+            notice = document.createElement("div");
+            notice.id = "indexSearchNotice";
+            notice.style.position = "fixed";
+            notice.style.top = "80px";
+            notice.style.right = "48px";
+            notice.style.background = "#594a42";
+            notice.style.color = "#ffffff";
+            notice.style.padding = "10px 20px";
+            notice.style.borderRadius = "99px";
+            notice.style.fontSize = "13px";
+            notice.style.fontWeight = "700";
+            notice.style.boxShadow = "0 4px 16px rgba(0,0,0,0.2)";
+            notice.style.zIndex = "2500";
+            notice.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+            document.body.appendChild(notice);
+          }
+          notice.innerText = msg;
+          notice.style.opacity = "1";
+          notice.style.transform = "translateY(0)";
+          clearTimeout(window._searchTimer);
+          window._searchTimer = setTimeout(() => {
+            notice.style.opacity = "0";
+            notice.style.transform = "translateY(-10px)";
+          }, 2800);
+        }
+
+        // Listeners
         if (searchInput) {
           searchInput.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
