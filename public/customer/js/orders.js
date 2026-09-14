@@ -187,7 +187,7 @@ window.handleGuestOrderSearch = async function(event) {
   const orderIdInput = document.getElementById('guestOrderId');
   const emailInput = document.getElementById('guestEmail');
 
-  const orderId = (orderIdInput?.value || '').trim();
+  const orderId = (orderIdInput?.value || '').trim().replace(/^#/, '');
   const email = (emailInput?.value || '').trim().toLowerCase();
 
   if (!orderId || !email) {
@@ -219,16 +219,11 @@ window.handleGuestOrderSearch = async function(event) {
   }
 
   try {
-    let res = await fetch(`/api/orders/track?order_number=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
-    if (!res.ok) {
-      res = await fetch(`/api/orders?order_number=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
-    }
-
+    const res = await fetch(`/api/orders/track?order_number=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
     const data = await res.json();
 
-    if (res.ok && data.status === 'success' && (data.order || (data.orders && data.orders[0]))) {
-      const targetOrder = data.order || data.orders[0];
-      window.openOrderDetailsModal(targetOrder);
+    if (res.ok && data.status === 'success' && data.order) {
+      window.openOrderDetailsModal(data.order);
     } else {
       if (typeof Swal !== 'undefined') {
         Swal.fire({
@@ -245,7 +240,7 @@ window.handleGuestOrderSearch = async function(event) {
           buttonsStyling: false
         });
       } else {
-        alert('No order found matching those details.');
+        alert(data.message || 'No order found matching those details.');
       }
     }
   } catch (err) {

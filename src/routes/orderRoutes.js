@@ -272,4 +272,80 @@ router.get('/recent', async (req, res) => {
   }
 });
 
+// GET /api/orders/track - Dedicated Order Tracking Endpoint
+router.get('/track', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+  }
+
+  try {
+    const rawOrderNum = (req.query.order_number || '').trim().replace(/^#/, '');
+    const cleanEmail = (req.query.email || '').trim().toLowerCase();
+
+    if (!rawOrderNum || !cleanEmail) {
+      return res.status(400).json({ status: 'error', message: 'Order ID and Email are required.' });
+    }
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select(`
+        id, order_number, status, subtotal, discount_amount, total_amount,
+        pickup_instructions, pickup_date, placed_at, guest_name, guest_email, customer_id, payment_method,
+        order_items (id, item_label, quantity, unit_price, line_total),
+        customers (
+          id,
+          users (email, full_name, username)
+        )
+      `)
+      .eq('order_number', rawOrderNum)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[Track Order DB Error]:', error);
+      return res.status(500).json({ status: 'error', message: 'Database query error.' });
+    }
+
+    if (!order) {
+      return res.status(404).json({ status: 'error', message: 'No order found with that Order ID.' });
+    }
+
+    const orderGuestEmail = (order.guest_email || '').trim().toLowerCase();
+    const registeredEmail = (order.customers?.users?.email || '').trim().toLowerCase();
+
+    if (orderGuestEmail !== cleanEmail && registeredEmail !== cleanEmail) {
+      return res.status(404).json({ status: 'error', message: 'Order ID and Email do not match.' });
+    }
+
+    let schedule = order.pickup_date || 'N/A';
+    if (schedule === 'N/A' && order.pickup_instructions) {
+      const match = order.pickup_instructions.match(/Pick-up:\s*([^|]+)/i);
+      if (match) schedule = match[1].trim();
+    }
+
+    const formattedOrder = {
+      ...order,
+      order_ref: order.order_number,
+      recipient_name: order.guest_name || order.customers?.users?.full_name || order.customers?.users?.username || 'Customer',
+      recipient_email: order.guest_email || registeredEmail || cleanEmail,
+      pickup_date: schedule,
+      items: (order.order_items || []).map(it => ({
+        item_label: it.item_label,
+        title: it.item_label,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        line_total: it.line_total
+      }))
+    };
+
+    return res.json({
+      status: 'success',
+      order: formattedOrder
+    });
+
+  } catch (err) {
+    console.error('[Track Route Exception]:', err);
+    return res.status(500).json({ status: 'error', message: 'Internal server error.' });
+  }
+});
+
 module.exports = router;
