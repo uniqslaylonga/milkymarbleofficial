@@ -1286,8 +1286,15 @@ async function loadRecentOrders() {
       <div style="text-align: center; padding: 42px 20px; background: #FFFFFF; border-radius: 20px; border: 1.5px solid #FCE1DD; color: #777;">
         <i class="fa-solid fa-receipt" style="font-size: 2.6rem; color: #b8a69d; margin-bottom: 12px;"></i>
         <p style="font-size: 1.15rem; font-weight: 700; color: #4a3427; margin-bottom: 6px;">No recent orders found</p>
-        <p style="font-size: 0.92rem; margin-bottom: 16px; color: #7C4F38;">You are currently browsing as a guest. Log in to track your sweet cups!</p>
-        <a href="login.html" style="display: inline-block; padding: 9px 22px; background: #F48A8E; color: #ffffff; text-decoration: none; border-radius: 99px; font-weight: 700;">Log In to View</a>
+        <p style="font-size: 0.92rem; margin-bottom: 18px; color: #7C4F38;">You are currently browsing as a guest. Log in or use your order reference to track your sweet cups!</p>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <a href="orders.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; background: #F48A8E; color: #ffffff; text-decoration: none; border-radius: 99px; font-weight: 700; font-size: 0.92rem; box-shadow: 0 4px 10px rgba(244, 138, 142, 0.25);">
+            <i class="fa-solid fa-receipt"></i> Track Your Order
+          </a>
+          <a href="login.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; background: #FFF4F1; color: #7C4F38; border: 1.5px solid #FCE1DD; text-decoration: none; border-radius: 99px; font-weight: 700; font-size: 0.92rem;">
+            Log In to View
+          </a>
+        </div>
       </div>
     `;
     return;
