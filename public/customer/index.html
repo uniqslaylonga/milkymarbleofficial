@@ -11,8 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/navbar.css" />
-<link rel="stylesheet" href="css/index.css" />
-
+    <link rel="stylesheet" href="css/index.css" />
   </head>
   <body>
     <header class="navbar-wrapper">
@@ -74,14 +73,25 @@
           flavorful jelly cuts and sweet toppings.
         </p>
 
+        <!-- 3 STACKS HERO ACTIONS -->
         <div class="hero-actions">
-          <a href="login.html" class="cta-btn">LOGIN</a>
-          <a href="signup.html" class="cta-btn">SIGN UP</a>
+          <!-- Stack 1: Sign Up Pill Button -->
+          <a href="signup.html" class="cta-btn-primary">Take your first sip</a>
+
+          <!-- Stack 2: Hyperlinked Login Text -->
+          <p class="hero-login-text">
+            Already have an account? <a href="login.html" class="hero-login-link">Login here</a>
+          </p>
+
+          <!-- Stack 3: Hyperlinked Guest Text -->
+          <p class="hero-guest-text">
+            <a href="home.html" class="hero-guest-link">Continue as Guest</a>
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- ABOUT  -->
+    <!-- ABOUT SECTION -->
     <section class="about-section" id="about">
       <div class="about-wrap">
         <div class="about-card">
@@ -297,7 +307,7 @@
       </div>
     </section>
 
-    <!-- TERMS & CONDITIONS  -->
+    <!-- TERMS & CONDITIONS -->
     <section class="terms-section" id="terms">
       <div class="terms-wrap">
         <div class="terms-card">
@@ -639,7 +649,6 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        // Accordion behavior for FAQ + Terms sections
         function setupAccordion(triggerSelector, itemSelector, contentSelector) {
           const buttons = document.querySelectorAll(triggerSelector);
 
@@ -681,7 +690,6 @@
         setupAccordion(".faq-question", ".faq-item", ".faq-answer");
         setupAccordion(".terms-header", ".terms-item", ".terms-content");
 
-        // Scroll-spy: highlight the nav pill matching the section in view.
         const navLinks = Array.from(document.querySelectorAll(".nav-pill-link"));
         const sections = navLinks
           .map((link) => document.querySelector(link.getAttribute("href")))

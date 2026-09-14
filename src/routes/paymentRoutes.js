@@ -1,5 +1,6 @@
 // src/routes/paymentRoutes.js
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
@@ -10,29 +11,38 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const SESSION_TAG_REGEX = /PayMongoSession:\s*(\S+)/i;
+
+function extractSessionId(pickupInstructions) {
+  const match = String(pickupInstructions || '').match(SESSION_TAG_REGEX);
+  return match ? match[1] : null;
+}
 
 // ==========================================
-// POST /api/payments/paymongo/create-checkout
-// Body: { order_id }
-// Creates a QRPh checkout session for an existing PENDING_PAYMENT order
+// POST /api/payments/create-checkout
+// Creates a LIVE PayMongo Checkout Session (GCash / Maya / GrabPay / ShopeePay)
+// for an already-placed order that's waiting on E-Wallet payment.
 // ==========================================
 router.post('/create-checkout', async (req, res) => {
   try {
     if (!supabase) {
       return res.status(500).json({ status: 'error', message: 'Database is disconnected.' });
     }
+    if (!paymongo.isConfigured()) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'PayMongo is not configured yet. Please add PAYMONGO_SECRET_KEY to the server .env file.'
+      });
+    }
 
-    const { order_id } = req.body;
+    const { order_id, billing_name, billing_email } = req.body;
     if (!order_id) {
       return res.status(400).json({ status: 'error', message: 'order_id is required.' });
     }
 
     const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select(`
-        id, order_number, status, total_amount, customer_id,
-        order_items (item_label, quantity, unit_price)
-      `)
+      .select('id, order_number, total_amount, status, pickup_instructions')
       .eq('id', order_id)
       .single();
 
@@ -41,172 +51,167 @@ router.post('/create-checkout', async (req, res) => {
     }
 
     if (order.status === 'PAID_VERIFIED') {
-      return res.status(400).json({ status: 'error', message: 'This order has already been paid.' });
+      return res.json({ status: 'success', already_paid: true, order });
     }
 
-    // Look up the customer's name/email for the QRPh checkout page
-    let customerName = 'Milky Marble Customer';
-    let customerEmail = undefined;
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('user_id, email, users(full_name, email)')
-      .eq('id', order.customer_id)
-      .single();
-
-    if (customer) {
-      customerName = customer.users?.full_name || customerName;
-      customerEmail = customer.users?.email || customer.email || undefined;
+    // Reuse an existing, still-open checkout session instead of creating a new one
+    // every time the customer re-opens the payment step.
+    const existingSessionId = extractSessionId(order.pickup_instructions);
+    if (existingSessionId) {
+      try {
+        const existingSession = await paymongo.retrieveCheckoutSession(existingSessionId);
+        const checkoutUrl = existingSession && existingSession.attributes && existingSession.attributes.checkout_url;
+        if (checkoutUrl) {
+          return res.json({ status: 'success', checkout_url: checkoutUrl, session_id: existingSessionId });
+        }
+      } catch {
+        // Session may have expired/been consumed - fall through and create a new one.
+      }
     }
 
-    const lineItems = (order.order_items || []).map(it => ({
-      name: it.item_label,
-      unit_price: it.unit_price,
-      quantity: it.quantity
-    }));
+    const successUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}`;
+    const cancelUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}&cancelled=1`;
 
-    const successUrl = `${APP_BASE_URL}/customer/cart.html?payment=success&order_id=${order.id}`;
-    const cancelUrl = `${APP_BASE_URL}/customer/cart.html?payment=cancelled&order_id=${order.id}`;
-
-    const session = await paymongo.createQrphCheckoutSession({
-      orderId: order.id,
-      orderNumber: order.order_number,
-      amountPesos: order.total_amount,
+    const session = await paymongo.createEwalletCheckoutSession({
+      amount: order.total_amount,
       description: `Milky Marble Order ${order.order_number}`,
-      lineItems,
-      customerName,
-      customerEmail,
+      referenceNumber: order.order_number,
       successUrl,
-      cancelUrl
+      cancelUrl,
+      billingName: billing_name,
+      billingEmail: billing_email,
+      metadata: { order_id: String(order.id) }
     });
 
+    const updatedInstructions = `${order.pickup_instructions || ''} | PayMongoSession: ${session.id}`;
     await supabase
       .from('orders')
-      .update({
-        payment_reference: session.id,
-        payment_method: 'PayMongo QRPh'
-      })
+      .update({ pickup_instructions: updatedInstructions })
       .eq('id', order.id);
 
     return res.json({
       status: 'success',
-      checkout_url: session.checkoutUrl,
-      checkout_session_id: session.id
+      checkout_url: session.attributes.checkout_url,
+      session_id: session.id,
+      livemode: paymongo.isLiveKey()
     });
   } catch (err) {
-    console.error('PayMongo checkout creation error:', err.message);
-    return res.status(500).json({ status: 'error', message: err.message || 'Failed to create QRPh checkout session.' });
+    console.error('[PayMongo] create-checkout error:', err.message);
+    return res.status(400).json({ status: 'error', message: err.message || 'Failed to start PayMongo checkout.' });
   }
 });
 
 // ==========================================
-// GET /api/payments/paymongo/status/:order_id
-// Used by the frontend to poll/confirm payment status after redirect back from PayMongo
+// GET /api/payments/verify/:orderId
+// Polled by paymentReturn.html after the customer comes back from PayMongo.
 // ==========================================
-router.get('/status/:order_id', async (req, res) => {
+router.get('/verify/:orderId', async (req, res) => {
   try {
     if (!supabase) {
       return res.status(500).json({ status: 'error', message: 'Database is disconnected.' });
     }
 
-    const { order_id } = req.params;
-    const { data: order, error } = await supabase
+    const { orderId } = req.params;
+    const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select(`
-        id, order_number, status, subtotal, discount_amount, total_amount,
-        pickup_instructions, placed_at, payment_reference,
-        order_items (item_label, quantity, unit_price, line_total)
-      `)
-      .eq('id', order_id)
+      .select('id, order_number, total_amount, status, pickup_instructions')
+      .eq('id', orderId)
       .single();
 
-    if (error || !order) {
+    if (orderErr || !order) {
       return res.status(404).json({ status: 'error', message: 'Order not found.' });
     }
 
-    // Safety net: if the webhook hasn't landed yet, actively check PayMongo directly.
-    if (order.status !== 'PAID_VERIFIED' && order.payment_reference) {
-      try {
-        const session = await paymongo.retrieveCheckoutSession(order.payment_reference);
-        const paid = session.attributes.payments?.some(p => p.attributes.status === 'paid')
-          || session.attributes.status === 'paid';
-
-        if (paid) {
-          await supabase
-            .from('orders')
-            .update({ status: 'PAID_VERIFIED', paid_at: new Date().toISOString() })
-            .eq('id', order.id);
-          order.status = 'PAID_VERIFIED';
-        }
-      } catch (checkErr) {
-        console.warn('Could not verify checkout session live status:', checkErr.message);
-      }
+    if (order.status === 'PAID_VERIFIED') {
+      return res.json({ status: 'success', paid: true, order });
     }
 
-    return res.json({
-      status: 'success',
-      order_status: order.status,
-      order: order
-    });
+    const sessionId = extractSessionId(order.pickup_instructions);
+    if (!sessionId || !paymongo.isConfigured()) {
+      return res.json({ status: 'success', paid: false, order });
+    }
+
+    const session = await paymongo.retrieveCheckoutSession(sessionId);
+    const paid = paymongo.checkoutSessionIsPaid(session);
+
+    if (paid) {
+      const { data: updatedOrder } = await supabase
+        .from('orders')
+        .update({ status: 'PAID_VERIFIED' })
+        .eq('id', order.id)
+        .select()
+        .single();
+
+      return res.json({ status: 'success', paid: true, order: updatedOrder || order });
+    }
+
+    return res.json({ status: 'success', paid: false, order });
   } catch (err) {
-    console.error('Payment status check error:', err.message);
-    return res.status(500).json({ status: 'error', message: 'Failed to check payment status.' });
+    console.error('[PayMongo] verify error:', err.message);
+    return res.status(400).json({ status: 'error', message: err.message || 'Failed to verify payment.' });
   }
 });
 
 // ==========================================
-// Webhook handler (mounted separately in server.js with express.raw())
-// Listens for: checkout_session.payment.paid
+// POST /api/payments/webhook
+// Live PayMongo webhook: checkout_session.payment.paid
+// Requires the raw request body (captured in server.js via express.json's `verify`)
+// to validate the Paymongo-Signature header.
 // ==========================================
-async function webhookHandler(req, res) {
+router.post('/webhook', async (req, res) => {
   try {
+    const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
     const signatureHeader = req.headers['paymongo-signature'];
-    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
-    const rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : req.body;
 
-    if (webhookSecret) {
-      const isValid = paymongo.verifyWebhookSignature(rawBody, signatureHeader, webhookSecret);
+    if (secret && !secret.includes('REPLACE_WITH') && signatureHeader && req.rawBody) {
+      const parts = {};
+      String(signatureHeader).split(',').forEach((chunk) => {
+        const [k, v] = chunk.split('=');
+        if (k && v) parts[k.trim()] = v.trim();
+      });
+
+      const timestamp = parts.t;
+      const expectedSignature = parts.li || parts.te;
+      const signedPayload = `${timestamp}.${req.rawBody.toString('utf8')}`;
+      const computedSignature = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+
+      const isValid = expectedSignature
+        && computedSignature.length === expectedSignature.length
+        && crypto.timingSafeEqual(Buffer.from(computedSignature), Buffer.from(expectedSignature));
+
       if (!isValid) {
-        console.warn('[PayMongo Webhook] Invalid signature — rejecting.');
-        return res.status(400).json({ status: 'error', message: 'Invalid webhook signature.' });
+        console.warn('[PayMongo Webhook] Invalid signature - rejecting.');
+        return res.status(400).json({ status: 'error', message: 'Invalid signature.' });
       }
     } else {
-      console.warn('[PayMongo Webhook] PAYMONGO_WEBHOOK_SECRET not set — skipping signature verification. Set this before going live.');
+      console.warn('[PayMongo Webhook] PAYMONGO_WEBHOOK_SECRET not set - skipping signature check.');
     }
 
-    const event = JSON.parse(rawBody);
-    const eventType = event?.data?.attributes?.type;
-    const eventData = event?.data?.attributes?.data;
+    const event = req.body;
+    const eventType = event && event.data && event.data.type;
+    const resource = event && event.data && event.data.data;
+    const referenceNumber = resource && resource.attributes && resource.attributes.reference_number;
 
-    console.log(`[PayMongo Webhook] Received event: ${eventType}`);
+    if (eventType === 'checkout_session.payment.paid' && referenceNumber && supabase) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('order_number', referenceNumber)
+        .single();
 
-    if (eventType === 'checkout_session.payment.paid') {
-      const orderId = eventData?.attributes?.metadata?.order_id
-        || eventData?.attributes?.checkout_session?.metadata?.order_id;
-
-      if (!orderId) {
-        console.warn('[PayMongo Webhook] No order_id in metadata; cannot update order.');
-        return res.status(200).json({ received: true });
-      }
-
-      if (supabase) {
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'PAID_VERIFIED', paid_at: new Date().toISOString() })
-          .eq('id', orderId);
-
-        if (error) {
-          console.error('[PayMongo Webhook] Failed to update order status:', error.message);
-        } else {
-          console.log(`[PayMongo Webhook] Order ${orderId} marked as PAID_VERIFIED.`);
-        }
+      if (order && order.status !== 'PAID_VERIFIED') {
+        await supabase.from('orders').update({ status: 'PAID_VERIFIED' }).eq('id', order.id);
+        console.log(`[PayMongo Webhook] Order ${referenceNumber} marked PAID_VERIFIED.`);
       }
     }
 
-    return res.status(200).json({ received: true });
+    return res.status(200).json({ status: 'success', received: true });
   } catch (err) {
-    console.error('[PayMongo Webhook] Handler error:', err.message);
-    return res.status(400).json({ status: 'error', message: 'Webhook processing failed.' });
+    console.error('[PayMongo Webhook] error:', err.message);
+    // Still ack with 200 so PayMongo doesn't hammer retries for a local bug;
+    // the order can be reconciled via GET /api/payments/verify/:orderId.
+    return res.status(200).json({ status: 'error', message: err.message });
   }
-}
+});
 
-module.exports = { router, webhookHandler };
+module.exports = router;

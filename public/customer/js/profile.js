@@ -18,29 +18,45 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProfileForm();
 });
 
-// Kumuha ng datos mula sa Supabase via Backend API
+// Kumuha ng datos mula sa Supabase gamit ang verified session identity
 async function loadProfileDetails() {
-    const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-    const customerId = localUser.customer_id || 11;
+    const localUser = JSON.parse(localStorage.getItem('mm_user') || 'null');
+
+    if (!localUser || (!localUser.email && !localUser.user_id && !localUser.id)) {
+        window.location.href = 'login.html?error=login_required';
+        return;
+    }
+
+    const email = localUser.email || '';
+    const userId = localUser.user_id || localUser.id || '';
+    const customerId = localUser.customer_id || '';
 
     try {
-        const res = await fetch(`/api/customer/profile?customer_id=${customerId}`);
+        const queryParams = new URLSearchParams();
+        if (email) queryParams.append('email', email);
+        if (userId) queryParams.append('user_id', userId);
+        if (customerId) queryParams.append('customer_id', customerId);
+
+        const res = await fetch(`/api/customer/profile?${queryParams.toString()}`, {
+            credentials: 'include'
+        });
 
         if (res.status === 401) {
-            window.location.href = 'customerlogin.html?error=login_required';
+            localStorage.removeItem('mm_user');
+            window.location.href = 'login.html?error=session_expired';
             return;
         }
 
         const result = await res.json();
 
-        if (result.status === 'success' && (result.data || result.customer)) {
+        if (res.ok && result.status === 'success' && (result.data || result.customer)) {
             currentUser = result.data || result.customer;
             populateProfileFields(currentUser);
         } else {
             ProfileSwal.fire({
                 icon: 'error',
-                title: 'Data Not Found',
-                text: result.message || 'Could not find your profile in the database.'
+                title: 'Account Error',
+                text: result.message || 'Unable to retrieve your account details. Please log in again.'
             });
         }
     } catch (err) {
@@ -48,7 +64,7 @@ async function loadProfileDetails() {
         ProfileSwal.fire({
             icon: 'error',
             title: 'Connection Error',
-            text: 'Unable to connect to the server to fetch your profile.'
+            text: 'Unable to connect to the server to fetch your profile. Please check your internet connection.'
         });
     }
 }
@@ -57,28 +73,56 @@ async function loadProfileDetails() {
 function populateProfileFields(data) {
     const user = data.users || data;
 
-    if (user.avatar) {
-        document.getElementById('avatarRoundPreview').src = user.avatar;
-        const navAvatar = document.querySelector('.nav-avatar-img-badge');
-        if (navAvatar) navAvatar.src = user.avatar;
+    let avatarSrc = user.avatar || user.profile_picture || user.avatar_url || data.avatar || '';
+    if (avatarSrc) {
+        if (!avatarSrc.startsWith('http') && !avatarSrc.startsWith('/')) {
+            avatarSrc = '/' + avatarSrc;
+        }
+    } else {
+        avatarSrc = 'images/account.png';
     }
 
-    document.getElementById('full_name').value = user.full_name || '';
-    document.getElementById('profileCurrentEmailDisplay').value = user.email || '';
+    const avatarRound = document.getElementById('avatarRoundPreview');
+    if (avatarRound) {
+        avatarRound.src = avatarSrc;
+        avatarRound.onerror = () => { avatarRound.src = 'images/account.png'; };
+    }
 
-    // Contact number mula sa customers table
+    const navAvatar = document.querySelector('.nav-avatar-img-badge');
+    if (navAvatar) navAvatar.src = avatarSrc;
+
+    const dropAvatar = document.getElementById('dropdownAvatarImgDisplay');
+    if (dropAvatar) dropAvatar.src = avatarSrc;
+
+    const fullNameEl = document.getElementById('full_name');
+    if (fullNameEl) fullNameEl.value = user.full_name || '';
+
+    const emailEl = document.getElementById('profileCurrentEmailDisplay');
+    if (emailEl) emailEl.value = user.email || '';
+
     const phoneValue = data.phone || data.phone_number || user.phone || user.phone_number || '';
-    document.getElementById('phone').value = phoneValue;
+    const phoneEl = document.getElementById('phone');
+    if (phoneEl) phoneEl.value = phoneValue;
 
     const usernameInput = document.getElementById('username');
     const hintText = document.getElementById('usernameHintText');
-    usernameInput.value = user.username || '';
+    if (usernameInput) usernameInput.value = user.username || '';
+
+    // I-sync sa localStorage ang verified account data ng kasalukuyang user
+    const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
+    if (avatarSrc && avatarSrc !== 'images/account.png') localUser.avatar = avatarSrc;
+    if (user.full_name) localUser.full_name = user.full_name;
+    if (user.username) localUser.username = user.username;
+    if (user.email) localUser.email = user.email;
+    if (data.customer_id || data.id) localUser.customer_id = data.customer_id || data.id;
+    if (user.id || data.user_id) localUser.user_id = user.id || data.user_id;
+    localStorage.setItem('mm_user', JSON.stringify(localUser));
 
     // 30-Day Username Cooldown Logic
     const cooldownDays = 30;
     const lastUpdateVal = user.last_username_update || data.last_username_update;
 
-    if (lastUpdateVal) {
+    if (lastUpdateVal && usernameInput && hintText) {
         const lastUpdate = new Date(lastUpdateVal);
         const now = new Date();
         const diffMs = now - lastUpdate;
@@ -100,7 +144,7 @@ function populateProfileFields(data) {
         } else {
             unlockUsernameInput(usernameInput, hintText);
         }
-    } else {
+    } else if (usernameInput && hintText) {
         unlockUsernameInput(usernameInput, hintText);
     }
 }
@@ -122,10 +166,14 @@ function previewAvatar(input) {
         const reader = new FileReader();
         reader.onload = function(e) {
             const avatarDataUrl = e.target.result;
-            document.getElementById('avatarRoundPreview').src = avatarDataUrl;
+            const roundPreview = document.getElementById('avatarRoundPreview');
+            if (roundPreview) roundPreview.src = avatarDataUrl;
             
             const navAvatar = document.querySelector('.nav-avatar-img-badge');
             if (navAvatar) navAvatar.src = avatarDataUrl;
+
+            const dropAvatar = document.getElementById('dropdownAvatarImgDisplay');
+            if (dropAvatar) dropAvatar.src = avatarDataUrl;
         };
         reader.readAsDataURL(input.files[0]);
     }
@@ -147,6 +195,7 @@ function closeEmailChangeModal(event) {
 
 function startResendCooldown(seconds) {
     const btn = document.getElementById('btnSendEmailCode');
+    if (!btn) return;
     btn.disabled = true;
     let remaining = seconds;
     btn.innerText = `Resend (${remaining}s)`;
@@ -172,7 +221,7 @@ async function handleSendEmailOtp() {
         ProfileSwal.fire({
             icon: 'warning',
             title: 'Valid Email Needed',
-            text: 'Please enter a valid new email address before requesting a code.'
+            text: 'Please enter a valid email address before requesting a verification code.'
         });
         return;
     }
@@ -196,12 +245,12 @@ async function handleSendEmailOtp() {
         });
         const data = await res.json();
 
-        if (data.status === 'success') {
+        if (res.ok && data.status === 'success') {
             startResendCooldown(60);
             ProfileSwal.fire({
                 icon: 'success',
                 title: 'Code Sent!',
-                text: data.message || 'Verification code sent to your email.',
+                text: data.message || `Verification code sent to ${newEmail}.`,
                 timer: 2500,
                 showConfirmButton: false
             });
@@ -212,19 +261,17 @@ async function handleSendEmailOtp() {
             ProfileSwal.fire({
                 icon: 'error',
                 title: 'Could Not Send',
-                text: data.message || 'Failed to send confirmation code.'
+                text: data.message || 'Failed to send confirmation code. Please try again.'
             });
         }
-    } catch {
-        startResendCooldown(60);
+    } catch (err) {
+        sendBtn.disabled = false;
+        sendBtn.innerText = 'Send Code';
         ProfileSwal.fire({
-            icon: 'info',
-            title: 'Code Generated',
-            text: 'Demo verification code: 123456',
-            timer: 3500,
-            showConfirmButton: true
+            icon: 'error',
+            title: 'Delivery Failed',
+            text: 'Unable to deliver verification email at this moment. Please check your internet connection or email configuration.'
         });
-        document.getElementById('modalOtpCodeInput').value = '123456';
     }
 }
 
@@ -251,7 +298,13 @@ async function handleVerifySaveEmail() {
     });
 
     const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-    const customerId = localUser.customer_id || 11;
+    const customerId = localUser.customer_id || '';
+    const userId = localUser.user_id || localUser.id || '';
+
+    if (!customerId && !userId) {
+        ProfileSwal.fire({ icon: 'error', title: 'Session Expired', text: 'Please log in again to verify and update your account.' });
+        return;
+    }
 
     try {
         const res = await fetch('/api/customer/email-otp/verify', {
@@ -259,6 +312,7 @@ async function handleVerifySaveEmail() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 customer_id: customerId,
+                user_id: userId,
                 new_email: newEmail,
                 otp_code: otpCode
             })
@@ -274,7 +328,6 @@ async function handleVerifySaveEmail() {
             return;
         }
 
-        // Tagumpay na na-save sa Supabase
         document.getElementById('emailChangeModal').classList.remove('active');
         document.getElementById('profileCurrentEmailDisplay').value = newEmail;
 
@@ -284,19 +337,20 @@ async function handleVerifySaveEmail() {
         ProfileSwal.fire({
             icon: 'success',
             title: 'Email Updated!',
-            text: 'Your email address has been successfully updated in the database.'
+            text: 'Your email address has been successfully updated in your profile.'
         });
     } catch {
         ProfileSwal.fire({
             icon: 'error',
             title: 'Server Error',
-            text: 'An error occurred while connecting to the server.'
+            text: 'An error occurred while connecting to the server. Please try again.'
         });
     }
 }
 
 function setupProfileForm() {
     const form = document.getElementById('profileForm');
+    if (!form) return;
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -304,7 +358,8 @@ function setupProfileForm() {
         const fullName = document.getElementById('full_name').value.trim();
         const username = document.getElementById('username').value.trim();
         const phone = document.getElementById('phone').value.trim();
-        const avatarSrc = document.getElementById('avatarRoundPreview').src;
+        const avatarRound = document.getElementById('avatarRoundPreview');
+        const avatarSrc = (avatarRound && !avatarRound.src.includes('account.png')) ? avatarRound.src : '';
 
         if (!fullName) {
             ProfileSwal.fire({ icon: 'warning', title: 'Missing Field', text: 'Full name is required.' });
@@ -325,13 +380,19 @@ function setupProfileForm() {
 
         ProfileSwal.fire({
             title: 'Saving Profile...',
-            text: 'Validating and updating your details in database...',
+            text: 'Validating and updating your details...',
             allowOutsideClick: false,
             didOpen: () => { Swal.showLoading(); }
         });
 
         const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-        const customerId = localUser.customer_id || 11;
+        const customerId = localUser.customer_id || '';
+        const userId = localUser.user_id || localUser.id || '';
+
+        if (!customerId && !userId && !localUser.email) {
+            ProfileSwal.fire({ icon: 'error', title: 'Authentication Required', text: 'Please log in to save changes.' });
+            return;
+        }
 
         try {
             const res = await fetch('/api/customer/profile', {
@@ -339,6 +400,8 @@ function setupProfileForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     customer_id: customerId,
+                    user_id: userId,
+                    email: localUser.email,
                     full_name: fullName,
                     username: username,
                     phone_number: phone,
@@ -360,11 +423,11 @@ function setupProfileForm() {
             localUser.username = username;
             localUser.phone = phone;
             localUser.phone_number = phone;
-            localUser.avatar = avatarSrc;
+            if (avatarSrc) localUser.avatar = avatarSrc;
             localStorage.setItem('mm_user', JSON.stringify(localUser));
 
             const navAvatar = document.querySelector('.nav-avatar-img-badge');
-            if (navAvatar) navAvatar.src = avatarSrc;
+            if (navAvatar && avatarSrc) navAvatar.src = avatarSrc;
 
             ProfileSwal.fire({
                 icon: 'success',

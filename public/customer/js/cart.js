@@ -1,10 +1,26 @@
+// public/customer/js/cart.js
 document.addEventListener('DOMContentLoaded', () => {
   loadCartItems();
 });
 
 let loadedCartItems = [];
 
-// Resolve cup asset paths and preset items[cite: 7]
+// Helper: Alamin kung Account ID (Registered) o Temporary Session ID (Guest) ang gagamitin
+function getActiveCartPayload() {
+  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  if (user && user.customer_id) {
+    return { customer_id: user.customer_id };
+  }
+
+  let guestSessionId = sessionStorage.getItem('mm_guest_session_id');
+  if (!guestSessionId) {
+    guestSessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    sessionStorage.setItem('mm_guest_session_id', guestSessionId);
+  }
+  return { session_id: guestSessionId };
+}
+
+// Resolve cup asset paths and preset items
 function resolveCartAssets(title, flavor, variation, size, toppingsList) {
   const titleLower = (title || '').toLowerCase();
   const flavorLower = (flavor || title || '').toLowerCase();
@@ -12,7 +28,7 @@ function resolveCartAssets(title, flavor, variation, size, toppingsList) {
   const isLarge = size !== '8oz';
   const folderSize = isLarge ? 'Large' : 'Small';
 
-  // Preset drinks[cite: 7]
+  // Preset drinks
   const presets = {
     'chocolatey coffee noodly jelly': { image: 'images/Chocolatey Coffee Noodly Jelly.png', accent: '#664638' },
     'cheesy pandan cubes': { image: 'images/Cheesy Pandan Cubes.png', accent: '#8bb35c' },
@@ -33,14 +49,14 @@ function resolveCartAssets(title, flavor, variation, size, toppingsList) {
     }
   }
 
-  // Custom cup layers[cite: 7]
-  let resolvedFlavor = 'Pandan';
+  // Custom cup layers
+  let resolvedFlavor = 'pandan';
   let accent = '#8bb35c';
   if (flavorLower.includes('strawberry') || titleLower.includes('strawberry')) {
-    resolvedFlavor = 'Strawberry';
+    resolvedFlavor = 'strawberry';
     accent = '#f48a8e';
   } else if (flavorLower.includes('coffee') || titleLower.includes('coffee')) {
-    resolvedFlavor = 'Coffee';
+    resolvedFlavor = 'coffee';
     accent = '#664638';
   }
 
@@ -54,7 +70,7 @@ function resolveCartAssets(title, flavor, variation, size, toppingsList) {
   const l1Path = `images/Layer 1/${folderSize} Flavors/${resolvedFlavor} ${resolvedJelly}.png`;
   const l3Path = isLarge ? 'images/Layer 3/Large Cup.png' : 'images/Layer 3/Small Cup.png';
 
-  // Custom toppings layer[cite: 7]
+  // Custom toppings layer
   let l2Path = '';
   const toppingsStr = (toppingsList || []).join(' ').toLowerCase();
   const toppingMap = {
@@ -86,26 +102,22 @@ function resolveCartAssets(title, flavor, variation, size, toppingsList) {
   };
 }
 
-// Fetch active customer cart items[cite: 7]
+// Fetch active customer cart items (Registered man o Guest)
 async function loadCartItems() {
   const cartList = document.getElementById('cartList');
-  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  const idPayload = getActiveCartPayload();
 
-  if (!user || !user.customer_id) {
-    cartList.innerHTML = `
-      <div style="text-align: center; padding: 60px 20px; color: #777; width: 100%;">
-        <i class="fa-solid fa-basket-shopping" style="font-size: 3rem; color: #b8a69d; margin-bottom: 16px;"></i>
-        <p style="font-size: 1.25rem; font-weight: 700; color: #4a3427; margin-bottom: 8px;">Your cart is empty</p>
-        <p style="font-size: 0.95rem; margin-bottom: 20px;">Log in to view your sweet cup bag across devices!</p>
-        <a href="login.html" style="display: inline-block; padding: 10px 24px; background: #F48A8E; color: #fff; text-decoration: none; border-radius: 99px; font-weight: 700;">Log In</a>
-      </div>
-    `;
-    updateSelectAllCount(0);
-    return;
-  }
+  const queryParam = idPayload.customer_id
+    ? `customer_id=${encodeURIComponent(idPayload.customer_id)}`
+    : `session_id=${encodeURIComponent(idPayload.session_id)}`;
 
   try {
-    const res = await fetch(`/api/cart?customer_id=${user.customer_id}`);
+    const res = await fetch(`/api/cart?${queryParam}`, {
+      headers: {
+        'x-session-id': idPayload.session_id || '',
+        'x-customer-id': idPayload.customer_id || ''
+      }
+    });
     const data = await res.json();
     loadedCartItems = data.items || [];
 
@@ -128,11 +140,12 @@ async function loadCartItems() {
     updateSelectAllCount(loadedCartItems.length);
 
   } catch (err) {
+    console.error('Cart load error:', err);
     cartList.innerHTML = `<div style="text-align: center; padding: 40px; color: #d32f2f;">Could not load cart items. Please refresh.</div>`;
   }
 }
 
-// Render dynamic cart DOM elements[cite: 7]
+// Render dynamic cart DOM elements
 function renderCartList(items) {
   const cartList = document.getElementById('cartList');
   cartList.innerHTML = items.map(item => {
@@ -211,7 +224,7 @@ function renderCartList(items) {
   }).join('');
 }
 
-// Update quantity and synchronize with backend[cite: 7]
+// Update quantity and synchronize with backend
 window.updateItemQty = function(itemId, delta) {
   const qtyEl = document.getElementById(`qty-${itemId}`);
   const lineTotalEl = document.getElementById(`line-total-${itemId}`);
@@ -236,39 +249,45 @@ window.updateItemQty = function(itemId, delta) {
     wrapper.classList.add('item-bump-new');
   }
 
-  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  const idPayload = getActiveCartPayload();
 
   fetch('/api/cart', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-session-id': idPayload.session_id || ''
+    },
     body: JSON.stringify({
       action: 'update_qty',
       id: itemId,
       quantity: newQty,
-      customer_id: user?.customer_id
+      ...idPayload
     })
   }).catch(err => console.error('Cart quantity sync error:', err));
 };
 
-// Update item selection toggle in database[cite: 7]
+// Update item selection toggle in database
 window.onItemSelectionChanged = function(itemId, checkbox) {
   calculateCartTotals();
 
-  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  const idPayload = getActiveCartPayload();
 
   fetch('/api/cart', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-session-id': idPayload.session_id || ''
+    },
     body: JSON.stringify({
       action: 'update_selection',
       id: itemId,
       is_selected: checkbox.checked,
-      customer_id: user?.customer_id
+      ...idPayload
     })
   }).catch(err => console.error('Selection sync error:', err));
 };
 
-// Remove single item from cart[cite: 7]
+// Remove single item from cart
 window.removeCartItem = function(itemId) {
   const itemEl = document.getElementById(`cart-item-${itemId}`);
   if (!itemEl) return;
@@ -279,20 +298,23 @@ window.removeCartItem = function(itemId) {
   const remaining = document.querySelectorAll('.cart-item-wrapper').length;
   updateSelectAllCount(remaining);
 
-  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  const idPayload = getActiveCartPayload();
 
   fetch('/api/cart', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-session-id': idPayload.session_id || ''
+    },
     body: JSON.stringify({
       action: 'delete',
       id: itemId,
-      customer_id: user?.customer_id
+      ...idPayload
     })
   }).catch(err => console.error('Item removal error:', err));
 };
 
-// Select or unselect all cart items[cite: 7]
+// Select or unselect all cart items
 window.toggleSelectAll = function(selectAll) {
   document.querySelectorAll('.cart-item-checkbox').forEach(cb => cb.checked = selectAll.checked);
   calculateCartTotals();
@@ -303,7 +325,7 @@ function updateSelectAllCount(count) {
   if (el) el.textContent = `Select All (${count})`;
 }
 
-// Calculate subtotal and selection summary[cite: 7]
+// Calculate subtotal and selection summary
 function calculateCartTotals() {
   const wrappers = document.querySelectorAll('.cart-item-wrapper');
   let selectedCount = 0;
@@ -327,9 +349,19 @@ function calculateCartTotals() {
   if (selectAll) {
     selectAll.checked = (selectedCount > 0 && selectedCount === wrappers.length);
   }
+
+  // Live update ng Cart Badge counter sa navbar
+  const countBadge = document.getElementById('navCartCount');
+  if (countBadge) {
+    const totalAllQty = Array.from(wrappers).reduce((sum, w) => {
+      return sum + (parseInt(w.querySelector('.qty-val').textContent, 10) || 1);
+    }, 0);
+    countBadge.innerText = totalAllQty;
+    countBadge.style.display = totalAllQty > 0 ? 'inline-block' : 'none';
+  }
 }
 
-// Proceed to checkout: open the Order Summary modal on this same page[cite: 7]
+// Proceed to checkout route
 window.openOrderSummaryFromCart = function() {
   const selectedCount = parseInt(document.getElementById('selectedCountText').textContent) || 0;
   if (selectedCount === 0) {
@@ -350,17 +382,16 @@ window.openOrderSummaryFromCart = function() {
     return;
   }
 
-  const selectedIds = Array.from(document.querySelectorAll('.cart-item-checkbox'))
-    .filter(cb => cb.checked)
-    .map(cb => {
-      const wrapper = cb.closest('.cart-item-wrapper');
-      return wrapper ? wrapper.getAttribute('data-item-id') : null;
-    })
-    .filter(Boolean);
-
-  const selectedItems = loadedCartItems.filter(it => selectedIds.includes(String(it.id)));
-
+  // Kung may order summary modal script sa page, i-trigger ito; kung wala, mag-proceed sa checkout route
   if (typeof renderOrderSummaryModal === 'function') {
+    const selectedWrappers = Array.from(document.querySelectorAll('.cart-item-wrapper')).filter(w => {
+      const cb = w.querySelector('.cart-item-checkbox');
+      return cb && cb.checked;
+    });
+    const selectedIds = selectedWrappers.map(w => String(w.getAttribute('data-item-id')));
+    const selectedItems = loadedCartItems.filter(item => selectedIds.includes(String(item.id)));
     renderOrderSummaryModal(selectedItems);
+  } else {
+    window.location.href = 'checkout.html?from_cart=true';
   }
 };

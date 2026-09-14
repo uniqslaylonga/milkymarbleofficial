@@ -8,8 +8,52 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
-function getCustomerId(req) {
-  return req.headers['x-customer-id'] || req.query.customer_id || (req.body && req.body.customer_id) || 11;
+// Dynamic Resolver: Hinahanap ang customer base sa verified user_id, email, o customer_id
+async function resolveCustomer(req) {
+  if (!supabase) return null;
+
+  const userId = req.body?.user_id || req.query?.user_id || req.cookies?.user_id;
+  const email = req.body?.recipient_email || req.body?.guest_email || req.query?.email;
+  const customerId = req.body?.customer_id || req.query?.customer_id || req.headers['x-customer-id'] || req.cookies?.customer_id;
+
+  // 1. Unahing hanapin gamit ang user_id para laging tumpak sa naka-login
+  if (userId && !isNaN(parseInt(userId, 10))) {
+    const { data } = await supabase
+      .from('customers')
+      .select('id, user_id, loyalty_points')
+      .eq('user_id', parseInt(userId, 10))
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  // 2. Kung may email, hanapin via users table
+  if (email) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', String(email).trim().toLowerCase())
+      .maybeSingle();
+    if (user) {
+      const { data } = await supabase
+        .from('customers')
+        .select('id, user_id, loyalty_points')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) return data;
+    }
+  }
+
+  // 3. Kung customer PK id ang pinasa
+  if (customerId && !isNaN(parseInt(customerId, 10))) {
+    const { data } = await supabase
+      .from('customers')
+      .select('id, user_id, loyalty_points')
+      .eq('id', parseInt(customerId, 10))
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  return null;
 }
 
 // POST /api/orders
@@ -23,7 +67,6 @@ router.post('/', async (req, res) => {
     }
 
     const {
-      customer_id,
       items,
       subtotal,
       discount_amount,
@@ -31,54 +74,58 @@ router.post('/', async (req, res) => {
       payment_method,
       pickup_date,
       pickup_instructions,
-      order_type
+      order_type,
+      guest_name,
+      guest_email,
+      recipient_name,
+      recipient_email
     } = req.body;
 
-    const targetCustomerId = customer_id || getCustomerId(req);
+    const customer = await resolveCustomer(req);
+    const targetCustomerId = customer ? customer.id : null;
+    const isGuestOrder = !targetCustomerId;
+
     const orderSubtotal = parseFloat(subtotal || 0);
     const promoDiscount = parseFloat(discount_amount || 0);
     const requestedPointsUsed = parseFloat(points_used || 0);
 
     const VALID_PAYMENT_METHODS = ['Cash on Pick-Up', 'E-Wallet'];
-    if (!payment_method || !VALID_PAYMENT_METHODS.includes(payment_method)) {
+    const cleanPaymentMethod = payment_method || 'Cash on Pick-Up';
+    if (!VALID_PAYMENT_METHODS.includes(cleanPaymentMethod)) {
       return res.status(400).json({
         status: 'error',
         message: 'Please select a valid payment method (Cash on Pick-Up or E-Wallet).'
       });
     }
 
-    const { data: customer, error: custErr } = await supabase
-      .from('customers')
-      .select('id, loyalty_points')
-      .eq('id', targetCustomerId)
-      .single();
+    // Decimal Points Math (Sinusuportahan ang 2 decimal places)
+    const currentPoints = customer ? parseFloat(customer.loyalty_points || 0) : 0.0;
+    const actualPointsDiscount = isGuestOrder 
+      ? 0.0 
+      : Number(Math.min(currentPoints, requestedPointsUsed, orderSubtotal).toFixed(2));
 
-    if (custErr || !customer) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Customer ID ${targetCustomerId} not found in database.`
-      });
-    }
+    const finalTotalAmount = Math.max(0, Number((orderSubtotal - promoDiscount - actualPointsDiscount).toFixed(2)));
 
-    const currentPoints = parseFloat(customer.loyalty_points || 0);
-    const actualPointsDiscount = Math.min(currentPoints, requestedPointsUsed, orderSubtotal);
-    const finalTotalAmount = Math.max(0, orderSubtotal - promoDiscount - actualPointsDiscount);
-    const pointsEarned = Number((Math.floor(finalTotalAmount / 10) * 0.1).toFixed(2));
-    const newPointsBalance = Number(Math.max(0, currentPoints - actualPointsDiscount + pointsEarned).toFixed(2));
+    // Tumpak na Formula: Bawat ₱10 nagastos = 0.10 loyalty points (hal. ₱19 = 0.10 pts, ₱100 = 1.00 pt)
+    const pointsEarned = isGuestOrder 
+      ? 0.0 
+      : Number((Math.floor(finalTotalAmount / 10) * 0.10).toFixed(2));
+
+    const newPointsBalance = Math.max(0, Number((currentPoints - actualPointsDiscount + pointsEarned).toFixed(2)));
 
     const orderNumber = `MM-${Date.now().toString().slice(-6)}`;
-    const scheduleText = pickup_instructions || (pickup_date ? `Pick-up: ${pickup_date}` : 'Pick-up: N/A');
+    const scheduleDate = pickup_date || null;
+    const scheduleText = pickup_instructions || (scheduleDate ? `Pick-up: ${scheduleDate}` : 'Pick-up: N/A');
 
-    // 1. Tiyaking pumasa sa orders_order_type_check: 'preset' o 'custom_build'
     const isCustomOrder = order_type === 'custom_build' || (Array.isArray(items) && items.some(i => i.is_custom));
     const validOrderType = isCustomOrder ? 'custom_build' : 'preset';
 
-    // 2. Tiyaking pumasa sa orders_status_check: 'PENDING_PAYMENT' o 'PAID_VERIFIED'
-    // NOTE: Orders always start PENDING_PAYMENT now. For "E-Wallet" orders, status
-    // only flips to PAID_VERIFIED once PayMongo confirms the QRPh payment (via
-    // webhook, see src/routes/paymentRoutes.js) — we no longer auto-mark orders
-    // as paid at creation time, since no actual payment had happened yet.
-    const validStatus = 'PENDING_PAYMENT';
+    const validStatus = (cleanPaymentMethod === 'E-Wallet' && finalTotalAmount <= 0)
+      ? 'PAID_VERIFIED'
+      : 'PENDING_PAYMENT';
+
+    const cleanGuestName = guest_name || recipient_name || null;
+    const cleanGuestEmail = guest_email || recipient_email || null;
 
     const orderPayload = {
       customer_id: targetCustomerId,
@@ -88,8 +135,11 @@ router.post('/', async (req, res) => {
       subtotal: orderSubtotal,
       discount_amount: Number((promoDiscount + actualPointsDiscount).toFixed(2)),
       total_amount: finalTotalAmount,
-      pickup_instructions: `${scheduleText} | Payment: ${payment_method || 'Cash on Pick-Up'}`,
-      payment_method: payment_method || 'Cash on Pick-Up',
+      payment_method: cleanPaymentMethod,
+      pickup_date: scheduleDate,
+      pickup_instructions: `${scheduleText} | Payment: ${cleanPaymentMethod}`,
+      guest_name: cleanGuestName,
+      guest_email: cleanGuestEmail,
       placed_at: new Date().toISOString()
     };
 
@@ -108,43 +158,35 @@ router.post('/', async (req, res) => {
       const orderItemsToInsert = items.map(item => ({
         order_id: newOrder.id,
         item_label: item.title || item.item_label || 'Special Blend Cup',
-        quantity: item.quantity || 1,
+        quantity: parseInt(item.quantity || 1, 10),
         unit_price: parseFloat(item.unit_price || item.price || orderSubtotal),
-        line_total: parseFloat((item.quantity || 1) * (item.unit_price || item.price || orderSubtotal))
+        line_total: parseFloat((parseInt(item.quantity || 1, 10)) * (parseFloat(item.unit_price || item.price || orderSubtotal)))
       }));
 
       await supabase.from('order_items').insert(orderItemsToInsert);
     }
 
-    const { data: updatedCustomer, error: pointsUpdateErr } = await supabase
-      .from('customers')
-      .update({ loyalty_points: newPointsBalance })
-      .eq('id', targetCustomerId)
-      .select('id, loyalty_points')
-      .single();
+    // I-update ang decimal loyalty_points sa Supabase customers table
+    let updatedPointsResult = currentPoints;
+    if (customer && targetCustomerId) {
+      const { data: updatedCustomer, error: pointsUpdateErr } = await supabase
+        .from('customers')
+        .update({ loyalty_points: newPointsBalance })
+        .eq('id', customer.id)
+        .select('id, user_id, loyalty_points')
+        .single();
 
-    if (pointsUpdateErr || !updatedCustomer) {
-      // The order itself was already created successfully - don't fail the
-      // whole request - but make sure this is loud and visible, since a
-      // silent failure here means points never actually get deducted.
-      console.error(
-        `[ROUTE LOYALTY SYNC] FAILED to update Customer ${targetCustomerId} points ` +
-        `(${currentPoints} -> ${newPointsBalance}):`,
-        pointsUpdateErr ? pointsUpdateErr.message : 'no row returned (check RLS policy on customers table / SUPABASE_SERVICE_ROLE_KEY)'
-      );
-
-      return res.json({
-        status: 'success',
-        message: 'Order placed successfully, but loyalty points could not be updated. Please contact support.',
-        order: newOrder,
-        points_used: actualPointsDiscount,
-        points_earned: pointsEarned,
-        new_loyalty_points: currentPoints, // unchanged - reflect reality, not the intended value
-        points_sync_error: true
-      });
+      if (pointsUpdateErr || !updatedCustomer) {
+        console.error(
+          `[ROUTE LOYALTY SYNC] FAILED to update Customer ${customer.id} points ` +
+          `(${currentPoints} -> ${newPointsBalance}):`,
+          pointsUpdateErr ? pointsUpdateErr.message : 'No row returned'
+        );
+      } else {
+        updatedPointsResult = parseFloat(updatedCustomer.loyalty_points);
+        console.log(`[ROUTE LOYALTY SYNC] Active Account User ${updatedCustomer.user_id}: ${currentPoints} -> ${updatedPointsResult} pts.`);
+      }
     }
-
-    console.log(`[ROUTE LOYALTY SYNC] Customer ${targetCustomerId}: ${currentPoints} -> ${updatedCustomer.loyalty_points} pts.`);
 
     return res.json({
       status: 'success',
@@ -152,7 +194,7 @@ router.post('/', async (req, res) => {
       order: newOrder,
       points_used: actualPointsDiscount,
       points_earned: pointsEarned,
-      new_loyalty_points: updatedCustomer.loyalty_points
+      new_loyalty_points: updatedPointsResult
     });
 
   } catch (err) {
@@ -166,22 +208,24 @@ router.get('/', async (req, res) => {
   if (!supabase) return res.json({ status: 'success', orders: [] });
 
   try {
-    const customerId = getCustomerId(req);
+    const customer = await resolveCustomer(req);
+    if (!customer) return res.json({ status: 'success', orders: [] });
+
     const { data: orders, error } = await supabase
       .from('orders')
       .select(`
         id, order_number, status, subtotal, discount_amount, total_amount, 
-        pickup_instructions, placed_at,
+        pickup_instructions, pickup_date, placed_at,
         order_items (id, item_label, quantity, unit_price, line_total)
       `)
-      .eq('customer_id', customerId)
+      .eq('customer_id', customer.id)
       .order('placed_at', { ascending: false });
 
     if (error) throw error;
 
     const formattedOrders = (orders || []).map(o => {
-      let schedule = 'N/A';
-      if (o.pickup_instructions) {
+      let schedule = o.pickup_date || 'N/A';
+      if (schedule === 'N/A' && o.pickup_instructions) {
         const match = o.pickup_instructions.match(/Pick-up:\s*([^|]+)/i);
         if (match) schedule = match[1].trim();
       }
@@ -211,11 +255,13 @@ router.get('/recent', async (req, res) => {
   if (!supabase) return res.json({ status: 'success', orders: [] });
 
   try {
-    const customerId = getCustomerId(req);
+    const customer = await resolveCustomer(req);
+    if (!customer) return res.json({ status: 'success', orders: [] });
+
     const { data, error } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at')
-      .eq('customer_id', customerId)
+      .select('id, order_number, status, total_amount, placed_at, pickup_date, pickup_instructions')
+      .eq('customer_id', customer.id)
       .order('placed_at', { ascending: false })
       .limit(3);
 

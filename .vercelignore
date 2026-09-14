@@ -1,6 +1,4 @@
-.env
 .git
+.env
 node_modules
-docker-compose.yml
-Dockerfile
 test-email.js

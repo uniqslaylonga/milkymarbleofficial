@@ -41,13 +41,13 @@ function resolveItemAssets(cleanTitle, size, toppingsStr) {
     }
   }
 
-  let flavor = 'Pandan';
+  let flavor = 'pandan';
   let accent = '#8bb35c';
   if (cleanLower.includes('strawberry')) {
-    flavor = 'Strawberry';
+    flavor = 'strawberry';
     accent = '#f48a8e';
   } else if (cleanLower.includes('coffee')) {
-    flavor = 'Coffee';
+    flavor = 'coffee';
     accent = '#664638';
   }
 

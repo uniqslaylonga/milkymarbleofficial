@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only light">
+  <title>Milky Marble - Payment Status</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #FFF5F4;
+      font-family: 'Urbanist', Arial, sans-serif;
+      color: #594A42;
+      padding: 20px;
+    }
+    .status-card {
+      max-width: 420px;
+      width: 100%;
+      background: #FFFDFD;
+      border: 1.5px solid #FCE1DD;
+      border-radius: 24px;
+      padding: 36px 30px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(89, 74, 66, 0.08);
+    }
+    .status-icon {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+      font-size: 32px;
+      color: #fff;
+    }
+    .status-icon.loading { background: #F8C8CA; }
+    .status-icon.success { background: #4CAF50; }
+    .status-icon.pending { background: #F5A623; }
+    .status-icon.failed { background: #E85D5D; }
+    h1 { font-family: 'Fredoka', sans-serif; font-size: 22px; margin: 0 0 10px; color: #594A42; }
+    p { font-size: 14.5px; line-height: 1.5; color: #7C4F38; margin: 0 0 6px; }
+    .order-no { font-weight: 800; color: #F48A8E; }
+    .btn-back {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 12px 28px;
+      background: #F48A8E;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: 99px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-retry {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 24px;
+      background: #fff;
+      color: #F48A8E;
+      font-weight: 700;
+      border: 1.5px solid #FCE1DD;
+      border-radius: 99px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .fa-spin { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="status-card" id="statusCard">
+    <div class="status-icon loading"><i class="fa-solid fa-spinner fa-spin"></i></div>
+    <h1>Checking your payment...</h1>
+    <p>Please hold on while we confirm your PayMongo payment with Milky Marble.</p>
+  </div>
+
+  <script>
+    function getParam(name) {
+      return new URLSearchParams(window.location.search).get(name);
+    }
+
+    async function verifyPayment(orderId, attempt = 1) {
+      try {
+        const res = await fetch(`/api/payments/verify/${orderId}`);
+        const data = await res.json();
+
+        if (res.ok && data.status === 'success') {
+          if (data.paid) {
+            return renderResult('success', data.order);
+          }
+          // Payment may still be settling right after redirect - retry briefly.
+          if (attempt < 5) {
+            setTimeout(() => verifyPayment(orderId, attempt + 1), 2000);
+            return;
+          }
+          return renderResult('pending', data.order);
+        }
+        throw new Error(data.message || 'Could not verify payment.');
+      } catch (err) {
+        renderResult('failed', null, err.message);
+      }
+    }
+
+    function renderResult(state, order, errorMessage) {
+      const card = document.getElementById('statusCard');
+      const orderNo = order && order.order_number ? order.order_number : '';
+
+      if (state === 'success') {
+        card.innerHTML = `
+          <div class="status-icon success"><i class="fa-solid fa-check"></i></div>
+          <h1>Payment Confirmed!</h1>
+          <p>Your PayMongo e-wallet payment was successful.</p>
+          ${orderNo ? `<p>Order No: <span class="order-no">${orderNo}</span></p>` : ''}
+          <a class="btn-back" href="orders.html">View My Orders</a>
+        `;
+      } else if (state === 'pending') {
+        card.innerHTML = `
+          <div class="status-icon pending"><i class="fa-solid fa-hourglass-half"></i></div>
+          <h1>Payment Still Processing</h1>
+          <p>We haven't received confirmation from PayMongo yet. This can take a moment for some e-wallets.</p>
+          ${orderNo ? `<p>Order No: <span class="order-no">${orderNo}</span></p>` : ''}
+          <a class="btn-back" href="orders.html">View My Orders</a><br>
+          <a class="btn-retry" href="javascript:location.reload()">Check Again</a>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="status-icon failed"><i class="fa-solid fa-xmark"></i></div>
+          <h1>Payment Not Completed</h1>
+          <p>${errorMessage || 'Your PayMongo payment was cancelled or could not be confirmed.'}</p>
+          <a class="btn-back" href="orders.html">Back to Orders</a>
+        `;
+      }
+    }
+
+    (function init() {
+      const orderId = getParam('order_id');
+      const cancelled = getParam('cancelled');
+
+      if (!orderId) {
+        return renderResult('failed', null, 'Missing order reference.');
+      }
+      if (cancelled === '1') {
+        return renderResult('failed', null, 'You cancelled the PayMongo checkout before paying.');
+      }
+      verifyPayment(orderId);
+    })();
+  </script>
+</body>
+</html>

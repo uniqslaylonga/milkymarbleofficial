@@ -1,14 +1,9 @@
 :root {
-  /* Fonts are loaded via Google Fonts <link> in the <head> of home.html.
-     Fredoka = rounded logo wordmark, Baloo 2 = chunky section headers,
-     Urbanist = body text. Falling back to local()-only fonts (the old
-     "Kawaii RT - Mona" / "Bootzy TM") meant almost no visitor ever saw
-     them, since those aren't real installed system fonts. */
-  --font-logo: "Fredoka", cursive, sans-serif;
+  --font-logo: "Kawaii RT", "Fredoka", sans-serif;
   --font-header: "Baloo 2", "Urbanist", sans-serif;
   --font-body: "Urbanist", sans-serif;
 
-  /* Color palette — single source of truth per color, no duplicate aliases */
+  /* Color palette */
   --coral: #f69299;
   --coral-dark: #ea7b82;
   --coral-active: #f48a8e;
@@ -24,6 +19,54 @@
 
 * {
   box-sizing: border-box;
+}
+
+@font-face {
+  font-family: "Bootzy TM";
+  src: url("../images/BootzyTM.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Kawaii RT";
+  src: url("../images/KawaiiRT-Mona.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Urbanist";
+  src: url("../images/Urbanist.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Urbanist";
+  src: url("../images/Urbanist.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Urbanist";
+  src: url("../images/Urbanist.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Urbanist";
+  src: url("../images/Urbanist.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
 }
 
 html {
@@ -71,7 +114,7 @@ body {
   justify-content: space-between;
   width: 100%;
   max-width: 1400px;
-  margin: 0 auto;
+  margin: 30px auto auto auto;
 }
 
 .brand-container-nav {
@@ -82,21 +125,19 @@ body {
 }
 
 .brand-logo-img-nav {
-  max-width: 58px;
-  height: auto;
+  width: 54px;
+  height: 54px;
   object-fit: contain;
   display: inline-block;
 }
 
 .brand-name-nav {
   font-family: var(--font-logo);
-  font-weight: 600;
-  font-size: 27px;
+  font-size: 30px;
   color: var(--coral);
-  -webkit-text-stroke: 1px var(--brown-soft);
-  text-shadow: -1px -1px 0 var(--brown-soft), 1px -1px 0 var(--brown-soft),
-    -1px 1px 0 var(--brown-soft), 1px 1px 0 var(--brown-soft);
-  letter-spacing: 0.5px;
+  -webkit-text-stroke: 2.5px var(--brown-soft);
+  paint-order: stroke fill;
+  letter-spacing: 2px;
   line-height: 1;
 }
 
@@ -200,6 +241,7 @@ body {
   box-sizing: border-box;
 }
 
+/* HERO SECTION */
 .hero {
   flex-wrap: wrap;
   gap: 40px;
@@ -241,39 +283,86 @@ body {
   font-weight: 600;
   line-height: 1.5;
   max-width: 560px;
-  margin: 0 0 32px 0;
+  margin: 0 0 15px 0;
 }
 
+/* 3-STACK HERO ACTIONS STYLING */
 .hero-actions {
   display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 15px;
+  margin-top: 24px;
 }
 
-.cta-btn {
-  background: var(--coral);
-  color: #fff;
-  border: none;
-  border-radius: 30px;
-  padding: 18px 34px;
-  font-size: 17px;
-  font-weight: 800;
-  font-family: var(--font-body);
-  cursor: pointer;
-  text-decoration: none;
+/* Stack 1: Primary Sign Up Pill */
+.cta-btn-primary {
   display: inline-block;
-  transition: background 0.2s ease, transform 0.1s ease;
+  margin-bottom: 15px;
+  padding: 14px 32px;
+  background-color: var(--coral-active);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1.05rem;
+  border-radius: 99px;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px rgba(244, 138, 142, 0.35);
 }
 
-.cta-btn:hover {
-  background: var(--coral-dark);
+.cta-btn-primary:hover {
+  background-color: var(--coral-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(244, 138, 142, 0.45);
 }
 
-.cta-btn:active {
-  transform: scale(0.98);
+.cta-btn-primary:active {
+  transform: translateY(0);
 }
 
+/* Stack 2: Login Text Link */
+.hero-login-text {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--brown);
+  margin: 0;
+  font-weight: 600;
+}
+
+.hero-login-link {
+  color: var(--coral-active);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.hero-login-link:hover {
+  color: var(--coral-dark);
+}
+
+/* Stack 3: Guest Text Link */
+.hero-guest-text {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.hero-guest-link {
+  color: var(--brown-soft);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.hero-guest-link:hover {
+  color: var(--coral-active);
+}
+
+/* ABOUT SECTION */
 .about-wrap,
 .faq-wrap,
 .terms-wrap {
@@ -350,6 +439,7 @@ body {
   object-fit: cover;
 }
 
+/* FAQ SECTION */
 .faq-card {
   background: #fcf5f5;
   width: 100%;
@@ -477,6 +567,7 @@ body {
   line-height: 1.65;
 }
 
+/* TERMS SECTION */
 .terms-card {
   width: 100%;
   padding: 40px 48px;
@@ -594,7 +685,7 @@ body {
   font-size: 14.5px !important;
 }
 
-/*  FOOTER  */
+/* FOOTER */
 .footer {
   text-align: center;
   padding: 28px 24px 36px 24px;
@@ -607,6 +698,7 @@ body {
   margin: 0;
 }
 
+/* RESPONSIVE DESIGN */
 @media (max-width: 900px) {
   :root {
     --nav-height: 120px;
@@ -682,7 +774,10 @@ body {
   }
 
   .hero-actions {
+    align-items: center;
     justify-content: center;
+    text-align: center;
+    margin: auto;
   }
 
   .about-card,

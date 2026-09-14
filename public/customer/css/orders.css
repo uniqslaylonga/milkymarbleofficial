@@ -58,6 +58,169 @@ body {
     box-sizing: border-box;
 }
 
+/* ==================================================== */
+/* GUEST ORDER TRACKING CARD (MILKY MARBLE AESTHETIC)   */
+/* ==================================================== */
+.guest-track-card {
+    width: 100%;
+    max-width: 480px;
+    margin: 40px auto;
+    background: #FFFFFF;
+    border: 2px solid #FCE1DD;
+    border-radius: 28px;
+    padding: 38px 34px 36px;
+    box-shadow: 0 16px 42px rgba(89, 74, 66, 0.08);
+    text-align: center;
+    box-sizing: border-box;
+    position: relative;
+    animation: fadeInScale 0.3s ease;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.guest-track-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.guest-track-badge-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: #FFF5F4;
+    border: 2px solid #FCE1DD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F48A8E;
+    font-size: 26px;
+    box-shadow: 0 6px 16px rgba(244, 138, 142, 0.18);
+}
+
+.guest-track-title {
+    font-family: 'Sniglet', 'Fredoka', 'Bootzy TM', 'Urbanist', sans-serif !important;
+    font-size: 26px !important;
+    font-weight: 800 !important;
+    color: #594A42 !important;
+    margin: 0 0 8px 0 !important;
+    letter-spacing: -0.2px;
+}
+
+.guest-track-sub {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    color: #7C4F38 !important;
+    line-height: 1.45;
+    margin: 0 0 26px 0 !important;
+    max-width: 360px;
+}
+
+.guest-track-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.guest-input-group {
+    width: 100%;
+    text-align: left;
+}
+
+.guest-form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+    color: #594A42;
+    margin-bottom: 7px;
+    margin-left: 6px;
+}
+
+.guest-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.guest-input-wrapper .input-icon {
+    position: absolute;
+    left: 18px;
+    font-size: 15px;
+    color: #F48A8E;
+    pointer-events: none;
+}
+
+.guest-input-control {
+    width: 100%;
+    height: 50px;
+    padding: 0 18px 0 48px;
+    background: #FFFBFB;
+    border: 1.5px solid #FCE1DD;
+    border-radius: 99px;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #594A42;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.guest-input-control::placeholder {
+    color: #b8a69d;
+    font-weight: 500;
+}
+
+.guest-input-control:focus {
+    background: #FFFFFF;
+    border-color: #F48A8E;
+    box-shadow: 0 0 0 4px rgba(244, 138, 142, 0.16);
+}
+
+.btn-track-submit {
+    width: 100%;
+    height: 50px;
+    margin-top: 8px;
+    background: #F48A8E;
+    border: none;
+    border-radius: 99px;
+    color: #FFFFFF;
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(244, 138, 142, 0.35);
+    transition: all 0.2s ease;
+}
+
+.btn-track-submit:hover {
+    background: #f2797e;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(244, 138, 142, 0.45);
+}
+
+.btn-track-submit:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(244, 138, 142, 0.3);
+}
+
 /* --- FILTER STATUS PILLS --- */
 .orders-filter-container {
     display: flex;
@@ -702,7 +865,7 @@ body {
 }
 
 /* ==================================================== */
-/* 2. RATE YOUR SIPS MODAL (MATCHING SCREENSHOT)        */
+/* 2. RATE YOUR SIPS MODAL                              */
 /* ==================================================== */
 .product-modal-container.rate-modal-card {
     background: #FFF9F8 !important;
@@ -930,6 +1093,16 @@ body {
     .orders-page-wrapper {
         padding: 16px 14px calc(80px + env(safe-area-inset-bottom));
         gap: 20px;
+    }
+
+    .guest-track-card {
+        margin: 20px auto;
+        padding: 28px 20px 24px;
+        border-radius: 22px;
+    }
+
+    .guest-track-title {
+        font-size: 23px !important;
     }
 
     .orders-filter-container {

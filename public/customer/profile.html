@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - Milky Marble</title>
 
-    <!-- Fonts & Icons[cite: 6] -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet"> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> 
     
-    <!-- Stylesheets[cite: 6] -->
     <link rel="stylesheet" href="css/navbar.css"> 
     <link rel="stylesheet" href="css/profile.css">
 
@@ -19,7 +17,6 @@
 </head>
 <body>
 
-    <!-- NAVBAR COMPONENT[cite: 6] -->
     <header class="navbar-wrapper" data-current-page="profile">
       <div class="navbar-container">
         <a href="home.html#drinks" class="brand-container-nav" id="mainBrandContainer">
@@ -73,10 +70,8 @@
                 <p class="profile-subtitle">Manage your profile picture, username cooldowns, and personal details</p>
             </div>
 
-            <!-- Profile Edit Main Card[cite: 6] -->
             <div class="profile-main-card">
                 <form id="profileForm" class="profile-form">
-                    <!-- Avatar Round Preview with Camera Badge[cite: 6] -->
                     <div class="avatar-center-wrapper">
                         <div class="avatar-circle-box">
                             <img src="/images/account.png" alt="Profile Avatar" id="avatarRoundPreview" class="avatar-img-round"> 
@@ -88,14 +83,12 @@
                         <span class="avatar-allowed-text">Allowed: JPG, PNG, or WEBP</span>
                     </div>
 
-                    <!-- Username[cite: 6] -->
                     <div class="profile-field-group">
                         <label for="username" class="field-label">Username</label>
                         <input type="text" id="username" name="username" class="field-input" placeholder="Enter username" required>
                         <span class="field-hint-text" id="usernameHintText">You can change your username once every 30 days.</span>
                     </div>
 
-                    <!-- Email Address[cite: 6] -->
                     <div class="profile-field-group">
                         <label class="field-label">Email Address</label>
                         <div class="email-composite-box">
@@ -105,13 +98,11 @@
                         <span class="field-hint-text">Requires 6-digit code verification sent to your email.</span>
                     </div>
 
-                    <!-- Full Name[cite: 6] -->
                     <div class="profile-field-group">
                         <label for="full_name" class="field-label">Full Name *</label>
                         <input type="text" id="full_name" name="full_name" class="field-input" placeholder="Enter your full name" required>
                     </div>
 
-                    <!-- Contact Number[cite: 6] -->
                     <div class="profile-field-group">
                         <label for="phone" class="field-label">Contact Number</label>
                         <input type="text" id="phone" name="phone" class="field-input" placeholder="09XXXXXXXXX" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -124,7 +115,6 @@
         </div>
     </main>
 
-    <!-- VERIFY EMAIL CHANGE MODAL[cite: 6] -->
     <div class="mm-email-modal-overlay" id="emailChangeModal" onclick="closeEmailChangeModal(event)">
         <div class="mm-email-modal-card" onclick="event.stopPropagation()">
             <button type="button" class="mm-email-modal-close" onclick="closeEmailChangeModal()" title="Close">
@@ -152,7 +142,6 @@
         </div>
     </div>
 
-    <!-- Script Imports[cite: 6] -->
     <script src="js/navbar.js"></script>
     <script src="js/profile.js"></script>
 </body>

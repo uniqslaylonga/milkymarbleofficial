@@ -412,13 +412,14 @@
         <div class="summary-split-col">
           <h3 class="summary-section-title">Payment Method</h3>
           <div class="payment-pills-row">
-            <button type="button" class="payment-method-pill" data-payment-value="Cash on Pick-Up" onclick="selectPaymentMethod(this)">Cash on Pick-Up</button>
-            <button type="button" class="payment-method-pill" data-payment-value="E-Wallet" onclick="selectPaymentMethod(this)">
-              <i class="fa-solid fa-qrcode" style="margin-right: 4px;"></i>Pay via QR Ph
-            </button>
+            <button type="button" class="payment-method-pill" onclick="selectPaymentMethod(this)">Cash on Pick-Up</button>
+            <button type="button" class="payment-method-pill" onclick="selectPaymentMethod(this)">E-Wallet</button>
           </div>
           <span id="paymentRequiredMsg" style="display: none; color: #d32f2f; font-size: 12px; font-weight: 600; margin-top: 6px;">
             Please choose a payment method.
+          </span>
+          <span id="ewalletHint" style="display: none; font-size: 11px; font-weight: 600; color: #7C4F38; margin-top: 6px;">
+            <i class="fa-solid fa-lock"></i> You'll be redirected to PayMongo to pay securely via GCash, Maya, GrabPay, or ShopeePay.
           </span>
         </div>
       </div>
@@ -485,8 +486,7 @@
         <p class="recipient-modal-sub">Tell us who's picking up these sweet sips!</p>
       </div>
 
-      <form id="recipientDetailsForm" class="recipient-form" onsubmit="saveRecipientDetails(event)">
-        <div class="recipient-form-group">
+<form id="recipientDetailsForm" class="recipient-form" onsubmit="saveRecipientDetails(event)" novalidate>        <div class="recipient-form-group">
           <label for="inputRecipientName" class="recipient-form-label">Full Name</label>
           <div class="recipient-input-wrapper">
             <i class="fa-regular fa-user input-icon"></i>

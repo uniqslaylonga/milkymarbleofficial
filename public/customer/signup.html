@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Account - Milky Marble</title>
   <link rel="stylesheet" href="css/signup.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -128,7 +129,6 @@
                 <input type="checkbox" id="remember" name="remember">
                 Remember me
               </label>
-              <a href="login.html" class="forgot">Already have an account?</a>
             </div>
 
             <div class="step-actions">
@@ -138,7 +138,11 @@
           </div>
         </form>
 
-        <a href="index.html" class="guest">Browse as Guest?</a>
+        <p class="auth-redirect" style="margin: 14px 0 6px; font-size: 13px; color: #7C4F38; text-align: center;">
+          Already have an account? <a href="login.html" style="color: #F48A8E; font-weight: 800; text-decoration: none;">Login here</a>
+        </p>
+
+        <a href="home.html" class="guest">Browse as Guest?</a>
       </div>
     </div>
   </div>

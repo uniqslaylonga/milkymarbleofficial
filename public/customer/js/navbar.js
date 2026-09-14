@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavbarSearch();
   initMobileBottomNav();
   initScrollSpyNav();
+  setupGlobalAvatarUpload();
 });
 
 function escapeHtml(str = '') {
@@ -191,36 +192,54 @@ function initNavbarState() {
   const mNavOrders = document.getElementById('m-nav-orders');
   const cartBadge = document.getElementById('navCartCount');
 
-  // Alamin kung nasa Notifications page
   const currentPath = window.location.pathname.toLowerCase();
   const pageAttr = document.querySelector('.navbar-wrapper')?.getAttribute('data-current-page');
   const isNotifPage = currentPath.includes('notifications') || pageAttr === 'notifications';
 
+  let cartQuery = '';
   if (user && user.customer_id) {
-    fetch(`/api/cart/count?customer_id=${encodeURIComponent(user.customer_id)}`)
+    cartQuery = `customer_id=${encodeURIComponent(user.customer_id)}`;
+  } else {
+    const guestId = sessionStorage.getItem('mm_guest_session_id');
+    if (guestId) {
+      cartQuery = `session_id=${encodeURIComponent(guestId)}`;
+    }
+  }
+
+  if (cartQuery && cartBadge) {
+    fetch(`/api/cart/count?${cartQuery}`)
       .then(res => res.json())
       .then(data => {
-        if (cartBadge) {
-          cartBadge.innerText = data.count || 0;
-          cartBadge.style.display = data.count > 0 ? 'inline-block' : 'none';
-        }
+        const count = parseInt(data.count, 10) || 0;
+        cartBadge.innerText = count;
+        cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
       })
       .catch(() => {});
   }
 
-  if (user && user.customer_id) {
+  // REGISTERED CUSTOMER STATE
+  if (user && (user.customer_id || user.user_id || user.id)) {
     const displayName = escapeHtml(user.full_name || user.username || 'Customer');
-    const avatarUrl = user.avatar ? escapeHtml(user.avatar) : 'images/account.png';
+
+    // Sinusuri lahat ng posibleng column names para sa profile image
+    let rawAvatar = user.avatar || user.profile_picture || user.avatar_url || user.photo_url || user.image || '';
+    if (rawAvatar && !rawAvatar.startsWith('http') && !rawAvatar.startsWith('/')) {
+      rawAvatar = '/' + rawAvatar;
+    }
+    const avatarUrl = rawAvatar ? escapeHtml(rawAvatar) : 'images/account.png';
 
     if (userSlot) {
       userSlot.innerHTML = `
         <div class="nav-profile-dropdown-wrapper" id="navProfileDropdown">
           <div class="nav-avatar-trigger" id="navAvatarTrigger" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
-            <img src="${avatarUrl}" alt="User Avatar" class="nav-avatar-img-badge" onerror="this.src='images/account.png'">
+            <img id="navAvatarImgDisplay" src="${avatarUrl}" alt="User Avatar" class="nav-avatar-img-badge" onerror="this.src='images/account.png'">
           </div>
           <div class="nav-profile-menu" id="navProfileMenu">
             <div class="profile-dropdown-header">
-              <span class="dropdown-greeting">Signed in as</span>
+              <div style="position: relative; width: 64px; height: 64px; margin: 0 auto 10px; border-radius: 50%; overflow: hidden; border: 2.5px solid #F48A8E; background: #FFF5F4;">
+                <img id="dropdownAvatarImgDisplay" src="${avatarUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='images/account.png'">
+              </div>
+              <span class="dropdown-greeting">SIGNED IN AS</span>
               <span class="dropdown-username">${displayName}</span>
             </div>
             <hr class="dropdown-separator">
@@ -244,8 +263,14 @@ function initNavbarState() {
       setupDropdownToggle();
     }
 
-    if (navOrders) navOrders.href = 'orders.html';
-    if (mNavOrders) mNavOrders.href = 'orders.html';
+    if (navOrders) {
+      navOrders.href = 'orders.html';
+      navOrders.onclick = null;
+    }
+    if (mNavOrders) {
+      mNavOrders.href = 'orders.html';
+      mNavOrders.onclick = null;
+    }
 
     if (notifContainer) {
       notifContainer.innerHTML = `
@@ -272,21 +297,22 @@ function initNavbarState() {
       loadNavbarDropdownNotifs(user.customer_id);
     }
   } else {
+    // GUEST STATE
     if (userSlot) {
       userSlot.innerHTML = `
-        <a href="customerlogin.html" class="nav-avatar-btn" title="Log In">
+        <a href="javascript:void(0)" class="nav-avatar-btn" title="Log In / Sign Up" onclick="handleGuestAccountPrompt(event)">
           <i class="fa-solid fa-user"></i>
         </a>
       `;
     }
 
     if (navOrders) {
-      navOrders.href = 'javascript:void(0)';
-      navOrders.onclick = () => handleGuestRestricted('orders');
+      navOrders.href = 'orders.html';
+      navOrders.onclick = null;
     }
     if (mNavOrders) {
-      mNavOrders.href = 'javascript:void(0)';
-      mNavOrders.onclick = () => handleGuestRestricted('orders');
+      mNavOrders.href = 'orders.html';
+      mNavOrders.onclick = null;
     }
 
     if (notifContainer) {
@@ -296,6 +322,95 @@ function initNavbarState() {
         </a>
       `;
     }
+  }
+}
+
+function setupGlobalAvatarUpload() {
+  let fileInput = document.getElementById('globalAvatarFileInput');
+  if (!fileInput) {
+    fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.id = 'globalAvatarFileInput';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+  }
+  fileInput.onchange = handleGlobalAvatarFileSelect;
+}
+
+window.triggerNavbarAvatarUpload = function() {
+  const fileInput = document.getElementById('globalAvatarFileInput');
+  if (fileInput) fileInput.click();
+};
+
+async function handleGlobalAvatarFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  const userId = localUser.user_id || localUser.id;
+  const customerId = localUser.customer_id;
+
+  const formData = new FormData();
+  formData.append('profile_picture', file);
+  if (userId) formData.append('user_id', userId);
+  if (customerId) formData.append('customer_id', customerId);
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      title: 'Updating Photo...',
+      text: 'Saving to your profile in the database...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+  }
+
+  try {
+    const res = await fetch('/api/customer/profile/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+
+    const result = await res.json();
+
+    if (res.ok && result.status === 'success') {
+      const newAvatarUrl = result.avatar;
+
+      const navAvatar = document.getElementById('navAvatarImgDisplay');
+      const dropAvatar = document.getElementById('dropdownAvatarImgDisplay');
+      const profileAvatar = document.getElementById('profileAvatarImg');
+      if (navAvatar) navAvatar.src = newAvatarUrl;
+      if (dropAvatar) dropAvatar.src = newAvatarUrl;
+      if (profileAvatar) profileAvatar.src = newAvatarUrl;
+
+      localUser.avatar = newAvatarUrl;
+      localUser.profile_picture = newAvatarUrl;
+      localStorage.setItem('mm_user', JSON.stringify(localUser));
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'success',
+          title: 'Photo Updated!',
+          text: 'Saved successfully to database!',
+          timer: 1800,
+          showConfirmButton: false
+        });
+      }
+    } else {
+      throw new Error(result.message || 'Failed to save avatar.');
+    }
+  } catch (err) {
+    console.error('Avatar upload failed:', err);
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Upload Error',
+        text: err.message || 'Could not save profile image.'
+      });
+    }
+  } finally {
+    event.target.value = '';
   }
 }
 
@@ -508,6 +623,41 @@ function handleGuestRestricted(type) {
   }
 }
 
+window.handleGuestAccountPrompt = function(event, targetUrl = 'login.html') {
+  if (event) event.preventDefault();
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Leave & Create Account?',
+      html: 'Your current drink customizations and unsaved changes will be lost if you leave to create an account now.<br><br>Would you like to sign up now or keep building your drink?',
+      showCancelButton: true,
+      confirmButtonText: 'Sign Up Now',
+      cancelButtonText: 'Sign Up Later',
+      reverseButtons: true,
+      target: document.body,
+      customClass: {
+        container: 'mm-swal-container-top',
+        popup: 'mm-swal-popup',
+        title: 'mm-swal-title',
+        htmlContainer: 'mm-swal-html',
+        actions: 'mm-swal-actions',
+        confirmButton: 'mm-swal-confirm-btn',
+        cancelButton: 'mm-swal-cancel-btn'
+      },
+      buttonsStyling: false
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = targetUrl;
+      }
+    });
+  } else {
+    if (confirm('Your changes will be lost if you leave to create an account. Sign up now?')) {
+      window.location.href = targetUrl;
+    }
+  }
+};
+
 async function executeLogout() {
   try {
     await fetch('/api/auth/logout', {
@@ -572,12 +722,6 @@ function initMobileBottomNav() {
   });
 }
 
-/**
- * Scroll-spy: highlights the nav pill (desktop + mobile) matching whichever
- * .page-section is currently in view. Only runs on pages that actually have
- * the hash-linked sections (i.e. home.html) — on other pages it's a no-op
- * and whatever active class is already in that page's markup is left alone.
- */
 function initScrollSpyNav() {
   const sections = Array.from(document.querySelectorAll('main.content-wrapper > .page-section[id]'));
   if (!sections.length) return;
@@ -585,7 +729,6 @@ function initScrollSpyNav() {
   const navLinks = document.querySelectorAll('.nav-pill-link[data-nav]');
   if (!navLinks.length) return;
 
-  // Recent Orders preview section shares the "orders" nav pill.
   const sectionToNavId = (section) =>
     section.id === 'orders-preview' ? 'orders' : section.id;
 
@@ -597,16 +740,9 @@ function initScrollSpyNav() {
 
   function getNavbarOffset() {
     const navbar = document.querySelector('.navbar-wrapper');
-    return (navbar ? navbar.offsetHeight : 0) + 24; // small buffer past the sticky header
+    return (navbar ? navbar.offsetHeight : 0) + 24;
   }
 
-  // While a pill is clicked (in-page jump) or the page just loaded on a
-  // hash (cross-page link, e.g. from orders.html), scroll-based detection
-  // can't be trusted for a bit — either the browser is still animating the
-  // jump, or async content (product grids, customizer panels, etc.) is
-  // still loading in and shifting section positions out from under the
-  // browser's one-shot hash-scroll. Pause it during that window and trust
-  // the click/hash instead.
   let suppressUntil = 0;
   function suppressFor(ms) {
     suppressUntil = Date.now() + ms;
@@ -614,19 +750,14 @@ function initScrollSpyNav() {
 
   navLinks.forEach((link) => {
     const isHashLink = (link.getAttribute('href') || '').startsWith('#');
-    if (!isHashLink) return; // e.g. "Orders" links to orders.html, not an in-page jump
+    if (!isHashLink) return;
 
     link.addEventListener('click', () => {
       setActiveNav(link.dataset.nav);
-      suppressFor(700); // covers instant jumps and smooth-scroll animations
+      suppressFor(700);
     });
   });
 
-  // Landed here via a hash from another page (or a fresh load with a hash
-  // already in the URL). Set the pill from the hash immediately, then
-  // re-correct the scroll position a few times as async content loads in
-  // and shifts things — the browser only auto-scrolls to the hash once,
-  // before that content exists.
   (function syncInitialHash() {
     const hashId = window.location.hash.replace('#', '');
     if (!hashId) return;

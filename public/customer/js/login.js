@@ -71,6 +71,47 @@ document.addEventListener('DOMContentLoaded', () => {
     if (input) input.closest('.input-wrap').classList.toggle('has-error', !!message);
   }
 
+  // Helper para i-sync ang kumpletong customer profile mula sa database
+  async function syncAndSaveCustomerSession(userRecord) {
+    const userId = userRecord.id || userRecord.user_id;
+    let customerData = userRecord;
+
+    try {
+      const profileRes = await fetch(`/api/customer/profile?customer_id=${encodeURIComponent(userId)}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'x-customer-id': String(userId)
+        }
+      });
+
+      if (profileRes.ok) {
+        const profileResult = await profileRes.json();
+        if (profileResult.status === 'success' && (profileResult.data || profileResult.customer)) {
+          const cust = profileResult.data || profileResult.customer;
+          customerData = {
+            ...userRecord,
+            customer_id: cust.id,
+            id: cust.id,
+            user_id: cust.user_id || userId,
+            full_name: cust.full_name || userRecord.full_name || userRecord.username || '',
+            username: cust.username || userRecord.username || '',
+            loyalty_points: cust.loyalty_points || 0
+          };
+        }
+      }
+    } catch (profileErr) {
+      console.warn('Could not pre-fetch full customer profile:', profileErr);
+    }
+
+    if (!customerData.customer_id) {
+      customerData.customer_id = customerData.id || userId;
+      customerData.user_id = userId;
+    }
+
+    localStorage.setItem('mm_user', JSON.stringify(customerData));
+  }
+
   // Handle login submission
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -109,9 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (serverError) serverError.style.display = 'none';
 
     try {
-      // Authenticate against Express backend
+      // Authenticate against Express backend na may credentials (cookies)
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_or_email: userInput,
@@ -132,8 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.message || 'Invalid username or password.');
       }
 
-      // Persist authenticated customer payload
-      localStorage.setItem('mm_user', JSON.stringify(result.user));
+      // I-sync ang session diretso sa database profile
+      await syncAndSaveCustomerSession(result.user);
 
       // Redirect to home dashboard
       window.location.href = 'home.html?login=success';
@@ -182,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: response.credential })
       });
@@ -191,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.message || 'Google sign-in failed.');
       }
 
-      localStorage.setItem('mm_user', JSON.stringify(data.user));
+      await syncAndSaveCustomerSession(data.user);
       window.location.href = 'home.html?login=success';
     } catch (err) {
       showSweetAlert({

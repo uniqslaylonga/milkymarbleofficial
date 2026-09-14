@@ -1,152 +1,133 @@
 // src/services/paymongoService.js
-// Thin wrapper around the PayMongo REST API (https://developers.paymongo.com).
-// Uses Node's built-in fetch (Node 18+) — no extra dependency required.
-
+// Thin wrapper around PayMongo's v2 Checkout Sessions API.
+// Docs: https://docs.paymongo.com/docs/payment-channels-hosted-checkout
 require('dotenv').config();
-const crypto = require('crypto');
 
-const PAYMONGO_API_BASE = 'https://api.paymongo.com/v1';
-const SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || '';
+const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2';
+const EWALLET_METHOD_TYPES = ['gcash', 'paymaya', 'grab_pay', 'shopeepay'];
 
-function authHeader() {
-  if (!SECRET_KEY) {
-    throw new Error('PAYMONGO_SECRET_KEY is not set in .env');
-  }
-  const token = Buffer.from(`${SECRET_KEY}:`).toString('base64');
-  return `Basic ${token}`;
+function getSecretKey() {
+  return process.env.PAYMONGO_SECRET_KEY;
 }
 
-async function paymongoFetch(path, { method = 'GET', body } = {}) {
+function isConfigured() {
+  const key = getSecretKey();
+  return Boolean(key && !key.includes('REPLACE_WITH'));
+}
+
+function isLiveKey() {
+  const key = getSecretKey() || '';
+  return key.startsWith('sk_live_');
+}
+
+function authHeader() {
+  const key = getSecretKey() || '';
+  return 'Basic ' + Buffer.from(`${key}:`).toString('base64');
+}
+
+async function pmFetch(path, options = {}) {
   const res = await fetch(`${PAYMONGO_API_BASE}${path}`, {
-    method,
+    ...options,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: authHeader()
-    },
-    body: body ? JSON.stringify(body) : undefined
+      Authorization: authHeader(),
+      ...(options.headers || {})
+    }
   });
 
-  const json = await res.json().catch(() => ({}));
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
 
   if (!res.ok) {
-    const message = json?.errors?.[0]?.detail || `PayMongo API error (${res.status})`;
-    const err = new Error(message);
+    const detail = json && json.errors && json.errors[0] && json.errors[0].detail;
+    const err = new Error(detail || `PayMongo request failed (${res.status})`);
     err.status = res.status;
-    err.details = json;
+    err.paymongoErrors = json ? json.errors : null;
     throw err;
   }
 
-  return json;
-}
-
-/**
- * Creates a PayMongo Checkout Session restricted to QRPh only.
- * Amount must be passed in PESOS (converted to centavos internally).
- */
-async function createQrphCheckoutSession({
-  orderId,
-  orderNumber,
-  amountPesos,
-  description,
-  lineItems,
-  customerName,
-  customerEmail,
-  successUrl,
-  cancelUrl
-}) {
-  const amountCentavos = Math.round(Number(amountPesos) * 100);
-
-  if (!amountCentavos || amountCentavos < 100) {
-    throw new Error('Order total must be at least ₱1.00 to pay via QRPh.');
-  }
-
-  const items = (lineItems && lineItems.length > 0)
-    ? lineItems.map(it => ({
-        name: (it.name || 'Milky Marble Cup').slice(0, 255),
-        amount: Math.round((it.unit_price || 0) * 100),
-        currency: 'PHP',
-        quantity: it.quantity || 1
-      }))
-    : [{
-        name: description || `Order ${orderNumber}`,
-        amount: amountCentavos,
-        currency: 'PHP',
-        quantity: 1
-      }];
-
-  const payload = {
-    data: {
-      attributes: {
-        send_email_receipt: true,
-        show_description: true,
-        show_line_items: true,
-        description: description || `Milky Marble Order ${orderNumber}`,
-        line_items: items,
-        payment_method_types: ['qrph'],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        billing: {
-          name: customerName || undefined,
-          email: customerEmail || undefined
-        },
-        metadata: {
-          order_id: String(orderId),
-          order_number: orderNumber || ''
-        }
-      }
-    }
-  };
-
-  const json = await paymongoFetch('/checkout_sessions', { method: 'POST', body: payload });
-  const session = json.data;
-
-  return {
-    id: session.id,
-    checkoutUrl: session.attributes.checkout_url,
-    status: session.attributes.status,
-    raw: session
-  };
-}
-
-async function retrieveCheckoutSession(sessionId) {
-  const json = await paymongoFetch(`/checkout_sessions/${sessionId}`);
   return json.data;
 }
 
 /**
- * Verifies a PayMongo webhook signature.
- * Header format: "t=<timestamp>,te=<test_signature>,li=<live_signature>"
- * Signed payload: `${timestamp}.${rawBody}`
+ * Create a live PayMongo Checkout Session scoped to E-Wallet payment methods
+ * (GCash, Maya, GrabPay, ShopeePay).
  */
-function verifyWebhookSignature(rawBody, signatureHeader, webhookSecret) {
-  if (!signatureHeader || !webhookSecret) return false;
-
-  const parts = Object.fromEntries(
-    signatureHeader.split(',').map(p => {
-      const [k, v] = p.split('=');
-      return [k, v];
-    })
-  );
-
-  const timestamp = parts.t;
-  const candidateSignature = parts.li || parts.te;
-  if (!timestamp || !candidateSignature) return false;
-
-  const signedPayload = `${timestamp}.${rawBody}`;
-  const expected = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(signedPayload)
-    .digest('hex');
-
-  try {
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(candidateSignature));
-  } catch {
-    return false;
+async function createEwalletCheckoutSession({
+  amount,
+  description,
+  referenceNumber,
+  successUrl,
+  cancelUrl,
+  billingName,
+  billingEmail,
+  metadata
+}) {
+  if (!isConfigured()) {
+    throw new Error('PayMongo is not configured. Set PAYMONGO_SECRET_KEY in your .env file.');
   }
+
+  const centavos = Math.round(Number(amount) * 100);
+  if (!Number.isFinite(centavos) || centavos < 100) {
+    throw new Error('Payment amount must be at least ₱1.00.');
+  }
+
+  const attributes = {
+    line_items: [
+      {
+        name: description || 'Milky Marble Order',
+        amount: centavos,
+        currency: 'PHP',
+        quantity: 1
+      }
+    ],
+    payment_method_types: EWALLET_METHOD_TYPES,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    reference_number: referenceNumber,
+    send_email_receipt: true,
+    description: description || 'Milky Marble Order',
+    metadata: metadata || {}
+  };
+
+  if (billingName || billingEmail) {
+    attributes.billing = {
+      name: billingName || undefined,
+      email: billingEmail || undefined
+    };
+  }
+
+  return pmFetch('/checkout_sessions', {
+    method: 'POST',
+    body: JSON.stringify({ data: { attributes } })
+  });
+}
+
+async function retrieveCheckoutSession(sessionId) {
+  if (!isConfigured()) {
+    throw new Error('PayMongo is not configured. Set PAYMONGO_SECRET_KEY in your .env file.');
+  }
+  return pmFetch(`/checkout_sessions/${sessionId}`, { method: 'GET' });
+}
+
+/** True if the given Checkout Session data object has a successful payment attached. */
+function checkoutSessionIsPaid(sessionData) {
+  const attrs = (sessionData && sessionData.attributes) || {};
+  const payments = Array.isArray(attrs.payments) ? attrs.payments : [];
+  if (payments.some((p) => p && p.attributes && p.attributes.status === 'paid')) return true;
+  if (attrs.payment_intent && attrs.payment_intent.status === 'succeeded') return true;
+  return false;
 }
 
 module.exports = {
-  createQrphCheckoutSession,
+  EWALLET_METHOD_TYPES,
+  isConfigured,
+  isLiveKey,
+  createEwalletCheckoutSession,
   retrieveCheckoutSession,
-  verifyWebhookSignature
+  checkoutSessionIsPaid
 };

@@ -1,20 +1,16 @@
-<!-- RECIPIENT DETAILS EDIT MODAL -->
 <link rel="stylesheet" href="css/recipientdetails.css">
 
 <div class="product-modal-backdrop" id="recipientEditModal" onclick="closeRecipientModal(event)">
     <div class="product-modal-container recipient-modal-card" onclick="event.stopPropagation()">
-        <!-- Close Button -->
         <button type="button" class="modal-close-btn" onclick="closeRecipientModal()" title="Close">
             <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <!-- Header -->
         <div class="recipient-modal-header">
             <h2 class="recipient-modal-title">Recipient Details</h2>
             <p class="recipient-modal-sub">Tell us who's picking up these sweet sips!</p>
         </div>
 
-        <!-- Form Body -->
         <form id="recipientDetailsForm" class="recipient-form" onsubmit="saveRecipientDetails(event)">
             <div class="recipient-form-group">
                 <label for="inputRecipientName" class="recipient-form-label">Full Name</label>
@@ -47,7 +43,6 @@
                 </div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="recipient-modal-actions">
                 <button type="button" class="btn-recipient-cancel" onclick="closeRecipientModal()">Cancel</button>
                 <button type="submit" class="btn-recipient-save">Save Details</button>

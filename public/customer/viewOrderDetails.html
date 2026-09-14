@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Details</title>
-    <!-- Font Awesome for Modal Close Icon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Separated CSS -->
     <link rel="stylesheet" href="viewOrderDetails.css">
 </head>
 <body>
 
-    <!-- Trigger button to test the modal -->
     <button type="button" class="btn-primary" onclick="fetchAndOpenOrder(1)">
         View Order #1
     </button>
 
-    <!-- Modal Component -->
     <div class="product-modal-backdrop" id="orderDetailsModal" onclick="closeOrderDetailsModal(event)">
         <div class="product-modal-container order-summary-card" onclick="event.stopPropagation()">
             <button type="button" class="modal-close-btn" onclick="closeOrderDetailsModal()" title="Close details">
@@ -75,7 +71,6 @@
         </div>
     </div>
 
-    <!-- Separated Client-Side Script -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="js/viewOrderDetails.js"></script>
 </body>

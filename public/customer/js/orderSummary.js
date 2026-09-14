@@ -8,130 +8,101 @@ let availableLoyaltyPoints = 0.0;
 let lastPlacedOrderData = null;
 
 let currentRecipient = {
-  name: 'Valued Customer',
-  email: 'customer@gmail.com'
+  name: '',
+  email: ''
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadRecipientInfoFromSession();
-  handlePaymongoReturn();
-});
-
-// ==========================================
-// HANDLE RETURN FROM PAYMONGO QR PH CHECKOUT
-// ==========================================
-async function handlePaymongoReturn() {
-  const params = new URLSearchParams(window.location.search);
-  const paymentState = params.get('payment');
-  const orderId = params.get('order_id');
-  if (!paymentState || !orderId) return;
-
-  // Clean the URL so a refresh doesn't re-trigger this
-  const cleanUrl = window.location.pathname;
-  window.history.replaceState({}, document.title, cleanUrl);
-
-  if (paymentState === 'cancelled') {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        icon: 'info',
-        title: 'Payment Cancelled',
-        text: 'Your QR Ph payment was cancelled. Your order is saved as Pending Payment — you can retry from your Orders page.'
-      });
-    }
-    return;
-  }
-
-  if (paymentState !== 'success') return;
-
-  if (typeof Swal !== 'undefined') {
-    Swal.fire({
-      title: 'Confirming your payment...',
-      text: 'Please wait while we verify your QR Ph payment with PayMongo.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-  }
-
-  // Poll briefly — the webhook is usually instant, but we retry in case it lags.
-  let order = null;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    try {
-      const res = await fetch(`/api/payments/paymongo/status/${orderId}`);
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        order = data.order;
-        if (order.status === 'PAID_VERIFIED') break;
-      }
-    } catch (err) {
-      console.warn('Payment status check failed:', err);
-    }
-    await new Promise(r => setTimeout(r, 1500));
-  }
-
-  if (order && order.status === 'PAID_VERIFIED') {
-    lastPlacedOrderData = {
-      ...order,
-      items: (order.order_items || []).map(it => ({
-        title: it.item_label,
-        quantity: it.quantity,
-        unit_price: it.unit_price
-      })),
-      total_amount: order.total_amount,
-      pickup_date: (order.pickup_instructions || '').split('|')[0].replace('Pick-up:', '').trim()
-    };
-
-    if (typeof loadRecentOrders === 'function') loadRecentOrders();
-
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        target: document.body,
-        icon: 'success',
-        title: 'Payment Successful!',
-        html: `
-          <p style="color: #7C4F38; font-size: 14px; margin-bottom: 8px;">Order No: <strong>${order.order_number}</strong></p>
-          <div style="background: #FFF5F4; border-radius: 12px; padding: 10px; margin: 10px 0; font-weight: 800; color: #594A42;">
-            🎉 Paid via PayMongo QR Ph — Total: ₱ ${Number(order.total_amount).toFixed(2)}
-          </div>
-          <button type="button" class="btn-download-receipt" onclick="downloadReceiptPDF()" style="margin-top: 10px; padding: 8px 18px; font-weight: 800; border-radius: 99px; border: 1.5px solid #FCE1DD; background: #FFF; color: #F48A8E; cursor: pointer;">
-            <i class="fa-solid fa-file-arrow-down"></i> Download Receipt (PDF)
-          </button>
-        `,
-        confirmButtonText: 'Got It!',
-        customClass: {
-          container: 'mm-order-swal-container',
-          popup: 'custom-swal-popup',
-          title: 'custom-swal-title',
-          htmlContainer: 'custom-swal-html',
-          confirmButton: 'custom-swal-confirm'
-        },
-        buttonsStyling: false
-      });
-    }
-  } else if (typeof Swal !== 'undefined') {
-    Swal.fire({
-      target: document.body,
-      icon: 'warning',
-      title: 'Still Processing',
-      text: 'We could not confirm your payment yet. If GCash/your bank already deducted the amount, check your Orders page shortly — it updates automatically once confirmed.',
-      customClass: {
-        container: 'mm-order-swal-container',
-        popup: 'custom-swal-popup',
-        title: 'custom-swal-title',
-        htmlContainer: 'custom-swal-html',
-        confirmButton: 'custom-swal-confirm'
-      },
-      buttonsStyling: false
-    });
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('mm_user') || '{}');
+  } catch (e) {
+    console.warn('Error reading mm_user from localStorage:', e);
+    return {};
   }
 }
 
-function loadRecipientInfoFromSession() {
-  const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  if (localUser.full_name || localUser.username) {
-    currentRecipient.name = localUser.full_name || localUser.username;
+async function getActiveCustomerProfile() {
+  try {
+    const res = await fetch('/api/customer/profile', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result.status === 'success' && (result.data || result.customer)) {
+        const cust = result.data || result.customer;
+        try {
+          const userObj = {
+            id: cust.user_id || cust.users?.id,
+            user_id: cust.user_id || cust.users?.id,
+            customer_id: cust.id,
+            full_name: cust.full_name || cust.users?.full_name || '',
+            username: cust.username || cust.users?.username || '',
+            email: cust.email || cust.users?.email || '',
+            loyalty_points: parseFloat(cust.loyalty_points || 0)
+          };
+          localStorage.setItem('mm_user', JSON.stringify(userObj));
+        } catch (e) {}
+        return cust;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch active profile via session cookie:', e);
   }
-  if (localUser.email) {
-    currentRecipient.email = localUser.email;
+
+  const stored = getStoredUser();
+  if (stored && (stored.customer_id || stored.user_id || stored.id)) {
+    return {
+      id: stored.customer_id || stored.id,
+      user_id: stored.user_id || stored.id,
+      full_name: stored.full_name || stored.username || '',
+      email: stored.email || '',
+      loyalty_points: parseFloat(stored.loyalty_points || 0)
+    };
+  }
+
+  return null;
+}
+
+function showSweetAlert(options) {
+  if (typeof Swal === 'undefined') return Promise.resolve({ isConfirmed: false });
+
+  return Swal.fire({
+    target: document.body,
+    customClass: {
+      container: 'mm-swal-container-top',
+      popup: 'mm-swal-popup',
+      title: 'mm-swal-title',
+      htmlContainer: 'mm-swal-html',
+      actions: 'mm-swal-actions',
+      confirmButton: 'mm-swal-confirm-btn',
+      cancelButton: 'mm-swal-cancel-btn'
+    },
+    buttonsStyling: false,
+    ...options
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadRecipientInfoFromSession();
+});
+
+async function loadRecipientInfoFromSession() {
+  const activeCustomer = await getActiveCustomerProfile();
+  if (activeCustomer) {
+    const fullName = activeCustomer.full_name || activeCustomer.users?.full_name || activeCustomer.username;
+    const email = activeCustomer.email || activeCustomer.users?.email;
+    if (fullName) currentRecipient.name = String(fullName).trim();
+    if (email) currentRecipient.email = String(email).trim();
+  } else {
+    const localUser = getStoredUser();
+    if (localUser.full_name || localUser.username || localUser.name) {
+      currentRecipient.name = String(localUser.full_name || localUser.username || localUser.name).trim();
+    }
+    if (localUser.email) {
+      currentRecipient.email = String(localUser.email).trim();
+    }
   }
   renderRecipientDetails();
 }
@@ -140,11 +111,14 @@ function renderRecipientDetails() {
   const wrapper = document.getElementById('recipientDetailsWrapper');
   if (!wrapper) return;
 
+  const displayName = currentRecipient.name || '<span style="color: #a8948d; font-style: italic;">Valued Customer</span>';
+  const displayEmail = currentRecipient.email || '<span style="color: #a8948d; font-style: italic;">customer@gmail.com</span>';
+
   wrapper.innerHTML = `
     <div class="recipient-input-card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #FFFDFD; border: 1.5px solid #FCE1DD; border-radius: 16px;">
       <div class="recipient-display-col" style="display: flex; flex-direction: column; gap: 3px;">
-        <div style="font-size: 13.5px; color: #594A42;"><strong>Name:</strong> ${currentRecipient.name}</div>
-        <div style="font-size: 13.5px; color: #594A42;"><strong>Email:</strong> ${currentRecipient.email}</div>
+        <div style="font-size: 13.5px; color: #594A42;"><strong>Name:</strong> ${displayName}</div>
+        <div style="font-size: 13.5px; color: #594A42;"><strong>Email:</strong> ${displayEmail}</div>
       </div>
       <button type="button" class="btn-edit-recipient" onclick="openRecipientModal()" title="Edit Details" style="background: none; border: none; color: #F48A8E; font-size: 17px; cursor: pointer;">
         <i class="fa-regular fa-pen-to-square"></i>
@@ -157,30 +131,46 @@ function renderRecipientDetails() {
 // RENDER ORDER SUMMARY MODAL
 // ==========================================
 window.renderOrderSummaryModal = async function(items = []) {
-  currentOrderSummaryItems = items;
+  currentOrderSummaryItems = Array.isArray(items) ? items : [];
   appliedPromoDiscount = 0.0;
   appliedLoyaltyDiscount = 0.0;
   selectedPaymentMethod = '';
 
-  loadRecipientInfoFromSession();
+  const activeCustomer = await getActiveCustomerProfile();
+  const isGuest = !activeCustomer;
 
-  // Reset payment method buttons - no default selection; customer must choose
+  if (activeCustomer) {
+    const fullName = activeCustomer.full_name || activeCustomer.users?.full_name || activeCustomer.username;
+    const email = activeCustomer.email || activeCustomer.users?.email;
+    if (fullName) currentRecipient.name = String(fullName).trim();
+    if (email) currentRecipient.email = String(email).trim();
+  } else {
+    loadRecipientInfoFromSession();
+  }
+  renderRecipientDetails();
+
   document.querySelectorAll('.payment-method-pill').forEach(btn => {
     btn.classList.remove('active');
   });
   const paymentReq = document.getElementById('paymentRequiredMsg');
   if (paymentReq) paymentReq.style.display = 'none';
+  const ewalletHint = document.getElementById('ewalletHint');
+  if (ewalletHint) ewalletHint.style.display = 'none';
 
-  // Reset promo code inputs
   const promoInput = document.getElementById('promoCodeInput');
   if (promoInput) promoInput.value = '';
   const promoMsg = document.getElementById('promoAppliedMsg');
   if (promoMsg) promoMsg.style.display = 'none';
 
-  // Kuhanin ang loyalty points mula sa Supabase
-  await syncCustomerLoyaltyPoints();
+  const loyaltySection = document.querySelector('.loyalty-toggle-section');
+  if (loyaltySection) {
+    loyaltySection.style.display = isGuest ? 'none' : 'block';
+  }
 
-  // Reset Loyalty Points Toggle
+  if (!isGuest) {
+    await syncCustomerLoyaltyPoints();
+  }
+
   const togglePoints = document.getElementById('toggleUseLoyaltyPoints');
   if (togglePoints) togglePoints.checked = false;
   const loyaltyRow = document.getElementById('summaryLoyaltyDiscountRow');
@@ -188,11 +178,13 @@ window.renderOrderSummaryModal = async function(items = []) {
 
   setNextDefaultPickupDate();
 
-  // Render bawat Cup item sa modal
   const cupsList = document.getElementById('summaryCupsList');
   if (cupsList) {
-    cupsList.innerHTML = items.map(item => {
-      const lineTotal = (item.unit_price || 15.00) * (item.quantity || 1);
+    cupsList.innerHTML = currentOrderSummaryItems.map(item => {
+      const rawPrice = item.unit_price ?? item.price ?? 15.00;
+      const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 15.00;
+      const qty = parseInt(item.quantity ?? 1, 10);
+      const lineTotal = price * qty;
       const thumbSrc = item.image || item.flavor_img || 'images/1.jpg';
 
       return `
@@ -200,9 +192,9 @@ window.renderOrderSummaryModal = async function(items = []) {
           <div style="display: flex; align-items: center; gap: 12px;">
             <img src="${thumbSrc}" alt="Cup" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.src='images/1.jpg'">
             <div style="display: flex; flex-direction: column;">
-              <h4 style="font-size: 14.5px; font-weight: 800; color: #594A42; margin: 0;">${item.size || '12oz'} ${item.title}</h4>
+              <h4 style="font-size: 14.5px; font-weight: 800; color: #594A42; margin: 0;">${item.size || '12oz'} ${item.title || 'Milky Marble Cup'}</h4>
               <span style="font-size: 12px; font-weight: 600; color: #7C4F38;">${item.toppings || ''} ${item.addons || ''}</span>
-              <span style="display: inline-block; width: fit-content; background: #F48A8E; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; margin-top: 4px;">${item.quantity || 1}x</span>
+              <span style="display: inline-block; width: fit-content; background: #F48A8E; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; margin-top: 4px;">${qty}x</span>
             </div>
           </div>
           <div style="font-size: 17px; font-weight: 800; color: #594A42;">₱ ${lineTotal.toFixed(2)}</div>
@@ -211,7 +203,13 @@ window.renderOrderSummaryModal = async function(items = []) {
     }).join('');
   }
 
-  currentSubtotal = items.reduce((sum, it) => sum + ((it.unit_price || 15.00) * (it.quantity || 1)), 0);
+  currentSubtotal = currentOrderSummaryItems.reduce((sum, it) => {
+    const rawPrice = it.unit_price ?? it.price ?? 15.00;
+    const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 15.00;
+    const qty = parseInt(it.quantity ?? 1, 10);
+    return sum + (price * qty);
+  }, 0);
+
   updateSummaryTotals();
 
   const modal = document.getElementById('orderSummaryModal');
@@ -231,18 +229,18 @@ window.closeOrderSummaryModal = function() {
 // LOYALTY POINTS LOGIC & CALCULATIONS
 // ==========================================
 async function syncCustomerLoyaltyPoints() {
-  const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  const customerId = localUser.customer_id || 11;
-
   try {
-    const res = await fetch(`/api/customer/profile?customer_id=${customerId}`);
+    const res = await fetch('/api/customer/profile', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
     const result = await res.json();
 
     if (res.ok && result.status === 'success') {
       const data = result.data || result.customer || {};
       availableLoyaltyPoints = parseFloat(data.loyalty_points || 0);
 
-      const formattedPts = availableLoyaltyPoints.toFixed(1);
+      const formattedPts = availableLoyaltyPoints.toFixed(2);
       const pesoEquiv = (availableLoyaltyPoints * 1.0).toFixed(2);
 
       const availableSubtext = document.getElementById('summaryLoyaltyAvailable');
@@ -254,6 +252,11 @@ async function syncCustomerLoyaltyPoints() {
       const pesoHeader = document.getElementById('displayLoyaltyPeso');
       if (ptsHeader) ptsHeader.innerText = `${formattedPts} pts`;
       if (pesoHeader) pesoHeader.innerText = `(₱${pesoEquiv})`;
+
+      // I-save din sa localStorage
+      const userObj = getStoredUser();
+      userObj.loyalty_points = availableLoyaltyPoints;
+      localStorage.setItem('mm_user', JSON.stringify(userObj));
     }
   } catch (err) {
     console.warn('Could not sync points in order summary:', err);
@@ -261,19 +264,26 @@ async function syncCustomerLoyaltyPoints() {
 }
 
 window.handleToggleLoyaltyPoints = function(isChecked) {
+  const checked = typeof isChecked === 'boolean'
+    ? isChecked
+    : (isChecked && typeof isChecked.checked === 'boolean'
+      ? isChecked.checked
+      : (document.getElementById('toggleUseLoyaltyPoints')?.checked || false));
+
   const loyaltyRow = document.getElementById('summaryLoyaltyDiscountRow');
   const loyaltyDisplay = document.getElementById('summaryLoyaltyDiscount');
 
-  if (isChecked) {
+  if (checked) {
     if (availableLoyaltyPoints <= 0) {
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'info',
-          title: 'No Points Available',
-          text: 'You have 0 loyalty points. Complete orders to earn points (every ₱10 = 0.1 pts)!'
-        });
-      }
-      document.getElementById('toggleUseLoyaltyPoints').checked = false;
+      showSweetAlert({
+        icon: 'info',
+        title: 'No Points Available',
+        text: 'You do not have any loyalty points to redeem yet. Every ₱10 spent earns 0.10 points!',
+        confirmButtonText: 'Got It',
+        showCancelButton: false
+      });
+      const toggleEl = document.getElementById('toggleUseLoyaltyPoints');
+      if (toggleEl) toggleEl.checked = false;
       appliedLoyaltyDiscount = 0.0;
       if (loyaltyRow) loyaltyRow.style.display = 'none';
       updateSummaryTotals();
@@ -312,10 +322,14 @@ function updateSummaryTotals() {
 window.selectPaymentMethod = function(btnElement) {
   document.querySelectorAll('.payment-method-pill').forEach(b => b.classList.remove('active'));
   btnElement.classList.add('active');
-  selectedPaymentMethod = btnElement.getAttribute('data-payment-value') || btnElement.innerText.trim();
+  selectedPaymentMethod = (btnElement.getAttribute('data-method') || btnElement.innerText).trim();
 
   const paymentReq = document.getElementById('paymentRequiredMsg');
   if (paymentReq) paymentReq.style.display = 'none';
+
+  const isEwallet = /wallet|gcash|maya|online|paymongo/i.test(selectedPaymentMethod) && !selectedPaymentMethod.toLowerCase().includes('cash');
+  const ewalletHint = document.getElementById('ewalletHint');
+  if (ewalletHint) ewalletHint.style.display = isEwallet ? 'block' : 'none';
 };
 
 function setNextDefaultPickupDate() {
@@ -332,7 +346,10 @@ function setNextDefaultPickupDate() {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
-  input.value = `${yyyy}-${mm}-${dd}`;
+  const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+  input.value = formattedDate;
+  input.min = formattedDate;
 }
 
 window.validatePickupDate = function(input) {
@@ -341,116 +358,210 @@ window.validatePickupDate = function(input) {
   if (dateReq) dateReq.style.display = 'none';
   if (dateErr) dateErr.style.display = 'none';
 
-  if (!input.value) return;
+  const targetInput = (input && input.target) ? input.target : (input || document.getElementById('pickupDateInput'));
+  if (!targetInput || !targetInput.value) return;
 
-  const selected = new Date(input.value);
-  const day = selected.getUTCDay();
+  const parts = targetInput.value.split('-');
+  if (parts.length !== 3) return;
 
-  if (day !== 1 && day !== 2 && day !== 4) {
+  const selectedYear = parseInt(parts[0], 10);
+  const selectedMonth = parseInt(parts[1], 10) - 1;
+  const selectedDay = parseInt(parts[2], 10);
+  const selected = new Date(selectedYear, selectedMonth, selectedDay);
+
+  const day = selected.getDay();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selected < today || (day !== 1 && day !== 2 && day !== 4)) {
     if (dateErr) dateErr.style.display = 'block';
-    input.value = '';
+    targetInput.value = '';
   }
 };
 
 window.openDatePicker = function() {
   const input = document.getElementById('pickupDateInput');
   if (input) {
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-    } else {
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+      } else {
+        input.focus();
+      }
+    } catch (e) {
       input.focus();
     }
   }
 };
 
-// ==========================================
-// PROMO CODE APPLICATION
-// ==========================================
-window.applyPromo = function() {
+window.applyPromo = async function() {
   const input = document.getElementById('promoCodeInput');
   const msg = document.getElementById('promoAppliedMsg');
-  const code = (input.value || '').trim().toUpperCase();
+  const code = (input?.value || '').trim();
 
   if (!code) {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({ icon: 'warning', title: 'Empty Promo', text: 'Please enter a promo code first.' });
-    }
+    showSweetAlert({
+      icon: 'warning',
+      title: 'Empty Promo',
+      text: 'Please enter a promo code first.',
+      confirmButtonText: 'Got It'
+    });
     return;
   }
 
-  if (code === 'MILKY10') {
-    appliedPromoDiscount = currentSubtotal * 0.10;
-    if (msg) {
-      msg.innerText = '10% discount promo applied!';
-      msg.style.display = 'block';
-      msg.style.color = '#2e7d32';
+  const applyBtn = document.getElementById('btnApplyPromo');
+  if (applyBtn) applyBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/promotions/validate?code=${encodeURIComponent(code)}`);
+    const data = await res.json();
+
+    if (res.ok && data.status === 'success' && data.promo) {
+      const promo = data.promo;
+      const type = String(promo.discount_type || '').toLowerCase();
+      const val = parseFloat(promo.discount_value || 0);
+
+      if (type === 'percent' || type === 'percentage') {
+        appliedPromoDiscount = currentSubtotal * (val / 100);
+      } else {
+        appliedPromoDiscount = Math.min(currentSubtotal, val);
+      }
+
+      if (msg) {
+        msg.innerText = `${promo.title || 'Promo'} applied (-₱${appliedPromoDiscount.toFixed(2)})!`;
+        msg.style.display = 'block';
+        msg.style.color = '#2e7d32';
+      }
+    } else {
+      appliedPromoDiscount = 0.0;
+      if (msg) {
+        msg.innerText = data.message || 'Invalid promo code.';
+        msg.style.display = 'block';
+        msg.style.color = '#d32f2f';
+      }
     }
-  } else {
+  } catch (err) {
+    console.error('Promo error:', err);
     appliedPromoDiscount = 0.0;
     if (msg) {
-      msg.innerText = 'Invalid promo code.';
+      msg.innerText = 'Could not verify promo code.';
       msg.style.display = 'block';
       msg.style.color = '#d32f2f';
     }
-  }
+  } finally {
+    if (applyBtn) applyBtn.disabled = false;
 
-  const isPointsToggled = document.getElementById('toggleUseLoyaltyPoints')?.checked || false;
-  if (isPointsToggled) {
-    handleToggleLoyaltyPoints(true);
-  } else {
-    updateSummaryTotals();
+    const isPointsToggled = document.getElementById('toggleUseLoyaltyPoints')?.checked || false;
+    if (isPointsToggled && typeof window.handleToggleLoyaltyPoints === 'function') {
+      window.handleToggleLoyaltyPoints(true);
+    } else {
+      updateSummaryTotals();
+    }
   }
 };
 
-// ==========================================
-// RECIPIENT EDIT MODAL
-// ==========================================
 window.openRecipientModal = function() {
-  document.getElementById('inputRecipientName').value = currentRecipient.name;
-  document.getElementById('inputRecipientEmail').value = currentRecipient.email;
-  document.getElementById('recipientEditModal').classList.add('active');
+  const nameInput = document.getElementById('inputRecipientName');
+  const emailInput = document.getElementById('inputRecipientEmail');
+
+  if (nameInput) {
+    nameInput.placeholder = 'Valued Customer';
+    nameInput.value = (currentRecipient.name && currentRecipient.name !== 'Valued Customer') ? currentRecipient.name : '';
+  }
+
+  if (emailInput) {
+    emailInput.placeholder = 'customer@gmail.com';
+    emailInput.value = (currentRecipient.email && currentRecipient.email !== 'customer@gmail.com') ? currentRecipient.email : '';
+  }
+
+  const modal = document.getElementById('recipientEditModal');
+  if (modal) modal.classList.add('active');
 };
 
 window.closeRecipientModal = function() {
-  document.getElementById('recipientEditModal').classList.remove('active');
+  const modal = document.getElementById('recipientEditModal');
+  if (modal) modal.classList.remove('active');
 };
 
 window.saveRecipientDetails = function(event) {
-  event.preventDefault();
-  const nameVal = document.getElementById('inputRecipientName').value.trim();
-  const emailVal = document.getElementById('inputRecipientEmail').value.trim();
+  if (event) event.preventDefault();
+  const nameInput = document.getElementById('inputRecipientName');
+  const emailInput = document.getElementById('inputRecipientEmail');
 
-  if (!nameVal || !emailVal) return;
+  const nameVal = nameInput ? nameInput.value.trim() : '';
+  const emailVal = emailInput ? emailInput.value.trim() : '';
+
+  if (!nameVal || !emailVal) {
+    showSweetAlert({
+      icon: 'warning',
+      title: 'Incomplete Details',
+      text: 'Please enter both your full name and email address.',
+      confirmButtonText: 'Got It',
+      showCancelButton: false
+    });
+    return;
+  }
+
+  if (!emailVal.includes('@') || !emailVal.includes('.')) {
+    showSweetAlert({
+      icon: 'warning',
+      title: 'Invalid Email',
+      text: 'Please enter a valid email address.',
+      confirmButtonText: 'Got It',
+      showCancelButton: false
+    });
+    return;
+  }
 
   currentRecipient.name = nameVal;
   currentRecipient.email = emailVal;
 
-  const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  const localUser = getStoredUser();
   localUser.full_name = nameVal;
   localUser.email = emailVal;
-  localStorage.setItem('mm_user', JSON.stringify(localUser));
+  try {
+    localStorage.setItem('mm_user', JSON.stringify(localUser));
+  } catch (e) {
+    console.warn('Unable to persist mm_user:', e);
+  }
 
   renderRecipientDetails();
   closeRecipientModal();
 };
 
-// ==========================================
-// RECEIPT DOM & PDF DOWNLOAD
-// ==========================================
 function buildReceiptDOM(order) {
-  const container = document.getElementById('printableReceiptContainer');
-  if (!container) return;
+  let container = document.getElementById('printableReceiptContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'printableReceiptContainer';
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    document.body.appendChild(container);
+  }
 
-  const formattedItems = (order.items || currentOrderSummaryItems).map(item => `
-    <tr style="border-bottom: 1px dashed #FCE1DD;">
-      <td style="padding: 8px 4px; font-size: 12px; color: #594A42;">
-        <strong>${item.size || '12oz'} ${item.title}</strong><br>
-        <span style="font-size: 10.5px; color: #7C4F38;">${item.toppings || ''} ${item.addons || ''}</span>
-      </td>
-      <td style="padding: 8px 4px; font-size: 12px; text-align: center; color: #594A42;">${item.quantity || 1}x</td>
-      <td style="padding: 8px 4px; font-size: 12px; text-align: right; font-weight: 700; color: #594A42;">₱ ${((item.unit_price || 15) * (item.quantity || 1)).toFixed(2)}</td>
-    </tr>
-  `).join('');
+  const orderItems = order.items || currentOrderSummaryItems;
+  const formattedItems = orderItems.map(item => {
+    const rawPrice = item.unit_price ?? item.price ?? 15.00;
+    const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 15.00;
+    const qty = parseInt(item.quantity ?? 1, 10);
+    return `
+      <tr style="border-bottom: 1px dashed #FCE1DD;">
+        <td style="padding: 8px 4px; font-size: 12px; color: #594A42;">
+          <strong>${item.size || '12oz'} ${item.title || 'Milky Marble Cup'}</strong><br>
+          <span style="font-size: 10.5px; color: #7C4F38;">${item.toppings || ''} ${item.addons || ''}</span>
+        </td>
+        <td style="padding: 8px 4px; font-size: 12px; text-align: center; color: #594A42;">${qty}x</td>
+        <td style="padding: 8px 4px; font-size: 12px; text-align: right; font-weight: 700; color: #594A42;">₱ ${(price * qty).toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const customerName = order.guest_name || order.recipient_name || currentRecipient.name || 'Valued Customer';
+  const customerEmail = order.guest_email || order.recipient_email || currentRecipient.email || 'customer@gmail.com';
+  const pointsUsedNum = parseFloat(order.points_used || 0);
+  const totalAmountNum = parseFloat(order.total_amount || 0);
+  const pointsEarnedNum = parseFloat(order.points_earned || 0);
 
   container.innerHTML = `
     <div id="receiptPDFContent" style="width: 380px; padding: 28px; background: #FFFDFD; font-family: 'Urbanist', Arial, sans-serif; color: #594A42; border: 2px solid #FCE1DD; border-radius: 20px;">
@@ -461,10 +572,10 @@ function buildReceiptDOM(order) {
       
       <div style="font-size: 12px; border-top: 1px dashed #FCE1DD; border-bottom: 1px dashed #FCE1DD; padding: 10px 0; margin-bottom: 14px; line-height: 1.5;">
         <div><strong>Order No:</strong> ${order.order_number || '#MM-0000'}</div>
-        <div><strong>Customer:</strong> ${currentRecipient.name}</div>
-        <div><strong>Email:</strong> ${currentRecipient.email}</div>
+        <div><strong>Customer:</strong> ${customerName}</div>
+        <div><strong>Email:</strong> ${customerEmail}</div>
         <div><strong>Pick-up Schedule:</strong> ${order.pickup_date || 'N/A'}</div>
-        <div><strong>Payment:</strong> ${selectedPaymentMethod}</div>
+        <div><strong>Payment:</strong> ${selectedPaymentMethod || 'Cash on Pick-Up'}</div>
       </div>
 
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;">
@@ -491,19 +602,21 @@ function buildReceiptDOM(order) {
             <span>- ₱ ${appliedPromoDiscount.toFixed(2)}</span>
           </div>
         ` : ''}
-        ${order.points_used > 0 ? `
+        ${pointsUsedNum > 0 ? `
           <div style="display: flex; justify-content: space-between; color: #E27D80; font-weight: 700;">
-            <span>Points Discount (${order.points_used.toFixed(1)} pts):</span>
-            <span>- ₱ ${order.points_used.toFixed(2)}</span>
+            <span>Points Discount (${pointsUsedNum.toFixed(2)} pts):</span>
+            <span>- ₱ ${pointsUsedNum.toFixed(2)}</span>
           </div>
         ` : ''}
         <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; border-top: 1px dashed #FCE1DD; padding-top: 6px; margin-top: 4px;">
           <span>Total Paid:</span>
-          <span style="color: #F48A8E;">₱ ${order.total_amount.toFixed(2)}</span>
+          <span style="color: #F48A8E;">₱ ${totalAmountNum.toFixed(2)}</span>
         </div>
-        <div style="background: #FFF5F4; border-radius: 8px; padding: 6px; text-align: center; margin-top: 8px; font-size: 11.5px; font-weight: 700;">
-          Points Earned: +${Number(order.points_earned || 0).toFixed(1)} pts
-        </div>
+        ${pointsEarnedNum > 0 ? `
+          <div style="background: #FFF5F4; border-radius: 8px; padding: 6px; text-align: center; margin-top: 8px; font-size: 11.5px; font-weight: 700;">
+            Points Earned: +${pointsEarnedNum.toFixed(2)} pts
+          </div>
+        ` : ''}
       </div>
 
       <div style="text-align: center; margin-top: 18px; font-size: 11px; color: #7C4F38;">
@@ -518,7 +631,9 @@ window.downloadReceiptPDF = function() {
   buildReceiptDOM(lastPlacedOrderData);
 
   const element = document.getElementById('receiptPDFContent');
-  if (!element || typeof html2pdf === 'undefined') return;
+  if (!element || typeof html2pdf === 'undefined') {
+    return;
+  }
 
   const opt = {
     margin: 10,
@@ -531,20 +646,60 @@ window.downloadReceiptPDF = function() {
   html2pdf().set(opt).from(element).save();
 };
 
-// ==========================================
-// CONFIRM PLACE ORDER (SUBMIT ORDER WITH ORDER_TYPE)
-// ==========================================
 window.confirmPlaceOrder = async function() {
+  const cleanName = (currentRecipient.name || '').trim();
+  const cleanEmail = (currentRecipient.email || '').trim();
+
+  if (!cleanName || !cleanEmail || cleanName === 'Valued Customer' || cleanEmail === 'customer@gmail.com') {
+    showSweetAlert({
+      icon: 'warning',
+      title: 'Missing Recipient Details',
+      text: 'Please provide your Full Name and Email Address so we know who is picking up these sweet sips!',
+      confirmButtonText: 'Add Details',
+      showCancelButton: false,
+      focusConfirm: false
+    }).then(() => {
+      openRecipientModal();
+    });
+    return;
+  }
+
+  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    showSweetAlert({
+      icon: 'warning',
+      title: 'Invalid Email',
+      text: 'Please enter a valid email address for your order updates.',
+      confirmButtonText: 'Edit Email',
+      showCancelButton: false,
+      focusConfirm: false
+    }).then(() => {
+      openRecipientModal();
+    });
+    return;
+  }
+
   const pickupInput = document.getElementById('pickupDateInput');
   const dateReq = document.getElementById('dateRequiredMsg');
+  const dateErr = document.getElementById('dateErrorMsg');
 
   if (!pickupInput || !pickupInput.value) {
     if (dateReq) dateReq.style.display = 'block';
     return;
   }
 
-  // Payment method is only required on pages that actually show the pill picker
-  // (orders.html uses a stripped-down summary modal without it).
+  const parts = pickupInput.value.split('-');
+  if (parts.length === 3) {
+    const selected = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const day = selected.getDay();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selected < today || (day !== 1 && day !== 2 && day !== 4)) {
+      if (dateErr) dateErr.style.display = 'block';
+      return;
+    }
+  }
+
   const paymentPills = document.querySelectorAll('.payment-method-pill');
   if (paymentPills.length > 0 && !selectedPaymentMethod) {
     const paymentReq = document.getElementById('paymentRequiredMsg');
@@ -552,33 +707,43 @@ window.confirmPlaceOrder = async function() {
     return;
   }
 
-  const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  const customerId = localUser.customer_id || 11;
-  const isPointsToggled = document.getElementById('toggleUseLoyaltyPoints')?.checked || false;
+  const activeCustomer = await getActiveCustomerProfile();
+  const isGuest = !activeCustomer;
+  const customerId = activeCustomer ? activeCustomer.id : null;
+  const userId = activeCustomer ? (activeCustomer.user_id || activeCustomer.id) : null;
 
+  const isPointsToggled = !isGuest && (document.getElementById('toggleUseLoyaltyPoints')?.checked || false);
   const pointsToUse = isPointsToggled ? appliedLoyaltyDiscount : 0.0;
   const finalPayableTotal = Math.max(0, currentSubtotal - appliedPromoDiscount - pointsToUse);
 
-  // Tukuyin ang order_type ayon sa constraint ng Supabase: 'custom_build' o 'preset'
-  const isCustomCup = currentOrderSummaryItems.some(it => it.is_custom);
+  // Loyalty Points Computation: Every ₱10 spent = 0.10 loyalty points (₱100 = 1.00 pt)
+  const calculatedPointsEarned = !isGuest 
+    ? Number((Math.floor(finalPayableTotal / 10) * 0.10).toFixed(2)) 
+    : 0.0;
+
+  const isCustomCup = currentOrderSummaryItems.some(it => it.is_custom || it.custom_build);
   const orderTypeVal = isCustomCup ? 'custom_build' : 'preset';
 
-  // Pages without the pill picker (e.g. orders.html's slim summary modal) keep
-  // the historical Cash on Pick-Up default since there's no UI to choose there.
   const paymentMethodForOrder = selectedPaymentMethod || 'Cash on Pick-Up';
-  selectedPaymentMethod = paymentMethodForOrder; // keep in sync for the receipt renderer
+  selectedPaymentMethod = paymentMethodForOrder;
 
   const payload = {
     customer_id: customerId,
+    user_id: userId,
     items: currentOrderSummaryItems,
     subtotal: currentSubtotal,
     discount_amount: appliedPromoDiscount,
     points_used: pointsToUse,
+    points_earned: calculatedPointsEarned,
     order_type: orderTypeVal,
     total_amount: finalPayableTotal,
     payment_method: paymentMethodForOrder,
     pickup_date: pickupInput.value,
-    pickup_instructions: `Pick-up: ${pickupInput.value}`
+    pickup_instructions: `Pick-up: ${pickupInput.value}`,
+    guest_name: cleanName,
+    guest_email: cleanEmail,
+    recipient_name: cleanName,
+    recipient_email: cleanEmail
   };
 
   const submitBtn = document.getElementById('btnPlaceOrderSubmit');
@@ -590,162 +755,167 @@ window.confirmPlaceOrder = async function() {
   try {
     const res = await fetch('/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(customerId ? { 'x-customer-id': String(customerId) } : {})
+      },
       body: JSON.stringify(payload)
     });
 
     const data = await res.json();
 
     if (res.ok && data.status === 'success') {
-      // For E-Wallet (PayMongo QR Ph), the order is created as PENDING_PAYMENT.
-      // Redirect the customer to the PayMongo-hosted QR Ph checkout page now;
-      // the order only becomes PAID_VERIFIED once PayMongo confirms payment
-      // (handled by handlePaymongoReturn() + the webhook on return).
-      if (paymentMethodForOrder === 'E-Wallet') {
+      const orderObj = data.order || data.data || {};
+      const isEwallet = /wallet|gcash|maya|online|paymongo/i.test(paymentMethodForOrder) && !paymentMethodForOrder.toLowerCase().includes('cash');
+      const needsEwalletPayment = isEwallet && orderObj.status !== 'PAID_VERIFIED';
+
+      const guestSessionId = sessionStorage.getItem('mm_guest_session_id');
+      const clearCartPayload = isGuest
+        ? { action: 'clear', session_id: guestSessionId }
+        : { action: 'clear', customer_id: customerId };
+
+      const clearCartRequest = () => {
+        fetch('/api/cart', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clearCartPayload)
+        }).catch(err => console.warn('Could not auto-clear cart:', err));
+
+        const cartBadge = document.getElementById('navCartCount');
+        if (cartBadge) {
+          cartBadge.innerText = '0';
+          cartBadge.style.display = 'none';
+        }
+      };
+
+      if (needsEwalletPayment) {
         try {
-          const checkoutRes = await fetch('/api/payments/paymongo/create-checkout', {
+          const payRes = await fetch('/api/payments/create-checkout', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_id: data.order.id })
+            body: JSON.stringify({
+              order_id: orderObj.id || orderObj.order_id,
+              billing_name: cleanName,
+              billing_email: cleanEmail
+            })
           });
-          const checkoutData = await checkoutRes.json();
+          const payData = await payRes.json();
 
-          if (checkoutRes.ok && checkoutData.status === 'success' && checkoutData.checkout_url) {
-            window.location.href = checkoutData.checkout_url;
-            return; // leaving the page — nothing further to do here
+          if (payRes.ok && payData.status === 'success' && payData.checkout_url) {
+            clearCartRequest();
+            window.location.href = payData.checkout_url;
+            return;
           }
 
-          if (typeof Swal !== 'undefined') {
-            Swal.fire({
-              target: document.body,
-              icon: 'error',
-              title: 'Could Not Start QR Ph Payment',
-              text: checkoutData.message || 'Your order was saved as Pending Payment. Please try paying again from your Orders page.',
-              confirmButtonText: 'OK',
-              customClass: {
-                container: 'mm-order-swal-container',
-                popup: 'custom-swal-popup',
-                title: 'custom-swal-title',
-                htmlContainer: 'custom-swal-html',
-                confirmButton: 'custom-swal-confirm'
-              },
-              buttonsStyling: false
-            });
+          throw new Error(payData.message || 'Could not start PayMongo checkout.');
+        } catch (payErr) {
+          console.error('PayMongo checkout error:', payErr);
+          showSweetAlert({
+            icon: 'error',
+            title: 'Payment Could Not Start',
+            text: payErr.message || 'We placed your order, but could not open the PayMongo payment page. Please try paying again from your Orders page.',
+            confirmButtonText: 'OK',
+            showCancelButton: false
+          });
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Place Order';
           }
-          closeOrderSummaryModal();
-          return;
-        } catch (checkoutErr) {
-          console.error('PayMongo checkout error:', checkoutErr);
-          if (typeof Swal !== 'undefined') {
-            Swal.fire({
-              target: document.body,
-              icon: 'error',
-              title: 'Connection Error',
-              text: 'Could not reach the payment gateway. Your order was saved as Pending Payment.',
-              confirmButtonText: 'OK',
-              customClass: {
-                container: 'mm-order-swal-container',
-                popup: 'custom-swal-popup',
-                title: 'custom-swal-title',
-                htmlContainer: 'custom-swal-html',
-                confirmButton: 'custom-swal-confirm'
-              },
-              buttonsStyling: false
-            });
-          }
-          closeOrderSummaryModal();
           return;
         }
       }
 
       closeOrderSummaryModal();
+      clearCartRequest();
+
+      // I-update ang Loyalty Points sa Screen at sa Local Storage gamit ang 0.10 pts ratio
+      const earned = calculatedPointsEarned;
+      const used = parseFloat(data.points_used ?? pointsToUse ?? 0);
+
+      if (!isGuest) {
+        let updatedBalance;
+        if (data.new_loyalty_points !== undefined && data.new_loyalty_points !== null) {
+          updatedBalance = parseFloat(data.new_loyalty_points);
+        } else {
+          updatedBalance = Math.max(0, availableLoyaltyPoints - used + earned);
+        }
+
+        availableLoyaltyPoints = updatedBalance;
+
+        const ptsHeader = document.getElementById('displayLoyaltyPoints');
+        const pesoHeader = document.getElementById('displayLoyaltyPeso');
+        if (ptsHeader) ptsHeader.innerText = `${updatedBalance.toFixed(2)} pts`;
+        if (pesoHeader) pesoHeader.innerText = `(₱${(updatedBalance * 1.0).toFixed(2)})`;
+
+        const localUser = getStoredUser();
+        localUser.loyalty_points = updatedBalance;
+        localStorage.setItem('mm_user', JSON.stringify(localUser));
+
+        await syncCustomerLoyaltyPoints();
+      }
 
       lastPlacedOrderData = {
-        ...data.order,
+        ...orderObj,
         items: currentOrderSummaryItems,
-        points_used: data.points_used,
-        points_earned: data.points_earned,
+        points_used: used,
+        points_earned: isGuest ? 0 : earned,
         total_amount: finalPayableTotal,
-        pickup_date: pickupInput.value
+        pickup_date: pickupInput.value,
+        guest_name: cleanName,
+        guest_email: cleanEmail,
+        recipient_name: cleanName,
+        recipient_email: cleanEmail
       };
-
-      // Permanenteng i-update ang points sa screen gamit ang value mula sa Supabase
-      const updatedBalance = parseFloat(data.new_loyalty_points || 0);
-      availableLoyaltyPoints = updatedBalance;
-
-      const ptsHeader = document.getElementById('displayLoyaltyPoints');
-      const pesoHeader = document.getElementById('displayLoyaltyPeso');
-      if (ptsHeader) ptsHeader.innerText = `${updatedBalance.toFixed(1)} pts`;
-      if (pesoHeader) pesoHeader.innerText = `(₱${(updatedBalance * 1.0).toFixed(2)})`;
 
       if (typeof loadRecentOrders === 'function') {
         loadRecentOrders();
       }
 
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          target: document.body,
-          icon: 'success',
-          title: 'Order Confirmed!',
-          html: `
-            <p style="color: #7C4F38; font-size: 14px; margin-bottom: 8px;">Order No: <strong>${data.order.order_number}</strong></p>
-            ${data.points_used > 0 ? `<p style="color: #E27D80; font-weight: 700; margin: 4px 0;">Points Used: -${data.points_used.toFixed(1)} pts</p>` : ''}
-            <div style="background: #FFF5F4; border-radius: 12px; padding: 10px; margin: 10px 0; font-weight: 800; color: #594A42;">
-              🎉 You earned +${Number(data.points_earned || 0).toFixed(1)} loyalty points!
-            </div>
-            <button type="button" class="btn-download-receipt" onclick="downloadReceiptPDF()" style="margin-top: 10px; padding: 8px 18px; font-weight: 800; border-radius: 99px; border: 1.5px solid #FCE1DD; background: #FFF; color: #F48A8E; cursor: pointer;">
-              <i class="fa-solid fa-file-arrow-down"></i> Download Receipt (PDF)
-            </button>
-          `,
-          confirmButtonText: 'Got It!',
-          customClass: {
-            container: 'mm-order-swal-container',
-            popup: 'custom-swal-popup',
-            title: 'custom-swal-title',
-            htmlContainer: 'custom-swal-html',
-            confirmButton: 'custom-swal-confirm'
-          },
-          buttonsStyling: false
-        });
+      let loyaltyBadgeHTML = '';
+      if (!isGuest && earned > 0) {
+        loyaltyBadgeHTML = `
+          <div style="background: #FFF5F4; border-radius: 12px; padding: 10px; margin: 10px 0; font-weight: 800; color: #594A42;">
+            You earned +${earned.toFixed(2)} loyalty points!
+          </div>
+        `;
       }
+
+      showSweetAlert({
+        icon: 'success',
+        title: 'Order Confirmed!',
+        html: `
+          <p style="color: #7C4F38; font-size: 14px; margin-bottom: 8px;">Order No: <strong>${orderObj.order_number || '#MM-SUCCESS'}</strong></p>
+          ${(!isGuest && used > 0) ? `<p style="color: #E27D80; font-weight: 700; margin: 4px 0;">Points Used: -${used.toFixed(2)} pts</p>` : ''}
+          ${loyaltyBadgeHTML}
+          <button type="button" class="btn-download-receipt" onclick="downloadReceiptPDF()" style="margin-top: 10px; padding: 8px 18px; font-weight: 800; border-radius: 99px; border: 1.5px solid #FCE1DD; background: #FFF; color: #F48A8E; cursor: pointer;">
+            <i class="fa-solid fa-file-arrow-down"></i> Download Receipt (PDF)
+          </button>
+        `,
+        confirmButtonText: 'Got It!',
+        showCancelButton: false,
+        focusConfirm: false
+      });
     } else {
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          target: document.body,
-          icon: 'error',
-          title: 'Failed to Place Order',
-          text: data.message || 'Could not save your order.',
-          confirmButtonText: 'OK',
-          customClass: {
-            container: 'mm-order-swal-container',
-            popup: 'custom-swal-popup',
-            title: 'custom-swal-title',
-            htmlContainer: 'custom-swal-html',
-            confirmButton: 'custom-swal-confirm'
-          },
-          buttonsStyling: false
-        });
-      }
+      showSweetAlert({
+        icon: 'error',
+        title: 'Failed to Place Order',
+        text: data.message || 'Could not save your order.',
+        confirmButtonText: 'OK',
+        showCancelButton: false
+      });
     }
   } catch (err) {
     console.error('Order error:', err);
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        target: document.body,
-        icon: 'error',
-        title: 'Connection Error',
-        text: 'Could not connect to the server.',
-        confirmButtonText: 'OK',
-        customClass: {
-          container: 'mm-order-swal-container',
-          popup: 'custom-swal-popup',
-          title: 'custom-swal-title',
-          htmlContainer: 'custom-swal-html',
-          confirmButton: 'custom-swal-confirm'
-        },
-        buttonsStyling: false
-      });
-    }
+    showSweetAlert({
+      icon: 'error',
+      title: 'Connection Error',
+      text: 'Could not connect to the server.',
+      confirmButtonText: 'OK',
+      showCancelButton: false
+    });
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;

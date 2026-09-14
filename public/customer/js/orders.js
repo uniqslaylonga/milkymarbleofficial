@@ -84,13 +84,13 @@ function resolveOrderAssets(cleanTitle, size, toppingsStr) {
     }
   }
 
-  let flavor = 'Pandan';
+  let flavor = 'pandan';
   let accent = '#8bb35c';
   if (cleanLower.includes('strawberry')) {
-    flavor = 'Strawberry';
+    flavor = 'strawberry';
     accent = '#f48a8e';
   } else if (cleanLower.includes('coffee')) {
-    flavor = 'Coffee';
+    flavor = 'coffee';
     accent = '#664638';
   }
 
@@ -137,21 +137,32 @@ function resolveOrderAssets(cleanTitle, size, toppingsStr) {
 
 async function loadOrders() {
   const container = getOrdersContainer();
-  if (!container) return;
-
+  const guestBox = document.getElementById('guestTrackBox');
+  const registeredSection = document.getElementById('registeredOrdersSection');
   const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
 
   if (!user || !user.customer_id) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 60px 20px; color: #777; width: 100%;">
-        <i class="fa-solid fa-receipt" style="font-size: 3rem; color: #b8a69d; margin-bottom: 16px;"></i>
-        <p style="font-size: 1.25rem; font-weight: 700; color: #4a3427; margin-bottom: 8px;">No transaction history</p>
-        <p style="font-size: 0.95rem; margin-bottom: 20px;">You are currently browsing as a guest. Log in to track your orders!</p>
-        <a href="customerlogin.html" style="display: inline-block; padding: 10px 24px; background: #664638; color: #fff; text-decoration: none; border-radius: 99px; font-weight: 600; font-size: 0.95rem;">Log In to View</a>
-      </div>
-    `;
+    if (guestBox) {
+      guestBox.style.display = 'block';
+    }
+    if (registeredSection) {
+      registeredSection.style.display = 'none';
+    }
+    if (container && !guestBox) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: #777; width: 100%;">
+          <i class="fa-solid fa-receipt" style="font-size: 3rem; color: #b8a69d; margin-bottom: 16px;"></i>
+          <p style="font-size: 1.25rem; font-weight: 700; color: #4a3427; margin-bottom: 8px;">No transaction history</p>
+          <p style="font-size: 0.95rem; margin-bottom: 20px;">You are currently browsing as a guest. Log in to track your orders!</p>
+          <a href="customerlogin.html" style="display: inline-block; padding: 10px 24px; background: #664638; color: #fff; text-decoration: none; border-radius: 99px; font-weight: 600; font-size: 0.95rem;">Log In to View</a>
+        </div>
+      `;
+    }
     return;
   }
+
+  if (guestBox) guestBox.style.display = 'none';
+  if (registeredSection) registeredSection.style.display = 'block';
 
   try {
     const res = await fetch(`/api/orders?customer_id=${user.customer_id}`);
@@ -159,14 +170,108 @@ async function loadOrders() {
     allOrdersList = data.orders || [];
     renderOrders(allOrdersList);
   } catch (err) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 50px 20px; color: #777;">
-        <i class="fa-solid fa-circle-exclamation" style="font-size: 2rem; color: #F48A8E; margin-bottom: 10px;"></i>
-        <p style="font-weight: 700; color: #594A42;">Could not load orders. Please refresh.</p>
-      </div>
-    `;
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 50px 20px; color: #777;">
+          <i class="fa-solid fa-circle-exclamation" style="font-size: 2rem; color: #F48A8E; margin-bottom: 10px;"></i>
+          <p style="font-weight: 700; color: #594A42;">Could not load orders. Please refresh.</p>
+        </div>
+      `;
+    }
   }
 }
+
+// Handler para sa Guest Order Tracking Lookup Form
+window.handleGuestOrderSearch = async function(event) {
+  if (event) event.preventDefault();
+  const orderIdInput = document.getElementById('guestOrderId');
+  const emailInput = document.getElementById('guestEmail');
+
+  const orderId = (orderIdInput?.value || '').trim();
+  const email = (emailInput?.value || '').trim().toLowerCase();
+
+  if (!orderId || !email) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Details',
+        text: 'Please enter both your Order ID and Email address.',
+        confirmButtonColor: '#F48A8E',
+        customClass: {
+          container: 'mm-swal-container-top',
+          popup: 'mm-swal-popup',
+          title: 'mm-swal-title',
+          confirmButton: 'mm-swal-confirm-btn'
+        },
+        buttonsStyling: false
+      });
+    } else {
+      alert('Please enter both your Order ID and Email address.');
+    }
+    return;
+  }
+
+  const submitBtn = event?.target?.querySelector('button[type="submit"]');
+  const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>Tracking...</span> <i class="fa-solid fa-spinner fa-spin"></i>';
+  }
+
+  try {
+    let res = await fetch(`/api/orders/track?order_number=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
+    if (!res.ok) {
+      res = await fetch(`/api/orders?order_number=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
+    }
+
+    const data = await res.json();
+
+    if (res.ok && data.status === 'success' && (data.order || (data.orders && data.orders[0]))) {
+      const targetOrder = data.order || data.orders[0];
+      window.openOrderDetailsModal(targetOrder);
+    } else {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Order Not Found',
+          text: data.message || 'No order matched that Order ID and Email address. Please verify your details.',
+          confirmButtonColor: '#F48A8E',
+          customClass: {
+            container: 'mm-swal-container-top',
+            popup: 'mm-swal-popup',
+            title: 'mm-swal-title',
+            confirmButton: 'mm-swal-confirm-btn'
+          },
+          buttonsStyling: false
+        });
+      } else {
+        alert('No order found matching those details.');
+      }
+    }
+  } catch (err) {
+    console.error('Guest tracking error:', err);
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Connection Error',
+        text: 'Could not connect to the server to check your order status.',
+        confirmButtonColor: '#F48A8E',
+        customClass: {
+          container: 'mm-swal-container-top',
+          popup: 'mm-swal-popup',
+          title: 'mm-swal-title',
+          confirmButton: 'mm-swal-confirm-btn'
+        },
+        buttonsStyling: false
+      });
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHTML || '<span>Track Order</span> <i class="fa-solid fa-arrow-right"></i>';
+    }
+  }
+};
 
 window.filterOrdersList = function(query) {
   currentSearchQuery = (query || '').toLowerCase().trim();
@@ -341,8 +446,14 @@ function renderOrderButtons(orderId, statusKey, orderDataEncoded) {
 }
 
 // 1. ORDER STATUS DETAILS MODAL LOGIC
-window.openOrderDetailsModal = function(orderId) {
-  const order = allOrdersList.find(o => String(o.id) === String(orderId));
+window.openOrderDetailsModal = function(orderOrId) {
+  let order = null;
+  if (typeof orderOrId === 'object' && orderOrId !== null) {
+    order = orderOrId;
+  } else {
+    order = allOrdersList.find(o => String(o.id) === String(orderOrId) || String(o.order_number) === String(orderOrId));
+  }
+
   if (!order) return;
 
   const orderRef = order.order_ref || order.order_number || `#MM-${order.id}`;
@@ -385,7 +496,7 @@ window.openOrderDetailsModal = function(orderId) {
   document.getElementById('modalPaymentMethod').innerText = paymentMethod;
 
   const itemsContainer = document.getElementById('modalOrderItemsList');
-  const rawItems = order.items || [];
+  const rawItems = order.items || order.order_items || [];
 
   if (rawItems.length > 0) {
     itemsContainer.innerHTML = rawItems.map(it => {
@@ -466,7 +577,6 @@ window.openRateModal = function(orderId) {
   if (!order) return;
   currentRatingOrder = order;
 
-  // Extract drink details for header preview
   const rawItems = order.items || [];
   const firstRaw = rawItems[0] || {};
   const rawLabel = firstRaw.item_label || firstRaw.title || order.title || 'Custom Marble Cup';
@@ -479,15 +589,12 @@ window.openRateModal = function(orderId) {
   document.getElementById('rateModalDrinkImg').src = assets.image || 'images/Cheesy Pandan Cubes.png';
   document.getElementById('rateModalThumbBox').style.setProperty('--thumb-accent', assets.accent_color || '#8bb35c');
 
-  // Reset Rating State to 5 Stars
   window.setRatingScore(5);
 
-  // Reset Textarea and Counter
   const textarea = document.getElementById('ratingFeedbackText');
   if (textarea) textarea.value = '';
   document.getElementById('rateCharCounter').innerText = '0/150';
 
-  // Open Modal
   const modal = document.getElementById('ratingModal');
   if (modal) {
     modal.classList.add('active');
@@ -738,8 +845,8 @@ window.downloadOrderReceipt = function(event, encodedOrder) {
 
       <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #594A42; margin-bottom: 16px; background: #FFF9F8; border: 1.5px solid #FCE1DD; border-radius: 14px; padding: 12px 16px;">
         <div>
-          <div style="margin-bottom: 4px;"><b>Customer:</b> ${order.recipient_name || 'Customer'}</div>
-          <div><b>Email:</b> ${order.recipient_email || 'N/A'}</div>
+          <div style="margin-bottom: 4px;"><b>Customer:</b> ${order.recipient_name || order.guest_name || 'Customer'}</div>
+          <div><b>Email:</b> ${order.recipient_email || order.guest_email || 'N/A'}</div>
         </div>
         <div style="text-align: right;">
           <div style="margin-bottom: 4px;"><b>Status:</b> ${order.status || 'Confirmed'}</div>

@@ -48,18 +48,6 @@ const PRESET_SIGNATURES = [
     price_8oz: 15.00,
     price_12oz: 19.00,
     rating: "0.0"
-  },
-  {
-    id: 5,
-    title: "TEST ITEM - Do Not Sell",
-    flavor: "Pandan",
-    variation: "Cubes",
-    toppings: ["Tapioca"],
-    accent_color: "#8bb35c",
-    image: "images/Cheesy Pandan Cubes.png",
-    price_8oz: 1.00,
-    price_12oz: 1.00,
-    rating: "0.0"
   }
 ];
 
@@ -123,6 +111,20 @@ function showSweetAlert(options) {
     buttonsStyling: false,
     ...options
   });
+}
+
+function getActiveCartPayload() {
+  const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  if (user && user.customer_id) {
+    return { customer_id: user.customer_id };
+  }
+
+  let guestSessionId = sessionStorage.getItem('mm_guest_session_id');
+  if (!guestSessionId) {
+    guestSessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    sessionStorage.setItem('mm_guest_session_id', guestSessionId);
+  }
+  return { session_id: guestSessionId };
 }
 
 const CartAlert = {
@@ -282,7 +284,6 @@ window.openProductModal = function(encodedData) {
   document.getElementById('modalQtyDisplay').innerText = currentModalQty;
 
   updateModalPrice();
-
   fetchLiveProductReviews(drink.title.replace('\n', ' '));
 
   const modal = document.getElementById('productModal');
@@ -347,16 +348,19 @@ window.addModalItemToCart = async function() {
     image: currentModalDrink.image
   };
 
-  const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  const idPayload = getActiveCartPayload();
 
   try {
     const res = await fetch('/api/cart', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-session-id': idPayload.session_id || ''
+      },
       body: JSON.stringify({ 
         action: 'add', 
         item: payload,
-        customer_id: user.customer_id || 11
+        ...idPayload
       })
     });
     if (!res.ok) throw new Error('Failed to add to cart');
@@ -540,9 +544,6 @@ function renderFilteredReviewCards(reviewsList) {
   });
 }
 
-// ==========================================
-// CUSTOMIZER CORE ENGINE (3-CUP CAROUSEL)
-// ==========================================
 function getToppingUnitPrice(toppingName) {
   if (TOPPING_PRICES && TOPPING_PRICES[toppingName] !== undefined) {
     return parseFloat(TOPPING_PRICES[toppingName]);
@@ -552,8 +553,7 @@ function getToppingUnitPrice(toppingName) {
 
 function getLayer1ImagePath(flavor, jelly, isLarge) {
   const folder = isLarge ? 'Large Flavors' : 'Small Flavors';
-  const rawFlavor = flavor || 'Pandan';
-  const fName = rawFlavor.charAt(0).toUpperCase() + rawFlavor.slice(1).toLowerCase();
+  const fName = (flavor || 'Pandan').toLowerCase();
   const jName = (jelly || 'Cube').toLowerCase();
   return `images/Layer 1/${folder}/${fName} ${jName}.png`;
 }
@@ -1101,16 +1101,19 @@ window.addCustomCupToCart = async function() {
     cup_img: l3Src
   };
 
-  const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  const idPayload = getActiveCartPayload();
 
   try {
     const res = await fetch('/api/cart', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-session-id': idPayload.session_id || ''
+      },
       body: JSON.stringify({ 
         action: 'add', 
         item: payload,
-        customer_id: user.customer_id || 11 
+        ...idPayload 
       })
     });
     if (!res.ok) throw new Error('Network error');
@@ -1396,36 +1399,58 @@ window.filterDrinks = function(q) {
 function updateCartCount() {
   const countBadge = document.getElementById('navCartCount');
   if (!countBadge) return;
-  const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  const customerId = user.customer_id || 11;
 
-  fetch(`/api/cart/count?customer_id=${customerId}`)
+  const idPayload = getActiveCartPayload();
+  const queryParam = idPayload.customer_id
+    ? `customer_id=${encodeURIComponent(idPayload.customer_id)}`
+    : `session_id=${encodeURIComponent(idPayload.session_id)}`;
+
+  fetch(`/api/cart/count?${queryParam}`)
     .then(res => res.json())
     .then(data => {
       const count = parseInt(data.count, 10) || 0;
       countBadge.innerText = count;
       countBadge.style.display = count > 0 ? 'inline-block' : 'none';
     })
-    .catch(() => { countBadge.innerText = 0; });
+    .catch(() => { 
+      countBadge.innerText = '0';
+      countBadge.style.display = 'none';
+    });
 }
 
 // =========================================================================
 // LOYALTY POINTS ENGINE
 // =========================================================================
 let userLoyaltyPoints = 0.0;
-let loyaltyDiscountApplied = 0.0;
 
 async function fetchCustomerLoyaltyPoints() {
   const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  const customerId = localUser.customer_id || 11;
+  const resolveId = localUser.customer_id || localUser.user_id || localUser.id;
+
+  // I-render muna ang naka-save sa localStorage para hindi mag-flicker o maging 0 sa refresh
+  if (localUser.loyalty_points !== undefined && localUser.loyalty_points !== null) {
+    userLoyaltyPoints = parseFloat(localUser.loyalty_points) || 0.0;
+    renderLoyaltyPoints(userLoyaltyPoints);
+  }
 
   try {
-    const res = await fetch(`/api/customer/profile?customer_id=${customerId}`);
-    const result = await res.json();
-    if (res.ok && result.status === 'success') {
-      const data = result.data || result.customer || {};
-      userLoyaltyPoints = parseFloat(data.loyalty_points || 0);
-      renderLoyaltyPoints(userLoyaltyPoints);
+    const res = await fetch(`/api/customer/profile${resolveId ? `?customer_id=${resolveId}` : ''}`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (res.ok) {
+      const result = await res.json();
+      if (result.status === 'success') {
+        const data = result.data || result.customer || {};
+        userLoyaltyPoints = parseFloat(data.loyalty_points ?? userLoyaltyPoints ?? 0.0);
+        renderLoyaltyPoints(userLoyaltyPoints);
+
+        // Panatilihing updated ang localStorage
+        localUser.loyalty_points = userLoyaltyPoints;
+        if (data.id) localUser.customer_id = data.id;
+        localStorage.setItem('mm_user', JSON.stringify(localUser));
+      }
     }
   } catch (err) {
     console.warn('Could not load customer loyalty points:', err);
@@ -1433,8 +1458,9 @@ async function fetchCustomerLoyaltyPoints() {
 }
 
 function renderLoyaltyPoints(points) {
-  const formattedPts = points.toFixed(1);
-  const pesoVal = (points * 1.0).toFixed(2);
+  const pts = parseFloat(points) || 0.0;
+  const formattedPts = pts.toFixed(1);
+  const pesoVal = (pts * 1.0).toFixed(2);
 
   const ptsEl = document.getElementById('displayLoyaltyPoints');
   const pesoEl = document.getElementById('displayLoyaltyPeso');
@@ -1447,84 +1473,6 @@ function renderLoyaltyPoints(points) {
   }
 }
 
-window.handleToggleLoyaltyPoints = function(isChecked) {
-  const discountRow = document.getElementById('summaryLoyaltyDiscountRow');
-  const discountValEl = document.getElementById('summaryLoyaltyDiscount');
-  const subtotalEl = document.getElementById('summarySubtotal');
-  const finalTotalEl = document.getElementById('summaryFinalTotal');
-
-  let subtotalNum = 0;
-  if (subtotalEl) {
-    subtotalNum = parseFloat(subtotalEl.innerText.replace(/[^0-9.]/g, '')) || 0;
-  }
-
-  if (isChecked) {
-    if (userLoyaltyPoints <= 0) {
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'info',
-          title: 'No Points Available',
-          text: 'You do not have any loyalty points to redeem yet. Every ₱10 spent earns 0.1 points!'
-        });
-      }
-      const toggle = document.getElementById('toggleUseLoyaltyPoints');
-      if (toggle) toggle.checked = false;
-      loyaltyDiscountApplied = 0;
-      if (discountRow) discountRow.style.display = 'none';
-      return;
-    }
-
-    const maxPointsDiscount = userLoyaltyPoints * 1.0;
-    loyaltyDiscountApplied = Math.min(subtotalNum, maxPointsDiscount);
-
-    if (discountRow) discountRow.style.display = 'flex';
-    if (discountValEl) discountValEl.innerText = `- ₱ ${loyaltyDiscountApplied.toFixed(2)}`;
-  } else {
-    loyaltyDiscountApplied = 0;
-    if (discountRow) discountRow.style.display = 'none';
-  }
-
-  const promoDiscountEl = document.getElementById('summaryDiscount');
-  let promoDiscount = 0;
-  if (promoDiscountEl) {
-    promoDiscount = parseFloat(promoDiscountEl.innerText.replace(/[^0-9.]/g, '')) || 0;
-  }
-
-  const newFinal = Math.max(0, subtotalNum - promoDiscount - loyaltyDiscountApplied);
-  if (finalTotalEl) {
-    finalTotalEl.innerText = `₱ ${newFinal.toFixed(2)}`;
-  }
-};
-
-const originalProceedToOrderSummary = window.proceedToOrderSummary;
-window.proceedToOrderSummary = function() {
-  loyaltyDiscountApplied = 0.0;
-  const toggle = document.getElementById('toggleUseLoyaltyPoints');
-  if (toggle) toggle.checked = false;
-  const discountRow = document.getElementById('summaryLoyaltyDiscountRow');
-  if (discountRow) discountRow.style.display = 'none';
-  fetchCustomerLoyaltyPoints();
-  if (typeof originalProceedToOrderSummary === 'function') {
-    originalProceedToOrderSummary();
-  }
-};
-
-const originalProceedCustomOrderSummary = window.proceedCustomOrderSummary;
-window.proceedCustomOrderSummary = function() {
-  loyaltyDiscountApplied = 0.0;
-  const toggle = document.getElementById('toggleUseLoyaltyPoints');
-  if (toggle) toggle.checked = false;
-  const discountRow = document.getElementById('summaryLoyaltyDiscountRow');
-  if (discountRow) discountRow.style.display = 'none';
-  fetchCustomerLoyaltyPoints();
-  if (typeof originalProceedCustomOrderSummary === 'function') {
-    originalProceedCustomOrderSummary();
-  }
-};
-
-// ==========================================
-// WELCOME BACK MODAL ENGINE
-// ==========================================
 function checkWelcomeBackModal() {
   const userRaw = localStorage.getItem('mm_user');
   if (!userRaw) return;
@@ -1549,17 +1497,26 @@ function checkWelcomeBackModal() {
         icon: 'success',
         title: 'Welcome!',
         html: `Yay, you're logged in as <strong>${displayName}</strong>!<br>Ready to pop the straw and build your sweet sips?`,
-        showCancelButton: true,
+        showCancelButton: false,
         confirmButtonText: "Let's Sip!",
-        cancelButtonText: 'Cancel',
-        reverseButtons: false,
-        focusConfirm: false
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const drinksSection = document.getElementById('drinks');
-          if (drinksSection) {
-            drinksSection.scrollIntoView({ behavior: 'smooth' });
-          }
+        focusConfirm: false,
+        customClass: {
+          container: 'mm-swal-container-top',
+          popup: 'mm-swal-popup mm-welcome-popup',
+          title: 'mm-swal-title',
+          htmlContainer: 'mm-swal-html',
+          actions: 'mm-swal-actions',
+          confirmButton: 'mm-swal-confirm-btn',
+          cancelButton: 'mm-cancel-hidden'
+        },
+        didOpen: () => {
+          const cancelBtn = Swal.getCancelButton();
+          if (cancelBtn) cancelBtn.remove();
+        }
+      }).then(() => {
+        const drinksSection = document.getElementById('drinks');
+        if (drinksSection) {
+          drinksSection.scrollIntoView({ behavior: 'smooth' });
         }
       });
     }
@@ -1568,9 +1525,6 @@ function checkWelcomeBackModal() {
   }
 }
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   renderSignatureDrinks();
   loadLiveRatingsSummary();
