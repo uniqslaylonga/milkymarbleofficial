@@ -220,7 +220,19 @@ app.get('/api/ratings', async (req, res) => {
   if (!supabase) return res.status(503).json({ status: 'error', message: 'Database service unavailable.' });
   try {
     const title = req.query.title;
-    let query = supabase.from('ratings').select('*').order('created_at', { ascending: false });
+    let query = supabase
+      .from('ratings')
+      .select(`
+        *,
+        customers (
+          users (
+            username,
+            full_name,
+            avatar
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
 
     if (title) {
       const cleanTitle = title.replace(/^(8oz|12oz)\s+/i, '').trim();
@@ -236,10 +248,28 @@ app.get('/api/ratings', async (req, res) => {
       computedAvg = Number((sum / reviews.length).toFixed(1));
     }
 
-    const formattedReviews = (reviews || []).map(r => ({
-      ...r,
-      reviewer_name: r.reviewer_name || 'Customer'
-    }));
+    const formattedReviews = (reviews || []).map(r => {
+      const user = r.customers?.users;
+      const reviewerName = user?.username || user?.full_name || 'Marble Sips Fan';
+
+      let reviewerAvatar = user?.avatar || null;
+      if (reviewerAvatar && !reviewerAvatar.startsWith('http') && !reviewerAvatar.startsWith('/') && !reviewerAvatar.startsWith('data:image')) {
+        reviewerAvatar = '/' + reviewerAvatar;
+      }
+
+      return {
+        id: r.id,
+        order_id: r.order_id,
+        customer_id: r.customer_id,
+        product_title: r.product_title,
+        rating_score: r.rating_score,
+        experience_tags: r.experience_tags,
+        review_text: r.review_text,
+        created_at: r.created_at,
+        reviewer_name: reviewerName,
+        reviewer_avatar: reviewerAvatar
+      };
+    });
 
     return res.json({
       status: 'success',
@@ -251,7 +281,6 @@ app.get('/api/ratings', async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Failed to load ratings.' });
   }
 });
-
 app.get('/api/ratings/summary', async (req, res) => {
   if (!supabase) return res.status(503).json({ status: 'error', message: 'Database service unavailable.' });
   try {
