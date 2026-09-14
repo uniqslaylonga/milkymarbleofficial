@@ -603,7 +603,7 @@ body {
 .terms-header h2 {
   font-family: var(--font-body);
   color: var(--brown-soft);
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 800;
   margin: 0;
   transition: color 0.2s ease;
