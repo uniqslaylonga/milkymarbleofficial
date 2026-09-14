@@ -150,7 +150,7 @@ app.get('/customer/:page', (req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.redirect('/customer/home.html');
+  res.redirect('/customer/index.html');
 });
 
 function getCustomerId(req) {
@@ -1163,7 +1163,7 @@ app.use((req, res) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    console.log(`Access in browser at http://localhost:${PORT}/customer/home.html`);
+    console.log(`Access in browser at http://localhost:${PORT}/customer/index.html`);
   });
 }
 
