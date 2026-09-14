@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Baloo+2:wght@700;800&family=Urbanist:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Baloo+2:wght@700;800&family=Urbanist:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/navbar.css" />
@@ -33,19 +33,21 @@
 
         <div class="nav-actions">
           <div class="nav-search-box">
-            <input type="text" placeholder="Search" />
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="#7C4F38" stroke-width="2" />
-              <line
-                x1="16.5"
-                y1="16.5"
-                x2="21"
-                y2="21"
-                stroke="#7C4F38"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
+            <input type="text" id="indexSearchInput" placeholder="Search FAQs, terms, drinks..." aria-label="Search" />
+            <button type="button" id="indexSearchBtn" class="search-icon-btn" title="Search" style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="#7C4F38" stroke-width="2" />
+                <line
+                  x1="16.5"
+                  y1="16.5"
+                  x2="21"
+                  y2="21"
+                  stroke="#7C4F38"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -66,17 +68,13 @@
           flavorful jelly cuts and sweet toppings.
         </p>
 
-        <!-- 3 STACKS HERO ACTIONS -->
+        <!-- HERO ACTIONS (INLINE BUTTONS + UNUNDERLINED GUEST LINK) -->
         <div class="hero-actions">
-          <!-- Stack 1: Sign Up Pill Button -->
-          <a href="signup.html" class="cta-btn-primary">Take the First Sip</a>
-
-          <!-- Stack 2: Hyperlinked Login Text -->
-          <div class="hero-login-text">
-          <a href="login.html" class="hero-login-link">Swirl Back In</a>
+          <div class="hero-buttons-row">
+            <a href="signup.html" class="cta-btn-primary">Take the First Sip</a>
+            <a href="login.html" class="hero-login-link">Swirl Back In</a>
           </div>
 
-          <!-- Stack 3: Hyperlinked Guest Text -->
           <p class="hero-guest-text">
             <a href="home.html" class="hero-guest-link">Continue as Guest</a>
           </p>
@@ -691,8 +689,8 @@
         function setActiveLink() {
           let currentId = null;
           const scrollPos = window.scrollY + (document.querySelector(":root")
-            ? parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")) || 80
-            : 80) + 20;
+            ? parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")) || 74
+            : 74) + 20;
 
           sections.forEach((section) => {
             if (section.offsetTop <= scrollPos) {
@@ -708,6 +706,89 @@
 
         window.addEventListener("scroll", setActiveLink, { passive: true });
         setActiveLink();
+
+        // FUNCTIONAL SEARCH BAR LOGIC
+        const searchInput = document.getElementById("indexSearchInput");
+        const searchBtn = document.getElementById("indexSearchBtn");
+
+        function performIndexSearch() {
+          if (!searchInput) return;
+          const query = searchInput.value.trim().toLowerCase();
+          if (!query) return;
+
+          // 1. Search in FAQs
+          const faqItems = document.querySelectorAll(".faq-item");
+          let matchedFaq = null;
+          faqItems.forEach((item) => {
+            const text = item.textContent.toLowerCase();
+            if (text.includes(query) && !matchedFaq) {
+              matchedFaq = item;
+            }
+          });
+
+          if (matchedFaq) {
+            matchedFaq.classList.add("open");
+            const answer = matchedFaq.querySelector(".faq-answer");
+            if (answer) {
+              answer.style.maxHeight = answer.scrollHeight + 32 + "px";
+            }
+            matchedFaq.scrollIntoView({ behavior: "smooth", block: "center" });
+            matchedFaq.style.outline = "2.5px solid var(--coral-active)";
+            matchedFaq.style.borderRadius = "18px";
+            setTimeout(() => { matchedFaq.style.outline = "none"; }, 2500);
+            return;
+          }
+
+          // 2. Search in Terms & Conditions
+          const termsItems = document.querySelectorAll(".terms-item");
+          let matchedTerm = null;
+          termsItems.forEach((item) => {
+            const text = item.textContent.toLowerCase();
+            if (text.includes(query) && !matchedTerm) {
+              matchedTerm = item;
+            }
+          });
+
+          if (matchedTerm) {
+            matchedTerm.classList.add("open");
+            const content = matchedTerm.querySelector(".terms-content");
+            if (content) {
+              content.style.maxHeight = content.scrollHeight + 32 + "px";
+            }
+            matchedTerm.scrollIntoView({ behavior: "smooth", block: "center" });
+            matchedTerm.style.outline = "2.5px solid var(--coral-active)";
+            setTimeout(() => { matchedTerm.style.outline = "none"; }, 2500);
+            return;
+          }
+
+          // 3. Search in About Section
+          if (query.includes("about") || query.includes("marble bar") || query.includes("business")) {
+            const aboutSec = document.getElementById("about");
+            if (aboutSec) {
+              aboutSec.scrollIntoView({ behavior: "smooth", block: "start" });
+              return;
+            }
+          }
+
+          // 4. Fallback: Kung product o inumin ang hinahanap, idirekta sa menu
+          window.location.href = `home.html#drinks`;
+        }
+
+        if (searchInput) {
+          searchInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              performIndexSearch();
+            }
+          });
+        }
+
+        if (searchBtn) {
+          searchBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            performIndexSearch();
+          });
+        }
       });
     </script>
   </body>
