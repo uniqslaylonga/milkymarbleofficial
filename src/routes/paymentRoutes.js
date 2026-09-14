@@ -20,7 +20,7 @@ function extractSessionId(pickupInstructions) {
 
 // ==========================================
 // POST /api/payments/create-checkout
-// Creates a LIVE PayMongo Checkout Session (GCash / Maya / GrabPay / ShopeePay)
+// Creates a LIVE PayMongo Checkout Session (QR Ph)
 // for an already-placed order that's waiting on E-Wallet payment.
 // ==========================================
 router.post('/create-checkout', async (req, res) => {

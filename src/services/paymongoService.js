@@ -4,7 +4,7 @@
 require('dotenv').config();
 
 const PAYMONGO_API_BASE = 'https://api.paymongo.com/v2';
-const EWALLET_METHOD_TYPES = ['gcash', 'paymaya', 'grab_pay', 'shopeepay'];
+const EWALLET_METHOD_TYPES = ['qrph'];
 
 function getSecretKey() {
   return process.env.PAYMONGO_SECRET_KEY;
@@ -54,8 +54,7 @@ async function pmFetch(path, options = {}) {
 }
 
 /**
- * Create a live PayMongo Checkout Session scoped to E-Wallet payment methods
- * (GCash, Maya, GrabPay, ShopeePay).
+ * Create a live PayMongo Checkout Session scoped to QR Ph.
  */
 async function createEwalletCheckoutSession({
   amount,
