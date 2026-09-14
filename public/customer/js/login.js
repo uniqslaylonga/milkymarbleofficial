@@ -245,4 +245,125 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
+
+  // ==========================================
+  // FORGOT PASSWORD FLOW
+  // ==========================================
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openForgotPasswordFlow();
+    });
+  }
+
+  async function openForgotPasswordFlow() {
+    const { value: email, isConfirmed } = await showSweetAlert({
+      title: 'Forgot Password?',
+      html: `
+        <p style="font-size:13.5px;color:#7C4F38;margin:0 0 14px;text-align:left;">
+          Enter your account email and we'll send you a security code to reset your password.
+        </p>
+        <input type="email" id="fpEmail" class="swal2-input" placeholder="Registered email address" style="margin:0;">
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Send Code',
+      cancelButtonText: 'Cancel',
+      focusConfirm: false,
+      preConfirm: () => {
+        const val = document.getElementById('fpEmail').value.trim();
+        if (!val) {
+          Swal.showValidationMessage('Please enter your email address.');
+          return false;
+        }
+        return val;
+      }
+    });
+
+    if (!isConfirmed || !email) return;
+
+    try {
+      const res = await fetch('/api/customer/request-password-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') {
+        throw new Error(data.message || 'Could not send security code.');
+      }
+      openResetPasswordStep(email);
+    } catch (err) {
+      showSweetAlert({
+        title: 'Could Not Send Code',
+        text: err.message,
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  }
+
+  async function openResetPasswordStep(email) {
+    const { value: formValues, isConfirmed } = await showSweetAlert({
+      title: 'Reset Your Password',
+      html: `
+        <p style="font-size:13.5px;color:#7C4F38;margin:0 0 14px;text-align:left;">
+          We sent a 6-digit code to <b>${email}</b>. Enter it below along with your new password.
+        </p>
+        <input type="text" id="fpOtp" class="swal2-input" placeholder="6-digit code" maxlength="6" style="margin:0 0 10px;">
+        <input type="password" id="fpNewPassword" class="swal2-input" placeholder="New password" style="margin:0 0 10px;">
+        <input type="password" id="fpConfirmPassword" class="swal2-input" placeholder="Confirm new password" style="margin:0;">
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Reset Password',
+      cancelButtonText: 'Cancel',
+      focusConfirm: false,
+      preConfirm: () => {
+        const otp = document.getElementById('fpOtp').value.trim();
+        const pass = document.getElementById('fpNewPassword').value;
+        const confirmPass = document.getElementById('fpConfirmPassword').value;
+
+        if (!otp || otp.length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit code from your email.');
+          return false;
+        }
+        if (!pass || pass.length < 6) {
+          Swal.showValidationMessage('Password must be at least 6 characters.');
+          return false;
+        }
+        if (pass !== confirmPass) {
+          Swal.showValidationMessage('Passwords do not match.');
+          return false;
+        }
+        return { otp, pass };
+      }
+    });
+
+    if (!isConfirmed || !formValues) return;
+
+    try {
+      const res = await fetch('/api/customer/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp_code: formValues.otp, new_password: formValues.pass })
+      });
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') {
+        throw new Error(data.message || 'Could not reset password.');
+      }
+      showSweetAlert({
+        title: 'Password Reset!',
+        text: 'Your password has been changed. You can now log in with your new password.',
+        icon: 'success',
+        confirmButtonText: 'Log In'
+      });
+    } catch (err) {
+      showSweetAlert({
+        title: 'Reset Failed',
+        text: err.message,
+        icon: 'error',
+        confirmButtonText: 'Try Again'
+      });
+    }
+  }
 });

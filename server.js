@@ -1064,6 +1064,51 @@ app.post('/api/customer/change-password', async (req, res) => {
   }
 });
 
+// Forgot Password (logged-out reset): unlike /change-password above, this does NOT
+// require current_password - the emailed OTP itself is the proof of account ownership.
+app.post('/api/customer/forgot-password', async (req, res) => {
+  try {
+    const { email, otp_code, new_password } = req.body;
+    if (!email || !otp_code || !new_password) {
+      return res.status(400).json({ status: 'error', message: 'Email, security code, and new password are all required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const storedOtp = passwordOtpStore.get(cleanEmail);
+    const isCodeValid = Boolean(storedOtp && storedOtp.code === String(otp_code).trim() && Date.now() <= storedOtp.expiresAt);
+
+    if (!isCodeValid) {
+      return res.status(400).json({ status: 'error', message: 'Invalid or expired security code.' });
+    }
+
+    if (!supabase) return res.status(503).json({ status: 'error', message: 'Database service unavailable.' });
+
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', cleanEmail)
+      .maybeSingle();
+
+    if (!userRecord) {
+      return res.status(404).json({ status: 'error', message: 'No account found for that email.' });
+    }
+
+    const newHash = bcrypt ? await bcrypt.hash(new_password, 10) : new_password;
+
+    const { error: passUpdateErr } = await supabase
+      .from('users')
+      .update({ password_hash: newHash })
+      .eq('id', userRecord.id);
+
+    if (passUpdateErr) return res.status(400).json({ status: 'error', message: passUpdateErr.message });
+
+    passwordOtpStore.delete(cleanEmail);
+    return res.json({ status: 'success', message: 'Your password has been reset successfully! You can now log in.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed to reset password.' });
+  }
+});
+
 app.patch('/api/customer/preferences', async (req, res) => {
   try {
     const customerId = getCustomerId(req);
