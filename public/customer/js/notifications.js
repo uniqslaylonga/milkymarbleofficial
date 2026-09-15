@@ -146,16 +146,15 @@ async function loadCustomerNotifications() {
       let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
       let notifTitle = 'Order Confirmed!';
       let notifDesc = "We've received your order! Hang tight, your jelly cups will be prepared soon.";
-      let actionBtnHTML = `<button class="view-details-btn" onclick="openOrderSummary('${item.order_id}')">View Details</button>`;
-
+      let actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">View Details</button>`;
       if (rawStatus.includes('COMPLET')) {
         notifTitle = 'Order Complete! How was your sip?';
         notifDesc = 'Tell us what you think of your sips! Rate your drink and share the love.';
-        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html'">Rate your Sips</button>`;
+        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">Rate your Sips</button>`;
       } else if (rawStatus.includes('READY')) {
         notifTitle = 'Ready for Pick-up!';
         notifDesc = 'Your sweet cups are chilled and waiting for you at the counter!';
-        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html'">View Details</button>`;
+        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">View Details</button>`;
       } else if (rawStatus.includes('PREP')) {
         notifTitle = 'Prepping Your Sips!';
         notifDesc = "The Marble Bar is layering your sweet treats now. We'll let you know once ready!";
