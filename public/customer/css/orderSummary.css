@@ -720,9 +720,25 @@ body {
         padding: 7px 10px;
     }
 
-    .summary-cup-row {
+    .recipient-input-card {
         padding: 8px 12px !important;
-        gap: 12px !important;
+        gap: 8px !important;
+    }
+
+    .recipient-text-fields {
+        min-width: 0 !important;
+        flex: 1 !important;
+    }
+
+    .recipient-line {
+        font-size: 12px !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    .summary-cup-row {
+        padding: 8px 10px !important;
+        gap: 10px !important;
     }
 
     .summary-cup-thumb {
@@ -749,13 +765,60 @@ body {
         font-size: 13px !important;
     }
 
+    .summary-cup-toppings {
+        font-size: 11px !important;
+    }
+
+    .summary-cup-right-col {
+        flex-shrink: 0 !important;
+        min-width: fit-content !important;
+    }
+
     .summary-item-price {
         font-size: 15px !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.3px !important;
     }
 
     .btn-place-order {
         padding: 10px 16px;
         font-size: 14px;
+    }
+}
+
+/* ==================================================== */
+/* COMPACT PHONES VIEW (<= 420px)                       */
+/* ==================================================== */
+@media (max-width: 420px) {
+    .product-modal-container.order-summary-card {
+        padding: 20px 12px 16px !important;
+        width: 96% !important;
+    }
+
+    .summary-cup-row {
+        gap: 8px !important;
+        padding: 8px 8px !important;
+    }
+
+    .summary-cup-thumb {
+        width: 38px !important;
+        height: 48px !important;
+    }
+
+    .summary-clean-cup-img {
+        max-height: 44px !important;
+    }
+
+    .summary-cup-heading {
+        font-size: 12px !important;
+    }
+
+    .summary-cup-toppings {
+        font-size: 10px !important;
+    }
+
+    .summary-item-price {
+        font-size: 14px !important;
     }
 }
 
