@@ -233,7 +233,7 @@ body {
 }
 
 /* ==================================================== */
-/* CUPS SUMMARY LIST & ITEM ROW                         */
+/* CUPS SUMMARY LIST & ITEM ROW (ROBUST GRID FIX)       */
 /* ==================================================== */
 .summary-cups-list {
     display: flex;
@@ -244,52 +244,45 @@ body {
     padding-right: 2px;
 }
 
+/* Force standard grid to ensure photo, details, and price never overlap */
 .summary-cup-row,
 .summary-cup-item {
     background: var(--bg-summary-inner) !important;
     border: none !important;
     border-radius: 18px !important;
     padding: 10px 14px !important;
-    display: flex !important;
-    flex-direction: row !important;
+    display: grid !important;
+    grid-template-columns: 56px 1fr auto !important;
     align-items: center !important;
-    justify-content: space-between !important;
     gap: 12px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
-}
-
-/* Ensure images always keep proper size */
-.summary-cup-item img,
-.summary-clean-cup-img {
-    width: auto !important;
-    max-width: 48px !important;
-    height: 56px !important;
-    max-height: 56px !important;
-    object-fit: contain !important;
-    display: block !important;
-    flex-shrink: 0 !important;
-}
-
-.summary-cup-thumb {
     position: relative !important;
-    width: 48px !important;
-    height: 60px !important;
-    min-width: 48px !important;
+}
+
+/* Image Column Fix */
+.summary-cup-thumb,
+.summary-cup-item > div:first-child {
+    position: relative !important;
+    width: 56px !important;
+    height: 64px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
     display: flex !important;
     align-items: flex-end !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
+    margin: 0 !important;
 }
 
-.summary-cup-thumb::after {
+.summary-cup-thumb::after,
+.summary-cup-item > div:first-child::after {
     content: "" !important;
     position: absolute !important;
     bottom: 2px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: 42px !important;
+    width: 44px !important;
     height: 22px !important;
     background: var(--thumb-accent, #8bb35c) !important;
     border-radius: 9px !important;
@@ -297,11 +290,25 @@ body {
     opacity: 0.95 !important;
 }
 
+.summary-clean-cup-img,
+.summary-cup-item img {
+    position: relative !important;
+    max-height: 58px !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    z-index: 2 !important;
+    display: block !important;
+    margin: 0 auto 2px !important;
+    filter: drop-shadow(0 3px 6px rgba(89, 74, 66, 0.15)) !important;
+}
+
+/* Composite Thumbnail Layers */
 .composite-cart-thumb.summary-composite-thumb {
     position: relative !important;
-    width: 48px !important;
-    height: 60px !important;
-    min-width: 48px !important;
+    width: 56px !important;
+    height: 64px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -344,32 +351,42 @@ body {
     pointer-events: none;
 }
 
-/* Middle Column Details */
-.summary-cup-middle-col {
-    flex: 1 !important;
+/* Middle Column: Item details */
+.summary-cup-middle-col,
+.summary-cup-item > div:nth-child(2) {
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: flex-start !important;
-    gap: 4px !important;
+    gap: 3px !important;
     min-width: 0 !important;
+    width: 100% !important;
+    text-align: left !important;
 }
 
-.summary-cup-heading {
+.summary-cup-heading,
+.summary-cup-item > div:nth-child(2) h4,
+.summary-cup-item > div:nth-child(2) strong,
+.summary-cup-item > div:nth-child(2) div:first-child {
     font-family: var(--font-header) !important;
-    font-size: 14.5px !important;
+    font-size: 14px !important;
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     letter-spacing: 0.5px !important;
-    line-height: 1.25 !important;
+    line-height: 1.2 !important;
     margin: 0 !important;
-    word-break: break-word;
+    word-break: break-word !important;
 }
 
-.summary-cup-toppings {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--text-dark);
+.summary-cup-toppings,
+.summary-cup-item > div:nth-child(2) p,
+.summary-cup-item > div:nth-child(2) small {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+    word-break: break-word !important;
 }
 
 .summary-cup-addons {
@@ -379,7 +396,8 @@ body {
 }
 
 /* 1x Badge */
-.summary-qty-pill {
+.summary-qty-pill,
+.summary-cup-item .summary-qty-pill {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -389,33 +407,37 @@ body {
     padding: 2px 8px !important;
     width: fit-content !important;
     align-self: flex-start !important;
-    flex-shrink: 0 !important;
+    margin-top: 2px !important;
 }
 
-.summary-qty-val {
-    font-size: 11px !important;
+.summary-qty-val,
+.summary-cup-item .summary-qty-pill span {
+    font-size: 10.5px !important;
     font-weight: 800 !important;
     color: #ffffff !important;
     line-height: 1 !important;
 }
 
-/* Price block */
-.summary-cup-right-col {
+/* Price Column */
+.summary-cup-right-col,
+.summary-cup-item > div:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    flex-shrink: 0 !important;
     text-align: right !important;
-    margin-left: auto !important;
     white-space: nowrap !important;
+    min-width: 65px !important;
 }
 
-.summary-item-price {
+.summary-item-price,
+.summary-cup-item > div:last-child span,
+.summary-cup-item > span:last-child {
     font-family: var(--font-body) !important;
     font-size: 16px !important;
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     white-space: nowrap !important;
+    letter-spacing: -0.3px !important;
     display: inline-block !important;
 }
 
@@ -724,66 +746,53 @@ body {
         overflow-wrap: anywhere !important;
     }
 
-    /* Target all possible item structures from JS templates */
-    .summary-cup-row,
-    .summary-cup-item {
-        padding: 10px 12px !important;
-        gap: 10px !important;
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-    }
-
-    /* Keep container fixed so cup never collapses */
-    .summary-cup-item > div:first-child,
-    .summary-cup-thumb {
-        flex: 0 0 48px !important;
-        width: 48px !important;
-        min-width: 48px !important;
-        height: 60px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    /* Allow the middle details block to occupy all remaining space */
-    .summary-cup-item > div:not(:first-child):not(:last-child),
-    .summary-cup-middle-col {
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        text-align: left !important;
-        overflow: visible !important;
-    }
-
-    /* Ensure text renders with proper wrapping */
-    .summary-cup-item * {
-        white-space: normal !important;
-    }
-
-    /* Keep price pinned on right side without line break */
-    .summary-cup-item > div:last-child,
-    .summary-cup-right-col {
-        flex: 0 0 auto !important;
-        margin-left: auto !important;
-        text-align: right !important;
-        white-space: nowrap !important;
-    }
-
-    .summary-cup-item > div:last-child *,
-    .summary-item-price {
-        white-space: nowrap !important;
-        display: inline-block !important;
-        font-size: 15px !important;
-        font-weight: 800 !important;
-    }
-
     .btn-place-order {
         padding: 10px 16px;
         font-size: 14px;
+    }
+}
+
+/* ==================================================== */
+/* COMPACT PHONES VIEW (<= 400px)                       */
+/* ==================================================== */
+@media (max-width: 400px) {
+    .product-modal-container.order-summary-card {
+        padding: 20px 12px 16px !important;
+        width: 96% !important;
+    }
+
+    .summary-cup-row,
+    .summary-cup-item {
+        grid-template-columns: 48px 1fr auto !important;
+        gap: 8px !important;
+        padding: 8px 10px !important;
+    }
+
+    .summary-cup-thumb,
+    .summary-cup-item > div:first-child {
+        width: 48px !important;
+        height: 56px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+    }
+
+    .summary-clean-cup-img,
+    .summary-cup-item img {
+        max-height: 50px !important;
+    }
+
+    .summary-cup-heading {
+        font-size: 12.5px !important;
+    }
+
+    .summary-cup-toppings {
+        font-size: 10.5px !important;
+    }
+
+    .summary-item-price,
+    .summary-cup-item > div:last-child span,
+    .summary-cup-item > span:last-child {
+        font-size: 14.5px !important;
     }
 }
 
