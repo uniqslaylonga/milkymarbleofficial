@@ -233,7 +233,7 @@ body {
 }
 
 /* ==================================================== */
-/* CUPS SUMMARY LIST & ITEM ROW (BALANSE AT NAKA-GITNA) */
+/* CUPS SUMMARY LIST & ITEM ROW                         */
 /* ==================================================== */
 .summary-cups-list {
     display: flex;
@@ -244,7 +244,8 @@ body {
     padding-right: 2px;
 }
 
-.summary-cup-row {
+.summary-cup-row,
+.summary-cup-item {
     background: var(--bg-summary-inner) !important;
     border: none !important;
     border-radius: 18px !important;
@@ -257,8 +258,9 @@ body {
     box-sizing: border-box !important;
 }
 
-/* Thumbnail Container: Laging naka-center ang kulay sa ilalim ng baso */
-.summary-cup-thumb {
+/* Thumbnail Container */
+.summary-cup-thumb,
+.summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
     position: relative !important;
     width: 54px !important;
     height: 68px !important;
@@ -294,7 +296,7 @@ body {
     filter: drop-shadow(0 4px 8px rgba(89, 74, 66, 0.15)) !important;
 }
 
-/* Layered thumbnail para sa custom cups */
+/* Layered thumbnail */
 .composite-cart-thumb.summary-composite-thumb {
     position: relative !important;
     width: 48px !important;
@@ -391,7 +393,7 @@ body {
     color: var(--text-muted);
 }
 
-/* 1x Badge: Maliit na pill at hindi nag-i-stretch */
+/* 1x Badge */
 .summary-qty-pill {
     display: inline-flex !important;
     align-items: center !important;
@@ -413,22 +415,26 @@ body {
     line-height: 1 !important;
 }
 
-/* Price block sa dulong kanan */
-.summary-cup-right-col {
+/* Price block */
+.summary-cup-right-col,
+.summary-cup-item > div:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
     flex-shrink: 0 !important;
     text-align: right !important;
     margin-left: auto !important;
+    white-space: nowrap !important;
 }
 
-.summary-item-price {
+.summary-item-price,
+.summary-cup-item span:last-child {
     font-family: var(--font-body) !important;
     font-size: 17px !important;
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     white-space: nowrap !important;
+    display: inline-block !important;
 }
 
 /* ==================================================== */
@@ -736,20 +742,20 @@ body {
         overflow-wrap: anywhere !important;
     }
 
-    .summary-cup-row {
+    /* Force override inline flex style for both class names */
+    .summary-cup-row,
+    .summary-cup-item {
         padding: 8px 10px !important;
-        gap: 10px !important;
+        gap: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
     }
 
-    .summary-cup-thumb {
+    .summary-cup-thumb,
+    .summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
         width: 44px !important;
         height: 56px !important;
-    }
-
-    .summary-cup-thumb::after {
-        width: 38px !important;
-        height: 20px !important;
-        bottom: 1px !important;
     }
 
     .summary-clean-cup-img {
@@ -769,12 +775,15 @@ body {
         font-size: 11px !important;
     }
 
-    .summary-cup-right-col {
+    .summary-cup-right-col,
+    .summary-cup-item > div:last-child {
         flex-shrink: 0 !important;
         min-width: fit-content !important;
+        white-space: nowrap !important;
     }
 
-    .summary-item-price {
+    .summary-item-price,
+    .summary-cup-item span:last-child {
         font-size: 15px !important;
         white-space: nowrap !important;
         letter-spacing: -0.3px !important;
@@ -795,18 +804,20 @@ body {
         width: 96% !important;
     }
 
-    .summary-cup-row {
-        gap: 8px !important;
-        padding: 8px 8px !important;
+    .summary-cup-row,
+    .summary-cup-item {
+        gap: 6px !important;
+        padding: 8px 6px !important;
     }
 
-    .summary-cup-thumb {
-        width: 38px !important;
-        height: 48px !important;
+    .summary-cup-thumb,
+    .summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
+        width: 36px !important;
+        height: 46px !important;
     }
 
     .summary-clean-cup-img {
-        max-height: 44px !important;
+        max-height: 42px !important;
     }
 
     .summary-cup-heading {
@@ -817,13 +828,15 @@ body {
         font-size: 10px !important;
     }
 
-    .summary-item-price {
-        font-size: 14px !important;
+    .summary-item-price,
+    .summary-cup-item span:last-child {
+        font-size: 13.5px !important;
+        white-space: nowrap !important;
     }
 }
 
 /* ==========================================
-   SWEETALERT2 STYLING (matches accountSettings "Saved!" shape)
+   SWEETALERT2 STYLING
    ========================================== */
 .mm-order-swal-container,
 div.swal2-container.mm-order-swal-container {
