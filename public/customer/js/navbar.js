@@ -623,7 +623,7 @@ function handleGuestRestricted(type) {
   }
 }
 
-window.handleGuestAccountPrompt = function(event, targetUrl = 'login.html') {
+window.handleGuestAccountPrompt = function(event, targetUrl = 'signup.html') {
   if (event) event.preventDefault();
 
   if (typeof Swal !== 'undefined') {
