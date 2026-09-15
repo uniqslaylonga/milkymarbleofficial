@@ -233,7 +233,7 @@ body {
 }
 
 /* ==================================================== */
-/* CUPS SUMMARY LIST & ITEM ROW (ROBUST GRID FIX)       */
+/* CUPS SUMMARY LIST & ITEM ROW (FLEX LAYOUT)           */
 /* ==================================================== */
 .summary-cups-list {
     display: flex;
@@ -244,34 +244,34 @@ body {
     padding-right: 2px;
 }
 
-/* Force standard grid to ensure photo, details, and price never overlap */
 .summary-cup-row,
 .summary-cup-item {
     background: var(--bg-summary-inner) !important;
     border: none !important;
     border-radius: 18px !important;
     padding: 10px 14px !important;
-    display: grid !important;
-    grid-template-columns: 56px 1fr auto !important;
+    display: flex !important;
+    flex-direction: row !important;
     align-items: center !important;
+    justify-content: space-between !important;
     gap: 12px !important;
     width: 100% !important;
     box-sizing: border-box !important;
     position: relative !important;
 }
 
-/* Image Column Fix */
+/* Thumbnail */
 .summary-cup-thumb,
 .summary-cup-item > div:first-child {
     position: relative !important;
-    width: 56px !important;
-    height: 64px !important;
-    min-width: 56px !important;
-    max-width: 56px !important;
+    width: 48px !important;
+    height: 60px !important;
+    min-width: 48px !important;
     display: flex !important;
     align-items: flex-end !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
+    overflow: visible !important;
     margin: 0 !important;
 }
 
@@ -282,7 +282,7 @@ body {
     bottom: 2px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: 44px !important;
+    width: 42px !important;
     height: 22px !important;
     background: var(--thumb-accent, #8bb35c) !important;
     border-radius: 9px !important;
@@ -291,24 +291,26 @@ body {
 }
 
 .summary-clean-cup-img,
-.summary-cup-item img {
+.summary-cup-thumb img,
+.summary-cup-item > div:first-child img {
     position: relative !important;
-    max-height: 58px !important;
+    max-height: 54px !important;
     max-width: 100% !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
     z-index: 2 !important;
     display: block !important;
-    margin: 0 auto 2px !important;
+    margin-bottom: 2px !important;
     filter: drop-shadow(0 3px 6px rgba(89, 74, 66, 0.15)) !important;
 }
 
 /* Composite Thumbnail Layers */
 .composite-cart-thumb.summary-composite-thumb {
     position: relative !important;
-    width: 56px !important;
-    height: 64px !important;
+    width: 48px !important;
+    height: 60px !important;
+    min-width: 48px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -351,36 +353,51 @@ body {
     pointer-events: none;
 }
 
-/* Middle Column: Item details */
+/* Middle Column Details */
 .summary-cup-middle-col,
 .summary-cup-item > div:nth-child(2) {
+    flex: 1 1 auto !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: flex-start !important;
     gap: 3px !important;
     min-width: 0 !important;
-    width: 100% !important;
     text-align: left !important;
+}
+
+.summary-cup-row-top {
+    display: flex;
+    align-items: center;
+    width: 100%;
 }
 
 .summary-cup-heading,
 .summary-cup-item > div:nth-child(2) h4,
 .summary-cup-item > div:nth-child(2) strong,
-.summary-cup-item > div:nth-child(2) div:first-child {
+.summary-cup-item > div:nth-child(2) .summary-cup-heading {
     font-family: var(--font-header) !important;
-    font-size: 14px !important;
+    font-size: 13.5px !important;
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     letter-spacing: 0.5px !important;
-    line-height: 1.2 !important;
+    line-height: 1.25 !important;
     margin: 0 !important;
     word-break: break-word !important;
 }
 
+.summary-cup-row-bottom {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 3px !important;
+    width: 100% !important;
+}
+
 .summary-cup-toppings,
 .summary-cup-item > div:nth-child(2) p,
-.summary-cup-item > div:nth-child(2) small {
+.summary-cup-item > div:nth-child(2) small,
+.summary-cup-item > div:nth-child(2) .summary-cup-toppings {
     font-size: 11px !important;
     font-weight: 600 !important;
     color: var(--text-muted) !important;
@@ -418,18 +435,20 @@ body {
     line-height: 1 !important;
 }
 
-/* Price Column */
+/* Price block */
 .summary-cup-right-col,
 .summary-cup-item > div:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
     text-align: right !important;
     white-space: nowrap !important;
-    min-width: 65px !important;
 }
 
 .summary-item-price,
+.summary-cup-right-col span,
 .summary-cup-item > div:last-child span,
 .summary-cup-item > span:last-child {
     font-family: var(--font-body) !important;
@@ -437,8 +456,9 @@ body {
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     white-space: nowrap !important;
-    letter-spacing: -0.3px !important;
+    word-break: keep-all !important;
     display: inline-block !important;
+    letter-spacing: -0.3px !important;
 }
 
 /* ==================================================== */
@@ -746,6 +766,40 @@ body {
         overflow-wrap: anywhere !important;
     }
 
+    .summary-cup-row,
+    .summary-cup-item {
+        padding: 8px 10px !important;
+        gap: 8px !important;
+    }
+
+    .summary-cup-thumb,
+    .summary-cup-item > div:first-child {
+        width: 44px !important;
+        height: 56px !important;
+        min-width: 44px !important;
+    }
+
+    .summary-clean-cup-img,
+    .summary-cup-thumb img,
+    .summary-cup-item > div:first-child img {
+        max-height: 50px !important;
+    }
+
+    .summary-cup-heading {
+        font-size: 13px !important;
+    }
+
+    .summary-cup-toppings {
+        font-size: 11px !important;
+    }
+
+    .summary-item-price,
+    .summary-cup-right-col span,
+    .summary-cup-item > div:last-child span,
+    .summary-cup-item > span:last-child {
+        font-size: 15px !important;
+    }
+
     .btn-place-order {
         padding: 10px 16px;
         font-size: 14px;
@@ -757,32 +811,31 @@ body {
 /* ==================================================== */
 @media (max-width: 400px) {
     .product-modal-container.order-summary-card {
-        padding: 20px 12px 16px !important;
+        padding: 18px 12px 16px !important;
         width: 96% !important;
     }
 
     .summary-cup-row,
     .summary-cup-item {
-        grid-template-columns: 48px 1fr auto !important;
-        gap: 8px !important;
-        padding: 8px 10px !important;
+        gap: 6px !important;
+        padding: 6px 8px !important;
     }
 
     .summary-cup-thumb,
     .summary-cup-item > div:first-child {
-        width: 48px !important;
-        height: 56px !important;
-        min-width: 48px !important;
-        max-width: 48px !important;
+        width: 40px !important;
+        height: 52px !important;
+        min-width: 40px !important;
     }
 
     .summary-clean-cup-img,
-    .summary-cup-item img {
-        max-height: 50px !important;
+    .summary-cup-thumb img,
+    .summary-cup-item > div:first-child img {
+        max-height: 46px !important;
     }
 
     .summary-cup-heading {
-        font-size: 12.5px !important;
+        font-size: 12px !important;
     }
 
     .summary-cup-toppings {
@@ -790,9 +843,10 @@ body {
     }
 
     .summary-item-price,
+    .summary-cup-right-col span,
     .summary-cup-item > div:last-child span,
     .summary-cup-item > span:last-child {
-        font-size: 14.5px !important;
+        font-size: 14px !important;
     }
 }
 
