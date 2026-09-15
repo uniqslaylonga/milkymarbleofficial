@@ -1218,13 +1218,68 @@ body {
         letter-spacing: -0.5px;
     }
 
+    /* Modal Mobile Adjustments */
     .product-modal-container.order-status-modal-card,
     .product-modal-container.rate-modal-card {
         padding: 24px 18px 20px !important;
         max-width: 95% !important;
+        border-radius: 22px !important;
+    }
+
+    .order-status-top-meta {
+        padding-right: 28px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .order-status-ref {
+        font-size: 12.5px;
+    }
+
+    .order-status-state {
+        font-size: 12px;
     }
 
     .order-status-main-title {
+        font-size: 22px !important;
+    }
+
+    .stepper-labels-row {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 2px !important;
+        text-align: center !important;
+    }
+
+    .stepper-labels-row span {
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        word-break: break-word !important;
+    }
+
+    .status-cup-item-row {
+        padding: 8px 10px !important;
+        gap: 8px !important;
+    }
+
+    .status-cup-thumb {
+        width: 40px !important;
+        height: 50px !important;
+    }
+
+    .status-cup-img {
+        max-height: 46px !important;
+    }
+
+    .status-cup-name {
+        font-size: 12.5px !important;
+    }
+
+    .status-cup-price {
+        font-size: 14.5px !important;
+    }
+
+    .total-paid-value {
         font-size: 22px !important;
     }
 }
