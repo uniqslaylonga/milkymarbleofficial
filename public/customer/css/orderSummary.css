@@ -249,26 +249,38 @@ body {
     background: var(--bg-summary-inner) !important;
     border: none !important;
     border-radius: 18px !important;
-    padding: 10px 16px !important;
+    padding: 10px 14px !important;
     display: flex !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between !important;
-    gap: 14px !important;
+    gap: 12px !important;
     width: 100% !important;
     box-sizing: border-box !important;
+    overflow: visible !important;
 }
 
-/* Thumbnail Container */
-.summary-cup-thumb,
-.summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
+/* Ensure images always keep proper size */
+.summary-cup-item img,
+.summary-clean-cup-img {
+    width: auto !important;
+    max-width: 48px !important;
+    height: 56px !important;
+    max-height: 56px !important;
+    object-fit: contain !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+}
+
+.summary-cup-thumb {
     position: relative !important;
-    width: 54px !important;
-    height: 68px !important;
+    width: 48px !important;
+    height: 60px !important;
+    min-width: 48px !important;
     display: flex !important;
     align-items: flex-end !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
-    overflow: visible !important;
 }
 
 .summary-cup-thumb::after {
@@ -277,37 +289,24 @@ body {
     bottom: 2px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: 46px !important;
-    height: 24px !important;
-    background: var(--thumb-accent, #F48A8E) !important;
-    border-radius: 10px !important;
+    width: 42px !important;
+    height: 22px !important;
+    background: var(--thumb-accent, #8bb35c) !important;
+    border-radius: 9px !important;
     z-index: 1 !important;
     opacity: 0.95 !important;
 }
 
-.summary-clean-cup-img {
-    position: relative !important;
-    max-height: 64px !important;
-    max-width: 100% !important;
-    object-fit: contain !important;
-    z-index: 2 !important;
-    display: block !important;
-    margin-bottom: 2px !important;
-    filter: drop-shadow(0 4px 8px rgba(89, 74, 66, 0.15)) !important;
-}
-
-/* Layered thumbnail */
 .composite-cart-thumb.summary-composite-thumb {
     position: relative !important;
     width: 48px !important;
-    height: 62px !important;
+    height: 60px !important;
+    min-width: 48px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
-    overflow: visible !important;
     z-index: 2 !important;
-    margin-bottom: 2px !important;
 }
 
 .composite-cart-thumb .cart-layer-flavor {
@@ -356,12 +355,6 @@ body {
     min-width: 0 !important;
 }
 
-.summary-cup-row-top {
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
 .summary-cup-heading {
     font-family: var(--font-header) !important;
     font-size: 14.5px !important;
@@ -371,14 +364,6 @@ body {
     line-height: 1.25 !important;
     margin: 0 !important;
     word-break: break-word;
-}
-
-.summary-cup-row-bottom {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 4px !important;
-    width: 100% !important;
 }
 
 .summary-cup-toppings {
@@ -401,11 +386,10 @@ body {
     background: var(--btn-buy-pink) !important;
     color: #ffffff !important;
     border-radius: 99px !important;
-    padding: 2px 10px !important;
+    padding: 2px 8px !important;
     width: fit-content !important;
     align-self: flex-start !important;
     flex-shrink: 0 !important;
-    margin-top: 2px !important;
 }
 
 .summary-qty-val {
@@ -416,8 +400,7 @@ body {
 }
 
 /* Price block */
-.summary-cup-right-col,
-.summary-cup-item > div:last-child {
+.summary-cup-right-col {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -427,10 +410,9 @@ body {
     white-space: nowrap !important;
 }
 
-.summary-item-price,
-.summary-cup-item span:last-child {
+.summary-item-price {
     font-family: var(--font-body) !important;
-    font-size: 17px !important;
+    font-size: 16px !important;
     font-weight: 800 !important;
     color: var(--text-dark) !important;
     white-space: nowrap !important;
@@ -742,96 +724,66 @@ body {
         overflow-wrap: anywhere !important;
     }
 
-    /* Force override inline flex style for both class names */
+    /* Target all possible item structures from JS templates */
     .summary-cup-row,
     .summary-cup-item {
-        padding: 8px 10px !important;
-        gap: 8px !important;
+        padding: 10px 12px !important;
+        gap: 10px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+
+    /* Keep container fixed so cup never collapses */
+    .summary-cup-item > div:first-child,
+    .summary-cup-thumb {
+        flex: 0 0 48px !important;
+        width: 48px !important;
+        min-width: 48px !important;
+        height: 60px !important;
         display: flex !important;
         align-items: center !important;
-        justify-content: space-between !important;
+        justify-content: center !important;
     }
 
-    .summary-cup-thumb,
-    .summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
-        width: 44px !important;
-        height: 56px !important;
+    /* Allow the middle details block to occupy all remaining space */
+    .summary-cup-item > div:not(:first-child):not(:last-child),
+    .summary-cup-middle-col {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        text-align: left !important;
+        overflow: visible !important;
     }
 
-    .summary-clean-cup-img {
-        max-height: 52px !important;
+    /* Ensure text renders with proper wrapping */
+    .summary-cup-item * {
+        white-space: normal !important;
     }
 
-    .composite-cart-thumb.summary-composite-thumb {
-        width: 42px !important;
-        height: 54px !important;
-    }
-
-    .summary-cup-heading {
-        font-size: 13px !important;
-    }
-
-    .summary-cup-toppings {
-        font-size: 11px !important;
-    }
-
-    .summary-cup-right-col,
-    .summary-cup-item > div:last-child {
-        flex-shrink: 0 !important;
-        min-width: fit-content !important;
+    /* Keep price pinned on right side without line break */
+    .summary-cup-item > div:last-child,
+    .summary-cup-right-col {
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+        text-align: right !important;
         white-space: nowrap !important;
     }
 
-    .summary-item-price,
-    .summary-cup-item span:last-child {
+    .summary-cup-item > div:last-child *,
+    .summary-item-price {
+        white-space: nowrap !important;
+        display: inline-block !important;
         font-size: 15px !important;
-        white-space: nowrap !important;
-        letter-spacing: -0.3px !important;
+        font-weight: 800 !important;
     }
 
     .btn-place-order {
         padding: 10px 16px;
         font-size: 14px;
-    }
-}
-
-/* ==================================================== */
-/* COMPACT PHONES VIEW (<= 420px)                       */
-/* ==================================================== */
-@media (max-width: 420px) {
-    .product-modal-container.order-summary-card {
-        padding: 20px 12px 16px !important;
-        width: 96% !important;
-    }
-
-    .summary-cup-row,
-    .summary-cup-item {
-        gap: 6px !important;
-        padding: 8px 6px !important;
-    }
-
-    .summary-cup-thumb,
-    .summary-cup-item > div:first-child:not(.summary-cup-middle-col) {
-        width: 36px !important;
-        height: 46px !important;
-    }
-
-    .summary-clean-cup-img {
-        max-height: 42px !important;
-    }
-
-    .summary-cup-heading {
-        font-size: 12px !important;
-    }
-
-    .summary-cup-toppings {
-        font-size: 10px !important;
-    }
-
-    .summary-item-price,
-    .summary-cup-item span:last-child {
-        font-size: 13.5px !important;
-        white-space: nowrap !important;
     }
 }
 
