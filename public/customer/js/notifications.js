@@ -95,7 +95,6 @@ function resolveItemAssets(cleanTitle, size, toppingsStr) {
   };
 }
 
-// Siguraduhing may orderDetailsModal sa DOM kahit wala ito sa HTML file
 function ensureOrderModalDOM() {
   if (document.getElementById('orderDetailsModal')) return;
 
@@ -127,17 +126,19 @@ function ensureOrderModalDOM() {
 
         <div class="status-info-box-block">
           <h4 class="status-section-title">Pick-up Information</h4>
-          <div class="status-info-row-item">
-            <span class="status-label">Pick-up Date:</span>
-            <span id="modalPickupDate" class="status-value">YYYY-MM-DD</span>
-          </div>
-          <div class="status-info-row-item">
-            <span class="status-label">Recipient:</span>
-            <span id="modalRecipient" class="status-value">Customer</span>
-          </div>
-          <div class="status-info-row-item">
-            <span class="status-label">Payment Method:</span>
-            <span id="modalPaymentMethod" class="status-value">Cash on Pick-Up</span>
+          <div class="status-info-card-inner">
+            <div class="status-info-row-item">
+              <span class="status-label">Pick-up Date:</span>
+              <span id="modalPickupDate" class="status-value">YYYY-MM-DD</span>
+            </div>
+            <div class="status-info-row-item">
+              <span class="status-label">Recipient:</span>
+              <span id="modalRecipient" class="status-value">Customer</span>
+            </div>
+            <div class="status-info-row-item">
+              <span class="status-label">Payment Method:</span>
+              <span id="modalPaymentMethod" class="status-value">Cash on Pick-Up</span>
+            </div>
           </div>
         </div>
 
@@ -157,7 +158,6 @@ function ensureOrderModalDOM() {
   document.body.insertAdjacentHTML('beforeend', modalMarkup);
 }
 
-// Order Status Details Modal Functions
 window.openOrderDetailsModal = function(orderOrId) {
   ensureOrderModalDOM();
 
@@ -243,8 +243,8 @@ window.openOrderDetailsModal = function(orderOrId) {
         const assets = resolveItemAssets(cleanTitle, size, toppingsStr);
 
         return `
-          <div class="status-cup-item-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:10px 14px; background:#FFF4F2; border-radius:14px;">
-            <div class="status-cup-thumb" style="--thumb-accent: ${assets.accent_color}; margin-right:12px;">
+          <div class="status-cup-item-row">
+            <div class="status-cup-thumb" style="--thumb-accent: ${assets.accent_color};">
               ${assets.is_custom ? `
                 <div class="orders-composite-thumb" style="width: 44px; height: 56px; position:relative;">
                   <img src="${assets.flavor_img}" class="cart-layer-flavor" alt="Flavor" onerror="this.style.display='none'">
@@ -252,29 +252,29 @@ window.openOrderDetailsModal = function(orderOrId) {
                   <img src="${assets.cup_img}" class="cart-layer-cup" alt="Cup">
                 </div>
               ` : `
-                <img src="${assets.image}" class="status-cup-img" alt="${cleanTitle}" style="width:44px; height:44px; object-fit:contain;">
+                <img src="${assets.image}" class="status-cup-img" alt="${cleanTitle}">
               `}
             </div>
-            <div class="status-cup-details" style="flex:1;">
-              <h4 class="status-cup-name" style="font-size:14px; font-weight:800; color:#594A42; margin:0;">${size} ${cleanTitle}</h4>
-              ${toppingsStr ? `<span class="status-cup-sub" style="font-size:11.5px; color:#7C4F38;">+ ${toppingsStr}</span>` : ''}
+            <div class="status-cup-details">
+              <h4 class="status-cup-name">${size} ${cleanTitle}</h4>
+              ${toppingsStr ? `<span class="status-cup-sub">+ ${toppingsStr}</span>` : ''}
             </div>
-            <span class="status-cup-qty" style="background:#F48A8E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; margin: 0 12px;">${qty}x</span>
-            <span class="status-cup-price" style="font-weight:800; color:#594A42; font-size:15px;">₱ ${linePrice}</span>
+            <span class="status-cup-qty">${qty}x</span>
+            <span class="status-cup-price">₱ ${linePrice}</span>
           </div>
         `;
       }).join('');
     } else {
       itemsContainer.innerHTML = `
-        <div class="status-cup-item-row" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#FFF4F2; border-radius:14px;">
-          <div class="status-cup-thumb" style="--thumb-accent: #8bb35c; margin-right:12px;">
-            <img src="images/logo.png" class="status-cup-img" alt="Drink" style="width:44px; height:44px; object-fit:contain;">
+        <div class="status-cup-item-row">
+          <div class="status-cup-thumb" style="--thumb-accent: #8bb35c;">
+            <img src="images/logo.png" class="status-cup-img" alt="Drink">
           </div>
-          <div class="status-cup-details" style="flex:1;">
-            <h4 class="status-cup-name" style="font-size:14px; font-weight:800; color:#594A42; margin:0;">${cleanItemTitle(order.title)}</h4>
+          <div class="status-cup-details">
+            <h4 class="status-cup-name">${cleanItemTitle(order.title)}</h4>
           </div>
-          <span class="status-cup-qty" style="background:#F48A8E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; margin: 0 12px;">1x</span>
-          <span class="status-cup-price" style="font-weight:800; color:#594A42; font-size:15px;">₱ ${parseFloat(order.total_amount || 19).toFixed(2)}</span>
+          <span class="status-cup-qty">1x</span>
+          <span class="status-cup-price">₱ ${parseFloat(order.total_amount || 19).toFixed(2)}</span>
         </div>
       `;
     }
@@ -305,17 +305,16 @@ window.openOrderModal = function(orderId) {
 };
 
 window.openRateModal = function(orderId) {
-  // Kung may rating modal script, ire-redirect o bubuksan
   window.location.href = `orders.html?orderId=${orderId}&rate=true`;
 };
 
 async function loadCustomerNotifications() {
-  const container = document.getElementById('notificationsListContainer');
+  const container = document.getElementById('notificationsListContainer') || document.querySelector('.notifications-wrapper') || document.querySelector('main');
   if (!container) return;
 
   const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
 
-  if (!user || !user.customer_id) {
+  if (!user || (!user.customer_id && !user.id)) {
     container.innerHTML = `
       <div class="notifications-empty-box">
         <i class="fa-regular fa-bell empty-bell-icon"></i>
@@ -327,8 +326,10 @@ async function loadCustomerNotifications() {
     return;
   }
 
+  const customerId = user.customer_id || user.id;
+
   try {
-    const res = await fetch(`/api/orders?customer_id=${user.customer_id}`);
+    const res = await fetch(`/api/orders?customer_id=${customerId}`);
     const data = await res.json();
     const orders = data.orders || [];
     notificationsOrdersCache = orders;
@@ -429,7 +430,10 @@ window.markAllNotificationsAsRead = function() {
   cards.forEach(card => card.classList.add('is-read'));
 
   const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
-  fetch(`/api/orders?customer_id=${user.customer_id}`)
+  const custId = user.customer_id || user.id;
+  if (!custId) return;
+
+  fetch(`/api/orders?customer_id=${custId}`)
     .then(res => res.json())
     .then(data => {
       const ids = (data.orders || []).map(o => String(o.id));
