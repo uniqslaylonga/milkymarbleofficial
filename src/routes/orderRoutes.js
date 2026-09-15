@@ -417,27 +417,19 @@ router.patch('/:id/status', async (req, res) => {
     // Guard against a stale/late cancel request clobbering an order that has
     // already been paid or is already being fulfilled (e.g. the PayMongo
     // webhook confirms payment around the same moment the customer's
-    // "cancelled" redirect fires).
-    if (cleanStatus === 'CANCELLED') {
-      const { data: existingOrder } = await supabase
-        .from('orders')
-        .select('status')
-        .eq('id', id)
-        .maybeSingle();
+    // "cancelled" redirect fires). This is done as a single conditional
+    // UPDATE (not a separate SELECT-then-UPDATE) so a webhook that marks the
+    // order PAID_VERIFIED in between the two steps can't be overwritten by a
+    // cancel request that ran right after it - the DB, not app code, is the
+    // single source of truth at the moment of the write.
+    const NON_CANCELLABLE = ['PAID_VERIFIED', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED'];
 
-      const NON_CANCELLABLE = ['PAID_VERIFIED', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED'];
-      if (existingOrder && NON_CANCELLABLE.includes(existingOrder.status)) {
-        return res.status(409).json({
-          status: 'error',
-          message: `Order is already ${existingOrder.status.replace(/_/g, ' ').toLowerCase()} and can no longer be cancelled this way.`
-        });
-      }
+    let updateQuery = supabase.from('orders').update({ status: cleanStatus }).eq('id', id);
+    if (cleanStatus === 'CANCELLED') {
+      updateQuery = updateQuery.not('status', 'in', `(${NON_CANCELLABLE.join(',')})`);
     }
 
-    const { data: updatedOrder, error: updateErr } = await supabase
-      .from('orders')
-      .update({ status: cleanStatus })
-      .eq('id', id)
+    const { data: updatedOrder, error: updateErr } = await updateQuery
       .select(`
         id, order_number, status, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
         guest_name, guest_email, customer_id,
@@ -445,8 +437,36 @@ router.patch('/:id/status', async (req, res) => {
         customers ( user_id, users ( email, full_name, username ) )
       `)
       .maybeSingle();
-    if (updateErr || !updatedOrder) {
-      return res.status(404).json({ status: 'error', message: updateErr ? updateErr.message : 'Order not found.' });
+
+    if (updateErr) {
+      return res.status(500).json({ status: 'error', message: updateErr.message });
+    }
+
+    if (!updatedOrder) {
+      // Either the order doesn't exist, or (for a CANCELLED request) it was
+      // filtered out by the NON_CANCELLABLE check above because it's already
+      // paid/being fulfilled. Tell the caller which one happened.
+      if (cleanStatus === 'CANCELLED') {
+        const { data: currentOrder } = await supabase
+          .from('orders')
+          .select(`
+            id, order_number, status, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
+            guest_name, guest_email, customer_id,
+            order_items (item_label, quantity, unit_price),
+            customers ( user_id, users ( email, full_name, username ) )
+          `)
+          .eq('id', id)
+          .maybeSingle();
+
+        if (currentOrder) {
+          return res.status(409).json({
+            status: 'error',
+            message: `Order is already ${String(currentOrder.status).replace(/_/g, ' ').toLowerCase()} and can no longer be cancelled this way.`,
+            order: currentOrder
+          });
+        }
+      }
+      return res.status(404).json({ status: 'error', message: 'Order not found.' });
     }
 
     const recipientEmail = updatedOrder.guest_email || updatedOrder.customers?.users?.email;

@@ -126,7 +126,7 @@
         card.innerHTML = `
           <div class="status-icon pending"><i class="fa-solid fa-hourglass-half"></i></div>
           <h1>Payment Still Processing</h1>
-          <p>We haven't received confirmation from PayMongo yet. This can take a moment for some e-wallets.</p>
+          <p>${errorMessage || "We haven't received confirmation from PayMongo yet. This can take a moment for some e-wallets."}</p>
           ${orderNo ? `<p>Order No: <span class="order-no">${orderNo}</span></p>` : ''}
           <a class="btn-back" href="orders.html">View My Orders</a><br>
           <a class="btn-retry" href="javascript:location.reload()">Check Again</a>
@@ -143,17 +143,64 @@
 
     async function cancelOrder(orderId) {
       try {
-        await fetch(`/api/orders/${orderId}/status`, {
+        const res = await fetch(`/api/orders/${orderId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'CANCELLED' })
         });
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data && data.status === 'success') {
+          return { ok: true, order: data.order };
+        }
+
+        // 409 means the server refused to cancel because the order is
+        // already PAID_VERIFIED / being prepared / etc (e.g. the PayMongo
+        // webhook confirmed payment right around the time the "cancelled"
+        // redirect fired). In that case the order is genuinely paid -
+        // don't lie to the customer and tell them it was cancelled.
+        if (res.status === 409) {
+          return { ok: false, alreadyFinal: true, order: (data && data.order) || null, message: data && data.message };
+        }
+
+        return { ok: false, message: (data && data.message) || 'Could not cancel the order.' };
       } catch (err) {
-        // Best-effort: even if this fails, we still show the "not completed"
-        // message below. The order just won't be auto-cancelled and can be
-        // handled manually.
+        // Network/fetch failure - we genuinely don't know if the order got
+        // cancelled server-side. Don't claim success.
         console.error('Failed to mark order cancelled:', err.message);
+        return { ok: false, message: err.message };
       }
+    }
+
+    async function handleCancelledReturn(orderId, attempt = 1) {
+      const result = await cancelOrder(orderId);
+
+      if (result.ok) {
+        return renderResult('failed', result.order, 'You cancelled the PayMongo checkout before paying. Your order has been cancelled.');
+      }
+
+      if (result.alreadyFinal) {
+        // The order was actually already paid (or already being prepared) -
+        // reflect that instead of showing a false "cancelled" message.
+        if (result.order && result.order.status === 'PAID_VERIFIED') {
+          return renderResult('success', result.order);
+        }
+        return renderResult('pending', result.order, result.message);
+      }
+
+      // Transient failure (network hiccup, brief DB error) - retry a couple
+      // times before giving up, so a flaky request doesn't leave the order
+      // stuck as PENDING_PAYMENT while the customer sees "cancelled".
+      if (attempt < 3) {
+        setTimeout(() => handleCancelledReturn(orderId, attempt + 1), 1500);
+        return;
+      }
+
+      return renderResult(
+        'pending',
+        null,
+        "We couldn't confirm the cancellation with our server. Please check your Orders page or contact us before placing a new order."
+      );
     }
 
     (function init() {
@@ -164,8 +211,7 @@
         return renderResult('failed', null, 'Missing order reference.');
       }
       if (cancelled === '1') {
-        cancelOrder(orderId);
-        return renderResult('failed', null, 'You cancelled the PayMongo checkout before paying. Your order has been cancelled.');
+        return handleCancelledReturn(orderId);
       }
       verifyPayment(orderId);
     })();
