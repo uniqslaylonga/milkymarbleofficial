@@ -60,7 +60,7 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.25s ease, visibility 0.25s ease;
-    padding: 20px;
+    padding: 16px 12px;
     box-sizing: border-box;
 }
 
@@ -74,11 +74,11 @@ body {
     background: var(--bg-modal);
     width: 100%;
     max-width: 580px;
-    max-height: 85vh;
+    max-height: 90vh;
     overflow-y: auto;
     border-radius: var(--radius-modal);
     border: 2px solid #FCE1DD;
-    padding: 34px 30px 26px;
+    padding: 30px 24px 24px;
     box-shadow: 0 16px 40px rgba(89, 74, 66, 0.22);
     display: flex;
     flex-direction: column;
@@ -88,6 +88,7 @@ body {
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     scrollbar-width: thin;
     scrollbar-color: #F8B4B7 transparent;
+    box-sizing: border-box;
 }
 
 .product-modal-backdrop.active .product-modal-container.order-summary-card {
@@ -134,6 +135,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: 100%;
 }
 
 .summary-section-title {
@@ -152,23 +154,30 @@ body {
     background: #FFFFFF;
     border: 1.5px solid #FCE1DD;
     border-radius: 16px;
-    padding: 10px 16px;
+    padding: 10px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .recipient-text-fields {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
+    flex: 1;
 }
 
 .recipient-line {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-dark);
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .recipient-val {
@@ -183,6 +192,7 @@ body {
     font-size: 17px;
     cursor: pointer;
     transition: transform 0.15s ease;
+    flex-shrink: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -233,7 +243,7 @@ body {
 }
 
 /* ==================================================== */
-/* CUPS SUMMARY LIST & ITEM ROW (FLEX LAYOUT)           */
+/* CUPS SUMMARY LIST & ITEM ROW (BALANSE AT FLEXIBLE)   */
 /* ==================================================== */
 .summary-cups-list {
     display: flex;
@@ -242,6 +252,7 @@ body {
     max-height: 240px;
     overflow-y: auto;
     padding-right: 2px;
+    width: 100%;
 }
 
 .summary-cup-row,
@@ -258,11 +269,11 @@ body {
     width: 100% !important;
     box-sizing: border-box !important;
     position: relative !important;
+    overflow: visible !important;
 }
 
-/* Thumbnail */
-.summary-cup-thumb,
-.summary-cup-item > div:first-child {
+/* Cup Thumb Base */
+.summary-cup-thumb {
     position: relative !important;
     width: 48px !important;
     height: 60px !important;
@@ -275,8 +286,7 @@ body {
     margin: 0 !important;
 }
 
-.summary-cup-thumb::after,
-.summary-cup-item > div:first-child::after {
+.summary-cup-thumb::after {
     content: "" !important;
     position: absolute !important;
     bottom: 2px !important;
@@ -291,16 +301,17 @@ body {
 }
 
 .summary-clean-cup-img,
-.summary-cup-thumb img,
-.summary-cup-item > div:first-child img {
+.summary-cup-row img,
+.summary-cup-item img {
     position: relative !important;
     max-height: 54px !important;
-    max-width: 100% !important;
+    max-width: 48px !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
     z-index: 2 !important;
     display: block !important;
+    flex-shrink: 0 !important;
     margin-bottom: 2px !important;
     filter: drop-shadow(0 3px 6px rgba(89, 74, 66, 0.15)) !important;
 }
@@ -354,8 +365,7 @@ body {
 }
 
 /* Middle Column Details */
-.summary-cup-middle-col,
-.summary-cup-item > div:nth-child(2) {
+.summary-cup-middle-col {
     flex: 1 1 auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -372,10 +382,7 @@ body {
     width: 100%;
 }
 
-.summary-cup-heading,
-.summary-cup-item > div:nth-child(2) h4,
-.summary-cup-item > div:nth-child(2) strong,
-.summary-cup-item > div:nth-child(2) .summary-cup-heading {
+.summary-cup-heading {
     font-family: var(--font-header) !important;
     font-size: 13.5px !important;
     font-weight: 800 !important;
@@ -394,10 +401,7 @@ body {
     width: 100% !important;
 }
 
-.summary-cup-toppings,
-.summary-cup-item > div:nth-child(2) p,
-.summary-cup-item > div:nth-child(2) small,
-.summary-cup-item > div:nth-child(2) .summary-cup-toppings {
+.summary-cup-toppings {
     font-size: 11px !important;
     font-weight: 600 !important;
     color: var(--text-muted) !important;
@@ -413,8 +417,7 @@ body {
 }
 
 /* 1x Badge */
-.summary-qty-pill,
-.summary-cup-item .summary-qty-pill {
+.summary-qty-pill {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -425,19 +428,19 @@ body {
     width: fit-content !important;
     align-self: flex-start !important;
     margin-top: 2px !important;
+    flex-shrink: 0 !important;
 }
 
-.summary-qty-val,
-.summary-cup-item .summary-qty-pill span {
+.summary-qty-val {
     font-size: 10.5px !important;
     font-weight: 800 !important;
     color: #ffffff !important;
     line-height: 1 !important;
 }
 
-/* Price block */
+/* Price Column */
 .summary-cup-right-col,
-.summary-cup-item > div:last-child {
+.summary-cup-item > *:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -445,12 +448,12 @@ body {
     margin-left: auto !important;
     text-align: right !important;
     white-space: nowrap !important;
+    word-break: keep-all !important;
 }
 
 .summary-item-price,
 .summary-cup-right-col span,
-.summary-cup-item > div:last-child span,
-.summary-cup-item > span:last-child {
+.summary-cup-item > *:last-child span {
     font-family: var(--font-body) !important;
     font-size: 16px !important;
     font-weight: 800 !important;
@@ -720,9 +723,9 @@ body {
 /* ==================================================== */
 @media (max-width: 768px) {
     .product-modal-container.order-summary-card {
-        padding: 22px 16px 18px !important;
+        padding: 20px 14px 18px !important;
         max-width: 95% !important;
-        max-height: 85vh !important;
+        max-height: 86vh !important;
         border-radius: 20px !important;
         gap: 12px !important;
         margin: auto !important;
@@ -772,16 +775,15 @@ body {
         gap: 8px !important;
     }
 
-    .summary-cup-thumb,
-    .summary-cup-item > div:first-child {
+    .summary-cup-thumb {
         width: 44px !important;
         height: 56px !important;
         min-width: 44px !important;
     }
 
     .summary-clean-cup-img,
-    .summary-cup-thumb img,
-    .summary-cup-item > div:first-child img {
+    .summary-cup-row img,
+    .summary-cup-item img {
         max-height: 50px !important;
     }
 
@@ -795,8 +797,7 @@ body {
 
     .summary-item-price,
     .summary-cup-right-col span,
-    .summary-cup-item > div:last-child span,
-    .summary-cup-item > span:last-child {
+    .summary-cup-item > *:last-child span {
         font-size: 15px !important;
     }
 
@@ -811,8 +812,8 @@ body {
 /* ==================================================== */
 @media (max-width: 400px) {
     .product-modal-container.order-summary-card {
-        padding: 18px 12px 16px !important;
-        width: 96% !important;
+        padding: 18px 10px 16px !important;
+        width: 98% !important;
     }
 
     .summary-cup-row,
@@ -821,16 +822,15 @@ body {
         padding: 6px 8px !important;
     }
 
-    .summary-cup-thumb,
-    .summary-cup-item > div:first-child {
+    .summary-cup-thumb {
         width: 40px !important;
         height: 52px !important;
         min-width: 40px !important;
     }
 
     .summary-clean-cup-img,
-    .summary-cup-thumb img,
-    .summary-cup-item > div:first-child img {
+    .summary-cup-row img,
+    .summary-cup-item img {
         max-height: 46px !important;
     }
 
@@ -844,8 +844,7 @@ body {
 
     .summary-item-price,
     .summary-cup-right-col span,
-    .summary-cup-item > div:last-child span,
-    .summary-cup-item > span:last-child {
+    .summary-cup-item > *:last-child span {
         font-size: 14px !important;
     }
 }
