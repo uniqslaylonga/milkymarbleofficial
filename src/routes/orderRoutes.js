@@ -140,9 +140,15 @@ router.post('/', async (req, res) => {
     const isCustomOrder = order_type === 'custom_build' || (Array.isArray(items) && items.some(i => i.is_custom));
     const validOrderType = isCustomOrder ? 'custom_build' : 'preset';
 
-    const validStatus = (cleanPaymentMethod === 'E-Wallet' && finalTotalAmount <= 0)
-      ? 'PAID_VERIFIED'
-      : 'PENDING_PAYMENT';
+    // Cash on Pick-Up: nothing to wait on online, the customer pays in
+    // person at pickup - so the order is CONFIRMED right away instead of
+    // sitting in PENDING_PAYMENT (which the customer-facing UI shows as
+    // "Awaiting Payment", which is misleading for a cash order).
+    // E-Wallet: stays PENDING_PAYMENT until the PayMongo checkout is
+    // verified, unless points/promo already covered the full amount.
+    const validStatus = cleanPaymentMethod === 'Cash on Pick-Up'
+      ? 'CONFIRMED'
+      : (finalTotalAmount <= 0 ? 'PAID_VERIFIED' : 'PENDING_PAYMENT');
 
     const cleanGuestName = guest_name || recipient_name || null;
     const cleanGuestEmail = guest_email || recipient_email || null;
