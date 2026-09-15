@@ -310,9 +310,8 @@ function initNavbarState() {
                 <i class="fa-solid fa-spinner fa-spin"></i> Loading sweet updates...
               </div>
             </div>
-            <div class="notif-dropdown-footer">
-              <a href="notifications.html" class="btn-dropdown-view-all">View All</a>
-              <button type="button" class="btn-dropdown-mark-read" onclick="markAllNotificationsAsRead(event)">Mark All as Read</button>
+           <div class="notif-dropdown-footer">
+              <a href="notifications.html" class="btn-dropdown-view-all" style="width: 100%;">View All</a>
             </div>
           </div>
         </div>
