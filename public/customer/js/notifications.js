@@ -1,6 +1,9 @@
 // public/customer/js/notifications.js
 
+let notificationsOrdersCache = [];
+
 document.addEventListener('DOMContentLoaded', () => {
+  ensureOrderModalDOM();
   loadCustomerNotifications();
 });
 
@@ -92,6 +95,220 @@ function resolveItemAssets(cleanTitle, size, toppingsStr) {
   };
 }
 
+// Siguraduhing may orderDetailsModal sa DOM kahit wala ito sa HTML file
+function ensureOrderModalDOM() {
+  if (document.getElementById('orderDetailsModal')) return;
+
+  const modalMarkup = `
+    <div id="orderDetailsModal" class="order-modal-backdrop" onclick="if(event.target === this) closeOrderDetailsModal()">
+      <div class="order-status-modal-card" onclick="event.stopPropagation()">
+        <button type="button" class="btn-close-modal" onclick="closeOrderDetailsModal()" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="order-status-top-bar">
+          <span id="modalOrderRef" class="modal-order-number">#MM-000000</span>
+          <span id="modalOrderStatusText" class="modal-status-badge-text">Confirmed</span>
+        </div>
+
+        <h3 class="order-status-main-heading">Order Status</h3>
+
+        <div class="status-stepper-track-wrap">
+          <div class="status-stepper-labels">
+            <span>Confirmed</span>
+            <span>Preparing</span>
+            <span>Ready for Pick-up</span>
+            <span>Completed</span>
+          </div>
+          <div class="status-stepper-bar-bg">
+            <div id="modalStepperFill" class="status-stepper-bar-fill" style="width: 25%;"></div>
+          </div>
+        </div>
+
+        <div class="status-info-box-block">
+          <h4 class="status-section-title">Pick-up Information</h4>
+          <div class="status-info-row-item">
+            <span class="status-label">Pick-up Date:</span>
+            <span id="modalPickupDate" class="status-value">YYYY-MM-DD</span>
+          </div>
+          <div class="status-info-row-item">
+            <span class="status-label">Recipient:</span>
+            <span id="modalRecipient" class="status-value">Customer</span>
+          </div>
+          <div class="status-info-row-item">
+            <span class="status-label">Payment Method:</span>
+            <span id="modalPaymentMethod" class="status-value">Cash on Pick-Up</span>
+          </div>
+        </div>
+
+        <div class="status-info-box-block">
+          <h4 class="status-section-title">Items Ordered</h4>
+          <div id="modalOrderItemsList" class="status-items-list-scroll"></div>
+        </div>
+
+        <div class="status-total-bottom-bar">
+          <span class="status-total-label">Total Amount Paid</span>
+          <span id="modalTotalPaid" class="status-total-amount">₱ 0.00</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalMarkup);
+}
+
+// Order Status Details Modal Functions
+window.openOrderDetailsModal = function(orderOrId) {
+  ensureOrderModalDOM();
+
+  let order = null;
+  if (typeof orderOrId === 'object' && orderOrId !== null) {
+    order = orderOrId;
+  } else {
+    order = notificationsOrdersCache.find(o => String(o.id) === String(orderOrId) || String(o.order_number) === String(orderOrId));
+  }
+
+  if (!order) return;
+
+  const orderRef = order.order_ref || order.order_number || `#MM-${order.id}`;
+  const refEl = document.getElementById('modalOrderRef');
+  if (refEl) refEl.innerText = orderRef;
+
+  let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
+  let uiStatus = 'Confirmed';
+  let progressPercent = 25;
+
+  if (rawStatus.includes('PENDING PAYMENT')) {
+    uiStatus = 'Awaiting Payment';
+    progressPercent = 10;
+  } else if (rawStatus.includes('PREP')) {
+    uiStatus = 'Preparing';
+    progressPercent = 50;
+  } else if (rawStatus.includes('READY')) {
+    uiStatus = 'Ready for Pick-up';
+    progressPercent = 75;
+  } else if (rawStatus.includes('COMPLET')) {
+    uiStatus = 'Completed';
+    progressPercent = 100;
+  } else if (rawStatus.includes('CANCEL')) {
+    uiStatus = 'Cancelled';
+    progressPercent = 0;
+  }
+
+  const statusTextEl = document.getElementById('modalOrderStatusText');
+  if (statusTextEl) statusTextEl.innerText = uiStatus;
+
+  const stepperEl = document.getElementById('modalStepperFill');
+  if (stepperEl) stepperEl.style.width = `${progressPercent}%`;
+
+  const dateEl = document.getElementById('modalPickupDate');
+  if (dateEl) dateEl.innerText = order.pickup_date || order.pickup_schedule || 'N/A';
+
+  const user = JSON.parse(localStorage.getItem('mm_user') || '{}');
+  const recipientName = order.recipient_name || order.guest_name || user.full_name || user.username || 'Customer';
+  const emailVal = order.recipient_email || order.guest_email || user.email;
+  const recipientEmail = emailVal ? `(${emailVal})` : '';
+  const recipEl = document.getElementById('modalRecipient');
+  if (recipEl) recipEl.innerText = `${recipientName} ${recipientEmail}`.trim();
+
+  let paymentMethod = order.payment_method || 'Cash on Pick-Up';
+  if (order.pickup_instructions) {
+    const pMatch = order.pickup_instructions.match(/Payment:\s*([^|]+)/i);
+    if (pMatch) paymentMethod = pMatch[1].trim();
+  }
+  const payEl = document.getElementById('modalPaymentMethod');
+  if (payEl) payEl.innerText = paymentMethod;
+
+  const itemsContainer = document.getElementById('modalOrderItemsList');
+  const rawItems = order.items || order.order_items || [];
+
+  if (itemsContainer) {
+    if (rawItems.length > 0) {
+      itemsContainer.innerHTML = rawItems.map(it => {
+        const rawItemLabel = it.item_label || it.title || '';
+        const cleanTitle = cleanItemTitle(rawItemLabel);
+        const size = (it.size || (rawItemLabel.includes('8oz') ? '8oz' : '12oz'));
+        const qty = it.quantity || 1;
+        const unitPrice = parseFloat(it.unit_price || 0);
+        const linePrice = (unitPrice * qty).toFixed(2);
+
+        let toppingsStr = '';
+        const tMatch = rawItemLabel.match(/\(\+(.*?)\)/) || rawItemLabel.match(/\((.*?)\)/);
+        if (tMatch && !tMatch[1].includes('oz')) {
+          toppingsStr = tMatch[1].replace(/^\+\s*/, '').trim();
+        } else if (it.toppings) {
+          toppingsStr = it.toppings.replace(/^\+\s*/, '').trim();
+        }
+
+        const assets = resolveItemAssets(cleanTitle, size, toppingsStr);
+
+        return `
+          <div class="status-cup-item-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:10px 14px; background:#FFF4F2; border-radius:14px;">
+            <div class="status-cup-thumb" style="--thumb-accent: ${assets.accent_color}; margin-right:12px;">
+              ${assets.is_custom ? `
+                <div class="orders-composite-thumb" style="width: 44px; height: 56px; position:relative;">
+                  <img src="${assets.flavor_img}" class="cart-layer-flavor" alt="Flavor" onerror="this.style.display='none'">
+                  ${assets.toppings_img ? `<img src="${assets.toppings_img}" class="cart-layer-toppings" alt="Toppings" onerror="this.style.display='none'">` : ''}
+                  <img src="${assets.cup_img}" class="cart-layer-cup" alt="Cup">
+                </div>
+              ` : `
+                <img src="${assets.image}" class="status-cup-img" alt="${cleanTitle}" style="width:44px; height:44px; object-fit:contain;">
+              `}
+            </div>
+            <div class="status-cup-details" style="flex:1;">
+              <h4 class="status-cup-name" style="font-size:14px; font-weight:800; color:#594A42; margin:0;">${size} ${cleanTitle}</h4>
+              ${toppingsStr ? `<span class="status-cup-sub" style="font-size:11.5px; color:#7C4F38;">+ ${toppingsStr}</span>` : ''}
+            </div>
+            <span class="status-cup-qty" style="background:#F48A8E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; margin: 0 12px;">${qty}x</span>
+            <span class="status-cup-price" style="font-weight:800; color:#594A42; font-size:15px;">₱ ${linePrice}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      itemsContainer.innerHTML = `
+        <div class="status-cup-item-row" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#FFF4F2; border-radius:14px;">
+          <div class="status-cup-thumb" style="--thumb-accent: #8bb35c; margin-right:12px;">
+            <img src="images/logo.png" class="status-cup-img" alt="Drink" style="width:44px; height:44px; object-fit:contain;">
+          </div>
+          <div class="status-cup-details" style="flex:1;">
+            <h4 class="status-cup-name" style="font-size:14px; font-weight:800; color:#594A42; margin:0;">${cleanItemTitle(order.title)}</h4>
+          </div>
+          <span class="status-cup-qty" style="background:#F48A8E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; margin: 0 12px;">1x</span>
+          <span class="status-cup-price" style="font-weight:800; color:#594A42; font-size:15px;">₱ ${parseFloat(order.total_amount || 19).toFixed(2)}</span>
+        </div>
+      `;
+    }
+  }
+
+  const totalEl = document.getElementById('modalTotalPaid');
+  if (totalEl) {
+    totalEl.innerText = `₱ ${parseFloat(order.total_amount || order.total_price || 0).toFixed(2)}`;
+  }
+
+  const modal = document.getElementById('orderDetailsModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+};
+
+window.closeOrderDetailsModal = function() {
+  const modal = document.getElementById('orderDetailsModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+};
+
+window.openOrderModal = function(orderId) {
+  window.openOrderDetailsModal(orderId);
+};
+
+window.openRateModal = function(orderId) {
+  // Kung may rating modal script, ire-redirect o bubuksan
+  window.location.href = `orders.html?orderId=${orderId}&rate=true`;
+};
+
 async function loadCustomerNotifications() {
   const container = document.getElementById('notificationsListContainer');
   if (!container) return;
@@ -114,6 +331,7 @@ async function loadCustomerNotifications() {
     const res = await fetch(`/api/orders?customer_id=${user.customer_id}`);
     const data = await res.json();
     const orders = data.orders || [];
+    notificationsOrdersCache = orders;
 
     if (orders.length === 0) {
       container.innerHTML = `
@@ -146,19 +364,20 @@ async function loadCustomerNotifications() {
       let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
       let notifTitle = 'Order Confirmed!';
       let notifDesc = "We've received your order! Hang tight, your jelly cups will be prepared soon.";
-      let actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">View Details</button>`;
+      let actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="event.stopPropagation(); openOrderDetailsModal('${order.id}')">View Details</button>`;
+
       if (rawStatus.includes('COMPLET')) {
         notifTitle = 'Order Complete! How was your sip?';
         notifDesc = 'Tell us what you think of your sips! Rate your drink and share the love.';
-        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">Rate your Sips</button>`;
+        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="event.stopPropagation(); openRateModal('${order.id}')">Rate your Sips</button>`;
       } else if (rawStatus.includes('READY')) {
         notifTitle = 'Ready for Pick-up!';
         notifDesc = 'Your sweet cups are chilled and waiting for you at the counter!';
-        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html?orderId=${order.id}'">View Details</button>`;
+        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="event.stopPropagation(); openOrderDetailsModal('${order.id}')">View Details</button>`;
       } else if (rawStatus.includes('PREP')) {
         notifTitle = 'Prepping Your Sips!';
         notifDesc = "The Marble Bar is layering your sweet treats now. We'll let you know once ready!";
-        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html'">View Details</button>`;
+        actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="event.stopPropagation(); openOrderDetailsModal('${order.id}')">View Details</button>`;
       }
 
       const dateObj = new Date(order.placed_at || Date.now());
