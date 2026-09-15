@@ -1,6 +1,6 @@
 :root {
   --font-logo: "Kawaii RT", "Fredoka", sans-serif;
-  --font-header: "Baloo 2", "Urbanist", sans-serif;
+  --font-header: "Bootzy TM", "Urbanist", sans-serif;
   --font-body: "Urbanist", sans-serif;
 
   /* Color palette */
@@ -232,12 +232,12 @@ body {
 }
 
 .hero-copy h1 {
-  font-family: var(--font-header);
-  font-weight: 800;
+  font-family: "Bootzy TM", var(--font-header);
+  font-weight: 500;
   color: var(--brown-soft);
   font-size: 72px;
-  line-height: 1.05;
-  letter-spacing: 1px;
+  line-height: 1.08;
+  letter-spacing: 5px;
   margin: 0 0 24px 0;
 }
 
@@ -662,7 +662,7 @@ body {
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN (RESTORED CLEAN MOBILE RULES)
+   RESPONSIVE DESIGN
    ========================================================================== */
 @media (max-width: 900px) {
   :root {
@@ -680,7 +680,6 @@ body {
     gap: 8px 12px;
   }
 
-  /* Row 1 Left: Brand Logo */
   .brand-container-nav {
     order: 1;
     gap: 8px;
@@ -695,7 +694,6 @@ body {
     font-size: 20px;
   }
 
-  /* Row 1 Right: Search Bar */
   .nav-actions {
     order: 2;
     margin: 0;
@@ -710,7 +708,6 @@ body {
     font-size: 12px;
   }
 
-  /* Row 2: Nav Pill Menu stretches below */
   .nav-pill-menu {
     order: 3;
     width: 100%;
@@ -735,6 +732,7 @@ body {
 
   .hero-copy h1 {
     font-size: 46px;
+    letter-spacing: 2px;
   }
 
   .hero-copy p {
@@ -803,5 +801,6 @@ body {
 
   .hero-copy h1 {
     font-size: 38px;
+    letter-spacing: 1px;
   }
 }
