@@ -88,6 +88,57 @@
       return new URLSearchParams(window.location.search).get(name);
     }
 
+    // If the browser that returns from PayMongo is a separate storage
+    // context from the one the customer logged in on (common with in-app
+    // browsers/webviews inside e-wallet apps), localStorage.mm_user can be
+    // empty here even though the customer is genuinely logged in - making
+    // "Return to Merchant" look like it logged them out. We carry
+    // customer_id/user_id through the PayMongo success/cancel URLs
+    // specifically so we can rebuild that session here.
+    let ordersLinkSuffix = '';
+    async function restoreCustomerSession() {
+      const customerId = getParam('customer_id');
+      const userId = getParam('user_id');
+      if (!customerId && !userId) return;
+
+      // Always keep a URL fallback for orders.html, in case this storage
+      // context still can't hold localStorage (e.g. private browsing).
+      const params = new URLSearchParams();
+      if (customerId) params.set('customer_id', customerId);
+      if (userId) params.set('user_id', userId);
+      ordersLinkSuffix = `?${params.toString()}`;
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('mm_user') || 'null');
+        if (existing && existing.customer_id) return; // already have a session
+      } catch {
+        // fall through and try to rebuild it below
+      }
+
+      try {
+        const lookupId = customerId || userId;
+        const profileRes = await fetch(`/api/customer/profile?customer_id=${encodeURIComponent(lookupId)}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json', 'x-customer-id': String(lookupId) }
+        });
+        if (!profileRes.ok) return;
+        const profileResult = await profileRes.json();
+        const cust = profileResult && (profileResult.data || profileResult.customer);
+        if (!cust) return;
+
+        localStorage.setItem('mm_user', JSON.stringify({
+          customer_id: cust.id,
+          id: cust.id,
+          user_id: cust.user_id || userId,
+          full_name: cust.full_name || cust.username || '',
+          username: cust.username || '',
+          loyalty_points: cust.loyalty_points || 0
+        }));
+      } catch (err) {
+        console.warn('Could not restore customer session:', err.message);
+      }
+    }
+
     async function verifyPayment(orderId, attempt = 1) {
       try {
         const res = await fetch(`/api/payments/verify/${orderId}`);
@@ -113,6 +164,7 @@
     function renderResult(state, order, errorMessage) {
       const card = document.getElementById('statusCard');
       const orderNo = order && order.order_number ? order.order_number : '';
+      const ordersHref = `orders.html${ordersLinkSuffix}`;
 
       if (state === 'success') {
         card.innerHTML = `
@@ -120,7 +172,7 @@
           <h1>Payment Confirmed!</h1>
           <p>Your PayMongo e-wallet payment was successful.</p>
           ${orderNo ? `<p>Order No: <span class="order-no">${orderNo}</span></p>` : ''}
-          <a class="btn-back" href="orders.html">View My Orders</a>
+          <a class="btn-back" href="${ordersHref}">View My Orders</a>
         `;
       } else if (state === 'pending') {
         card.innerHTML = `
@@ -128,7 +180,7 @@
           <h1>Payment Still Processing</h1>
           <p>${errorMessage || "We haven't received confirmation from PayMongo yet. This can take a moment for some e-wallets."}</p>
           ${orderNo ? `<p>Order No: <span class="order-no">${orderNo}</span></p>` : ''}
-          <a class="btn-back" href="orders.html">View My Orders</a><br>
+          <a class="btn-back" href="${ordersHref}">View My Orders</a><br>
           <a class="btn-retry" href="javascript:location.reload()">Check Again</a>
         `;
       } else {
@@ -136,7 +188,7 @@
           <div class="status-icon failed"><i class="fa-solid fa-xmark"></i></div>
           <h1>Payment Not Completed</h1>
           <p>${errorMessage || 'Your PayMongo payment was cancelled or could not be confirmed.'}</p>
-          <a class="btn-back" href="orders.html">Back to Orders</a>
+          <a class="btn-back" href="${ordersHref}">Back to Orders</a>
         `;
       }
     }
@@ -203,9 +255,11 @@
       );
     }
 
-    (function init() {
+    (async function init() {
       const orderId = getParam('order_id');
       const cancelled = getParam('cancelled');
+
+      await restoreCustomerSession();
 
       if (!orderId) {
         return renderResult('failed', null, 'Missing order reference.');

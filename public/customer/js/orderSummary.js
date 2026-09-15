@@ -799,7 +799,9 @@ window.confirmPlaceOrder = async function() {
             body: JSON.stringify({
               order_id: orderObj.id || orderObj.order_id,
               billing_name: cleanName,
-              billing_email: cleanEmail
+              billing_email: cleanEmail,
+              customer_id: customerId,
+              user_id: userId
             })
           });
           const payData = await payRes.json();

@@ -100,7 +100,7 @@ router.post('/create-checkout', async (req, res) => {
       });
     }
 
-    const { order_id, billing_name, billing_email } = req.body;
+    const { order_id, billing_name, billing_email, customer_id, user_id } = req.body;
     if (!order_id) {
       return res.status(400).json({ status: 'error', message: 'order_id is required.' });
     }
@@ -135,8 +135,13 @@ router.post('/create-checkout', async (req, res) => {
     }
 
     const APP_BASE_URL = resolveAppBaseUrl(req);
-    const successUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}`;
-    const cancelUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}&cancelled=1`;
+    const sessionParams = new URLSearchParams();
+    if (customer_id) sessionParams.set('customer_id', String(customer_id));
+    if (user_id) sessionParams.set('user_id', String(user_id));
+    const sessionQuery = sessionParams.toString() ? `&${sessionParams.toString()}` : '';
+
+    const successUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}${sessionQuery}`;
+    const cancelUrl = `${APP_BASE_URL}/customer/paymentReturn.html?order_id=${order.id}&cancelled=1${sessionQuery}`;
 
     const session = await paymongo.createEwalletCheckoutSession({
       amount: order.total_amount,

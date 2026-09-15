@@ -139,7 +139,42 @@ async function loadOrders() {
   const container = getOrdersContainer();
   const guestBox = document.getElementById('guestTrackBox');
   const registeredSection = document.getElementById('registeredOrdersSection');
-  const user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+  let user = JSON.parse(localStorage.getItem('mm_user') || 'null');
+
+  // Fallback: if this browser/tab has no session in localStorage (e.g. it's
+  // an in-app browser opened for PayMongo that doesn't share storage with
+  // where the customer logged in), honor customer_id/user_id carried in the
+  // URL instead of treating them as a guest.
+  if (!user || !user.customer_id) {
+    const urlCustomerId = new URLSearchParams(window.location.search).get('customer_id');
+    const urlUserId = new URLSearchParams(window.location.search).get('user_id');
+    if (urlCustomerId || urlUserId) {
+      try {
+        const lookupId = urlCustomerId || urlUserId;
+        const profileRes = await fetch(`/api/customer/profile?customer_id=${encodeURIComponent(lookupId)}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json', 'x-customer-id': String(lookupId) }
+        });
+        if (profileRes.ok) {
+          const profileResult = await profileRes.json();
+          const cust = profileResult && (profileResult.data || profileResult.customer);
+          if (cust) {
+            user = {
+              customer_id: cust.id,
+              id: cust.id,
+              user_id: cust.user_id || urlUserId,
+              full_name: cust.full_name || cust.username || '',
+              username: cust.username || '',
+              loyalty_points: cust.loyalty_points || 0
+            };
+            localStorage.setItem('mm_user', JSON.stringify(user));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not restore session from URL params:', err.message);
+      }
+    }
+  }
 
   if (!user || !user.customer_id) {
     if (guestBox) {
