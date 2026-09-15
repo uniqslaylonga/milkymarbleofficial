@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const supabase = require('../config/supabase');
+const { sendPromoWelcomeEmail } = require('../services/mailServices');
 
 // 1. POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -61,6 +62,11 @@ router.post('/signup', async (req, res) => {
     if (custErr) {
       console.error('Customer link warning:', custErr.message);
     }
+
+    // Fire-and-forget: don't let a slow/failed email block the signup response.
+    sendPromoWelcomeEmail(user.email, user.full_name).catch(err => {
+      console.error('[signup] Welcome email failed:', err.message);
+    });
 
     res.json({
       status: 'success',

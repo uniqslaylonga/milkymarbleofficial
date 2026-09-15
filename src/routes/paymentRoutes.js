@@ -5,10 +5,58 @@ const router = express.Router();
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const paymongo = require('../services/paymongoService');
+const { dispatchOrderStatusEmail } = require('../services/mailServices');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+// Sends the "order confirmed" email once an E-Wallet order actually clears
+// payment. Looks the order back up with items + recipient info since the
+// callers above only select a few columns. Never throws - a failed email
+// should never break payment verification.
+async function sendPaidConfirmationEmail(orderId) {
+  try {
+    const { data: order } = await supabase
+      .from('orders')
+      .select(`
+        id, order_number, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
+        guest_name, guest_email, customer_id,
+        order_items (item_label, quantity, unit_price),
+        customers ( user_id, users ( email, full_name, username ) )
+      `)
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (!order) return;
+
+    const recipientEmail = order.guest_email || order.customers?.users?.email;
+    if (!recipientEmail) return;
+    const recipientName = order.guest_name || order.customers?.users?.full_name || order.customers?.users?.username || 'Valued Customer';
+
+    let schedule = order.pickup_date || 'N/A';
+    if (schedule === 'N/A' && order.pickup_instructions) {
+      const match = order.pickup_instructions.match(/Pick-up:\s*([^|]+)/i);
+      if (match) schedule = match[1].trim();
+    }
+
+    await dispatchOrderStatusEmail(recipientEmail, recipientName, order.order_number, 'PAID_VERIFIED', schedule, {
+      order_ref: order.order_number,
+      pickup_date: schedule,
+      payment_method: order.payment_method,
+      total_price: order.total_amount,
+      subtotal: order.subtotal,
+      discount: order.discount_amount,
+      items: (order.order_items || []).map(it => ({
+        title: it.item_label,
+        quantity: it.quantity,
+        unit_price: it.unit_price
+      }))
+    });
+  } catch (err) {
+    console.error('[payments] Order-confirmed email failed:', err.message);
+  }
+}
 
 const APP_BASE_URL_ENV = (process.env.APP_BASE_URL || '').replace(/\/$/, '');
 const SESSION_TAG_REGEX = /PayMongoSession:\s*(\S+)/i;
@@ -160,6 +208,7 @@ router.get('/verify/:orderId', async (req, res) => {
         .select()
         .single();
 
+      sendPaidConfirmationEmail(order.id);
       return res.json({ status: 'success', paid: true, order: updatedOrder || order });
     }
 
@@ -220,6 +269,7 @@ router.post('/webhook', async (req, res) => {
       if (order && order.status !== 'PAID_VERIFIED') {
         await supabase.from('orders').update({ status: 'PAID_VERIFIED' }).eq('id', order.id);
         console.log(`[PayMongo Webhook] Order ${referenceNumber} marked PAID_VERIFIED.`);
+        sendPaidConfirmationEmail(order.id);
       }
     }
 

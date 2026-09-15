@@ -7,6 +7,26 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const { dispatchOrderStatusEmail } = require('../services/mailServices');
+
+// Resolves the name/email to send order emails to, for either a
+// logged-in customer (via users table) or a guest checkout.
+async function resolveRecipient(customer, guestName, guestEmail) {
+  if (guestEmail) {
+    return { name: guestName || 'Valued Customer', email: guestEmail };
+  }
+  if (customer && customer.user_id && supabase) {
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('email, full_name, username')
+      .eq('id', customer.user_id)
+      .maybeSingle();
+    if (userRow) {
+      return { name: userRow.full_name || userRow.username || 'Valued Customer', email: userRow.email };
+    }
+  }
+  return { name: 'Valued Customer', email: null };
+}
 
 // Dynamic Resolver: Hinahanap ang customer base sa verified user_id, email, o customer_id
 async function resolveCustomer(req) {
@@ -188,6 +208,33 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Send the order-confirmed email now for orders that don't need to wait on
+    // online payment (Cash on Pick-Up, or an E-Wallet order that's already
+    // fully covered by points/promo). E-Wallet orders still pending payment
+    // get their confirmation email once payment is verified (see paymentRoutes.js).
+    const shouldEmailNow = cleanPaymentMethod === 'Cash on Pick-Up' || validStatus === 'PAID_VERIFIED';
+    if (shouldEmailNow) {
+      resolveRecipient(customer, cleanGuestName, cleanGuestEmail).then(recipient => {
+        if (!recipient.email) return;
+        return dispatchOrderStatusEmail(recipient.email, recipient.name, orderNumber, validStatus, scheduleText, {
+          order_ref: orderNumber,
+          pickup_date: scheduleText,
+          payment_method: cleanPaymentMethod,
+          total_price: finalTotalAmount,
+          subtotal: orderSubtotal,
+          discount: Number((promoDiscount + actualPointsDiscount).toFixed(2)),
+          items: (items || []).map(item => ({
+            title: item.title || item.item_label,
+            size: item.size,
+            quantity: item.quantity,
+            unit_price: item.unit_price || item.price,
+            toppings: item.toppings,
+            addons: item.addons
+          }))
+        });
+      }).catch(err => console.error('[orders] Order-confirmed email failed:', err.message));
+    }
+
     return res.json({
       status: 'success',
       message: 'Order placed successfully!',
@@ -345,6 +392,73 @@ router.get('/track', async (req, res) => {
   } catch (err) {
     console.error('[Track Route Exception]:', err);
     return res.status(500).json({ status: 'error', message: 'Internal server error.' });
+  }
+});
+
+// PATCH /api/orders/:id/status
+// Moves an order to a new status (PREPARING, READY_FOR_PICKUP, COMPLETED, CANCELLED)
+// and sends the matching customer email. Call this from wherever order status
+// gets changed (e.g. an admin panel) - it isn't wired to anything in this repo yet.
+router.patch('/:id/status', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ status: 'error', message: 'Database is disconnected.' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+    const VALID_STATUSES = ['PENDING_PAYMENT', 'PAID_VERIFIED', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED'];
+    const cleanStatus = String(status || '').toUpperCase().trim();
+
+    if (!VALID_STATUSES.includes(cleanStatus)) {
+      return res.status(400).json({ status: 'error', message: `Status must be one of: ${VALID_STATUSES.join(', ')}` });
+    }
+
+    const { data: updatedOrder, error: updateErr } = await supabase
+      .from('orders')
+      .update({ status: cleanStatus })
+      .eq('id', id)
+      .select(`
+        id, order_number, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
+        guest_name, guest_email, customer_id,
+        order_items (item_label, quantity, unit_price),
+        customers ( user_id, users ( email, full_name, username ) )
+      `)
+      .maybeSingle();
+
+    if (updateErr || !updatedOrder) {
+      return res.status(404).json({ status: 'error', message: updateErr ? updateErr.message : 'Order not found.' });
+    }
+
+    const recipientEmail = updatedOrder.guest_email || updatedOrder.customers?.users?.email;
+    const recipientName = updatedOrder.guest_name || updatedOrder.customers?.users?.full_name || updatedOrder.customers?.users?.username || 'Valued Customer';
+
+    if (recipientEmail) {
+      let schedule = updatedOrder.pickup_date || 'N/A';
+      if (schedule === 'N/A' && updatedOrder.pickup_instructions) {
+        const match = updatedOrder.pickup_instructions.match(/Pick-up:\s*([^|]+)/i);
+        if (match) schedule = match[1].trim();
+      }
+
+      dispatchOrderStatusEmail(recipientEmail, recipientName, updatedOrder.order_number, cleanStatus, schedule, {
+        order_ref: updatedOrder.order_number,
+        pickup_date: schedule,
+        payment_method: updatedOrder.payment_method,
+        total_price: updatedOrder.total_amount,
+        subtotal: updatedOrder.subtotal,
+        discount: updatedOrder.discount_amount,
+        items: (updatedOrder.order_items || []).map(it => ({
+          title: it.item_label,
+          quantity: it.quantity,
+          unit_price: it.unit_price
+        }))
+      }).catch(err => console.error('[orders] Status-change email failed:', err.message));
+    }
+
+    return res.json({ status: 'success', message: 'Order status updated.', order: updatedOrder });
+  } catch (err) {
+    console.error('[orders] Status update error:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to update order status.' });
   }
 });
 
