@@ -263,6 +263,32 @@ function initNavbarState() {
       setupDropdownToggle();
     }
 
+    // Auto-sync avatar at fresh user details mula sa database para manatiling updated sa kahit saang page
+    const syncId = user.customer_id || user.user_id || user.id;
+    if (syncId) {
+      fetch(`/api/customer/profile?customer_id=${encodeURIComponent(syncId)}`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(resData => {
+          if (resData.status === 'success' && (resData.data || resData.customer)) {
+            const freshData = resData.data || resData.customer;
+            const freshUser = freshData.users || freshData;
+            const liveAvatar = freshUser.avatar || freshData.avatar || freshData.avatar_url || freshUser.profile_picture || freshData.profile_picture || '';
+
+            if (liveAvatar && liveAvatar !== user.avatar) {
+              user.avatar = liveAvatar;
+              user.profile_picture = liveAvatar;
+              localStorage.setItem('mm_user', JSON.stringify(user));
+
+              const navImg = document.getElementById('navAvatarImgDisplay');
+              const dropImg = document.getElementById('dropdownAvatarImgDisplay');
+              if (navImg) navImg.src = liveAvatar;
+              if (dropImg) dropImg.src = liveAvatar;
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
     if (navOrders) {
       navOrders.href = 'orders.html';
       navOrders.onclick = null;

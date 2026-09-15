@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Helper para i-sync ang kumpletong customer profile mula sa database
   async function syncAndSaveCustomerSession(userRecord) {
     const userId = userRecord.id || userRecord.user_id;
-    let customerData = userRecord;
+    let customerData = { ...userRecord };
 
     try {
       const profileRes = await fetch(`/api/customer/profile?customer_id=${encodeURIComponent(userId)}`, {
@@ -89,13 +89,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const profileResult = await profileRes.json();
         if (profileResult.status === 'success' && (profileResult.data || profileResult.customer)) {
           const cust = profileResult.data || profileResult.customer;
+          const userObj = cust.users || cust;
+
+          // Kunin ang avatar galing sa table join, root object, o user record
+          const avatarUrl = userObj.avatar || cust.avatar || cust.avatar_url || cust.profile_picture || userRecord.avatar || userRecord.profile_picture || '';
+
           customerData = {
             ...userRecord,
-            customer_id: cust.id,
-            id: cust.id,
-            user_id: cust.user_id || userId,
-            full_name: cust.full_name || userRecord.full_name || userRecord.username || '',
-            username: cust.username || userRecord.username || '',
+            customer_id: cust.id || cust.customer_id || customerData.customer_id || userId,
+            id: cust.id || customerData.id || userId,
+            user_id: cust.user_id || userObj.id || userId,
+            full_name: userObj.full_name || cust.full_name || userRecord.full_name || userRecord.username || '',
+            username: userObj.username || cust.username || userRecord.username || '',
+            avatar: avatarUrl,
+            profile_picture: avatarUrl,
             loyalty_points: cust.loyalty_points || 0
           };
         }
@@ -107,6 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!customerData.customer_id) {
       customerData.customer_id = customerData.id || userId;
       customerData.user_id = userId;
+    }
+
+    if (!customerData.avatar && (userRecord.avatar || userRecord.profile_picture)) {
+      customerData.avatar = userRecord.avatar || userRecord.profile_picture;
+      customerData.profile_picture = customerData.avatar;
     }
 
     localStorage.setItem('mm_user', JSON.stringify(customerData));
