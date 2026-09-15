@@ -1025,11 +1025,18 @@ app.post('/api/customer/change-password', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Invalid or expired confirmation code.' });
     }
 
-    const { data: userRecord } = await supabase
+    const escapedEmail = cleanEmail.replace(/[%_]/g, '\\$&');
+
+    const { data: userRecord, error: lookupErr } = await supabase
       .from('users')
       .select('id, password_hash')
-      .ilike('email', cleanEmail)
-      .single();
+      .ilike('email', escapedEmail)
+      .maybeSingle();
+
+    if (lookupErr) {
+      console.error('[change-password] User lookup failed:', lookupErr.message);
+      return res.status(500).json({ status: 'error', message: 'Something went wrong looking up your account. Please try again.' });
+    }
 
     if (!userRecord) return res.status(404).json({ status: 'error', message: 'User account not found.' });
 
@@ -1088,11 +1095,21 @@ app.post('/api/customer/forgot-password', async (req, res) => {
 
     if (!supabase) return res.status(503).json({ status: 'error', message: 'Database service unavailable.' });
 
-    const { data: userRecord } = await supabase
+    // Escape % and _ so they're treated as literal characters, not SQL wildcards.
+    // Without this, an email like "first_last@gmail.com" can match unrelated rows
+    // and cause .maybeSingle() to throw (silently swallowed below otherwise).
+    const escapedEmail = cleanEmail.replace(/[%_]/g, '\\$&');
+
+    const { data: userRecord, error: lookupErr } = await supabase
       .from('users')
       .select('id')
-      .ilike('email', cleanEmail)
+      .ilike('email', escapedEmail)
       .maybeSingle();
+
+    if (lookupErr) {
+      console.error('[forgot-password] User lookup failed:', lookupErr.message);
+      return res.status(500).json({ status: 'error', message: 'Something went wrong looking up your account. Please try again.' });
+    }
 
     if (!userRecord) {
       return res.status(404).json({ status: 'error', message: 'No account found for that email.' });
