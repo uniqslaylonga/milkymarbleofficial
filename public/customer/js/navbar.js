@@ -220,10 +220,9 @@ function initNavbarState() {
   // REGISTERED CUSTOMER STATE
   if (user && (user.customer_id || user.user_id || user.id)) {
     const displayName = escapeHtml(user.full_name || user.username || 'Customer');
-
-    // Sinusuri lahat ng posibleng column names para sa profile image
+// BAGONG CODE:
     let rawAvatar = user.avatar || user.profile_picture || user.avatar_url || user.photo_url || user.image || '';
-    if (rawAvatar && !rawAvatar.startsWith('http') && !rawAvatar.startsWith('/')) {
+    if (rawAvatar && !rawAvatar.startsWith('http') && !rawAvatar.startsWith('/') && !rawAvatar.startsWith('data:')) {
       rawAvatar = '/' + rawAvatar;
     }
     const avatarUrl = rawAvatar ? escapeHtml(rawAvatar) : 'images/account.png';
