@@ -229,6 +229,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Make the visible, styled Google button trigger the real (hidden) GSI button
+  const btnGoogleLogin = document.getElementById('btnGoogleLogin');
+  if (btnGoogleLogin) {
+    btnGoogleLogin.addEventListener('click', () => {
+      const hiddenDiv = document.getElementById('googleButtonHidden');
+      const hiddenBtn = hiddenDiv && hiddenDiv.querySelector('div[role="button"]');
+      if (hiddenBtn) {
+        hiddenBtn.click();
+      } else {
+        showSweetAlert({
+          title: 'Google Sign-In Unavailable',
+          text: 'Google Sign-In is still loading. Please wait a moment and try again.',
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
+  }
+
   // Handle Google OAuth callback
   async function handleGoogleCredentialResponse(response) {
     if (!response || !response.credential) return;

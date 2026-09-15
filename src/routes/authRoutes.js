@@ -2,8 +2,17 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const supabase = require('../config/supabase');
 const { sendPromoWelcomeEmail } = require('../services/mailServices');
+
+// This must match the client_id used by the Google Sign-In button in
+// public/customer/js/login.js and public/customer/js/signup.js. Override via
+// the GOOGLE_CLIENT_ID env var if you swap in your own Google Cloud project.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+  || '1077352091553-6d77b0rtu3km8r1har7ra3lsmbf5en35.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // 1. POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -86,7 +95,161 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// 2. POST /api/auth/login
+// 2. POST /api/auth/google  (Sign in / sign up with Google)
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing Google credential.'
+      });
+    }
+
+    // Verify the ID token's signature, audience, issuer, and expiry with Google.
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      console.error('[google-auth] Token verification failed:', verifyErr.message);
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid or expired Google sign-in. Please try again.'
+      });
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ status: 'error', message: 'Google account has no email on file.' });
+    }
+
+    if (payload.email_verified === false) {
+      return res.status(401).json({ status: 'error', message: 'Please verify your email with Google first.' });
+    }
+
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const googleFullName = (payload.name || cleanEmail.split('@')[0]).trim();
+    const googleAvatar = payload.picture || '';
+
+    // Look for an existing customer account with this email.
+    let { data: user, error: userErr } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('email', cleanEmail)
+      .eq('user_type', 'customer')
+      .maybeSingle();
+
+    if (userErr) throw userErr;
+
+    if (user && !user.is_active) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'This account has been deactivated. Please contact support.'
+      });
+    }
+
+    if (!user) {
+      // No account yet for this Google email -> create one automatically.
+      // A random password hash is stored since Google users don't set a
+      // local password; they can set one later from Account Settings.
+      const randomPassword = crypto.randomBytes(24).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      const baseUsername = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'user';
+      let usernameAttempt = baseUsername;
+      let attempt = 0;
+      let created = null;
+      let lastErr = null;
+
+      while (attempt < 5 && !created) {
+        const { data: newUser, error: insertErr } = await supabase
+          .from('users')
+          .insert([
+            {
+              full_name: googleFullName,
+              username: usernameAttempt,
+              email: cleanEmail,
+              password_hash: hashedPassword,
+              user_type: 'customer',
+              is_active: true,
+              avatar: googleAvatar || null
+            }
+          ])
+          .select()
+          .single();
+
+        if (!insertErr) {
+          created = newUser;
+        } else if (insertErr.code === '23505') {
+          attempt += 1;
+          usernameAttempt = `${baseUsername}${Math.floor(1000 + Math.random() * 9000)}`;
+          lastErr = insertErr;
+        } else {
+          throw insertErr;
+        }
+      }
+
+      if (!created) {
+        throw lastErr || new Error('Could not create account from Google sign-in.');
+      }
+
+      user = created;
+
+      sendPromoWelcomeEmail(user.email, user.full_name).catch(err => {
+        console.error('[google-auth] Welcome email failed:', err.message);
+      });
+    }
+
+    let { data: customer } = await supabase
+      .from('customers')
+      .select('id, loyalty_points')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!customer) {
+      const { data: newCustomer } = await supabase
+        .from('customers')
+        .insert([{
+          user_id: user.id,
+          loyalty_points: 0,
+          notify_pickup: true,
+          notify_email_receipts: true,
+          notify_promos: false
+        }])
+        .select()
+        .single();
+      customer = newCustomer;
+    }
+
+    await supabase
+      .from('users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', user.id);
+
+    return res.json({
+      status: 'success',
+      message: 'Google sign-in successful!',
+      user: {
+        id: user.id,
+        customer_id: customer ? customer.id : null,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        avatar: user.avatar || googleAvatar || 'images/account.png',
+        loyalty_points: customer ? customer.loyalty_points : 0
+      }
+    });
+  } catch (err) {
+    console.error('[google-auth] Error:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Google sign-in failed. Please try again.' });
+  }
+});
+
+// 3. POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { user_or_email, password } = req.body;
@@ -169,7 +332,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 3. ALL /api/auth/logout
+// 4. ALL /api/auth/logout
 router.all('/logout', (req, res) => {
   res.clearCookie('remember_user', { path: '/' });
   res.clearCookie('user_id', { path: '/' });
