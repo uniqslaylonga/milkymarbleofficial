@@ -396,7 +396,7 @@ window.proceedToOrderSummary = function() {
     const err = document.getElementById('modalSizeRequiredMsg');
     if (err) {
       err.style.display = 'block';
-      err.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      err.scrollIntoView({ behavior: 'smooth' });
     }
     return;
   }
@@ -728,6 +728,16 @@ function renderCustomizerUI() {
   const currentStage = STAGES[currentStageIndex];
   const sidebar = document.getElementById('customizerSidebarContent');
   const stageContainer = document.getElementById('stageItemsContainer');
+
+  // I-hide ang carousel navigation arrows kapag nasa "addons" stage
+  const isAddons = currentStage === 'addons';
+  document.querySelectorAll('.carousel-nav-btn').forEach(arrow => {
+    arrow.style.display = isAddons ? 'none' : '';
+  });
+  const mobileArrowsRow = document.querySelector('.mobile-carousel-arrows-row');
+  if (mobileArrowsRow) {
+    mobileArrowsRow.style.display = isAddons ? 'none' : '';
+  }
 
   document.querySelectorAll('.stage-pill').forEach((pill, idx) => {
     pill.classList.toggle('active', idx === currentStageIndex);
