@@ -18,6 +18,45 @@ function escapeHtml(str = '') {
     .replace(/'/g, '&#039;');
 }
 
+function normalizeAvatarUrl(raw) {
+  if (!raw || typeof raw !== 'string') return 'images/account.png';
+  let cleaned = raw.trim();
+
+  // Kung na-save na may typo tulad ng data/image -> gawing data:image
+  if (cleaned.startsWith('data/image')) {
+    cleaned = 'data:image' + cleaned.substring(10);
+  }
+
+  // Kung Base64 data URI, ibalik agad at huwag kailanman lagyan ng "/"
+  if (cleaned.startsWith('data:image/') || cleaned.startsWith('data:')) {
+    return cleaned;
+  }
+
+  // Kung may slash sa unahan ng data tulad ng /data:image o /data/image, alisin ang "/"
+  if (cleaned.startsWith('/data:') || cleaned.startsWith('/data/')) {
+    cleaned = cleaned.substring(1);
+    if (cleaned.startsWith('data/image')) {
+      cleaned = 'data:image' + cleaned.substring(10);
+    }
+    return cleaned;
+  }
+
+  // Kung external HTTP/HTTPS URL (hal. Supabase Storage Public URL)
+  if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+    return cleaned;
+  }
+
+  // Kung local relative image path
+  if (cleaned.startsWith('/images/')) {
+    return cleaned.substring(1); // images/... para safe sa sub-paths
+  }
+  if (!cleaned.startsWith('images/')) {
+    return 'images/' + cleaned;
+  }
+
+  return cleaned;
+}
+
 function injectNavbarDropdownStyles() {
   if (document.getElementById('mm-navbar-dropdown-styles')) return;
 
@@ -221,12 +260,8 @@ function initNavbarState() {
   if (user && (user.customer_id || user.user_id || user.id)) {
     const displayName = escapeHtml(user.full_name || user.username || 'Customer');
 
-    // Sinusuri lahat ng posibleng column names para sa profile image (kasama ang data: url check)
-    let rawAvatar = user.avatar || user.profile_picture || user.avatar_url || user.photo_url || user.image || '';
-    if (rawAvatar && !rawAvatar.startsWith('http') && !rawAvatar.startsWith('/') && !rawAvatar.startsWith('data:')) {
-      rawAvatar = '/' + rawAvatar;
-    }
-    const avatarUrl = rawAvatar ? escapeHtml(rawAvatar) : 'images/account.png';
+    const rawAvatar = user.avatar || user.profile_picture || user.avatar_url || user.photo_url || user.image || '';
+    const avatarUrl = normalizeAvatarUrl(rawAvatar);
 
     if (userSlot) {
       userSlot.innerHTML = `
@@ -261,7 +296,7 @@ function initNavbarState() {
       `;
     }
 
-    // Auto-sync avatar at fresh user details mula sa database para manatiling updated sa kahit saang page
+    // Auto-sync avatar at fresh user details mula sa database
     const syncId = user.customer_id || user.user_id || user.id;
     if (syncId) {
       fetch(`/api/customer/profile?customer_id=${encodeURIComponent(syncId)}`, { credentials: 'include' })
@@ -270,17 +305,18 @@ function initNavbarState() {
           if (resData.status === 'success' && (resData.data || resData.customer)) {
             const freshData = resData.data || resData.customer;
             const freshUser = freshData.users || freshData;
-            const liveAvatar = freshUser.avatar || freshData.avatar || freshData.avatar_url || freshUser.profile_picture || freshData.profile_picture || '';
+            const liveAvatarRaw = freshUser.avatar || freshData.avatar || freshData.avatar_url || freshUser.profile_picture || freshData.profile_picture || '';
 
-            if (liveAvatar && liveAvatar !== user.avatar) {
-              user.avatar = liveAvatar;
-              user.profile_picture = liveAvatar;
+            if (liveAvatarRaw && liveAvatarRaw !== user.avatar) {
+              user.avatar = liveAvatarRaw;
+              user.profile_picture = liveAvatarRaw;
               localStorage.setItem('mm_user', JSON.stringify(user));
 
+              const safeUrl = normalizeAvatarUrl(liveAvatarRaw);
               const navImg = document.getElementById('navAvatarImgDisplay');
               const dropImg = document.getElementById('dropdownAvatarImgDisplay');
-              if (navImg) navImg.src = liveAvatar;
-              if (dropImg) dropImg.src = liveAvatar;
+              if (navImg) navImg.src = safeUrl;
+              if (dropImg) dropImg.src = safeUrl;
             }
           }
         })
@@ -356,7 +392,6 @@ function setupDropdownToggle() {
   const notifWrapper = document.getElementById('navNotifWrapper');
   const notifBell = document.getElementById('navNotifBell');
 
-  // Toggle para sa Profile Avatar Menu
   if (trigger && dropdown) {
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -365,7 +400,6 @@ function setupDropdownToggle() {
     });
   }
 
-  // Toggle para sa Sweet Updates Dropdown (mag-i-stay bukas kapag clinick)
   if (notifBell && notifWrapper) {
     notifBell.addEventListener('click', (e) => {
       e.preventDefault();
@@ -375,7 +409,6 @@ function setupDropdownToggle() {
     });
   }
 
-  // I-close ang alinmang bukas kapag nag-click sa labas
   document.addEventListener('click', (e) => {
     if (dropdown && !dropdown.contains(e.target)) {
       dropdown.classList.remove('active');
@@ -437,13 +470,14 @@ async function handleGlobalAvatarFileSelect(event) {
 
     if (res.ok && result.status === 'success') {
       const newAvatarUrl = result.avatar;
+      const safeAvatarUrl = normalizeAvatarUrl(newAvatarUrl);
 
       const navAvatar = document.getElementById('navAvatarImgDisplay');
       const dropAvatar = document.getElementById('dropdownAvatarImgDisplay');
-      const profileAvatar = document.getElementById('profileAvatarImg');
-      if (navAvatar) navAvatar.src = newAvatarUrl;
-      if (dropAvatar) dropAvatar.src = newAvatarUrl;
-      if (profileAvatar) profileAvatar.src = newAvatarUrl;
+      const profileAvatar = document.getElementById('avatarRoundPreview');
+      if (navAvatar) navAvatar.src = safeAvatarUrl;
+      if (dropAvatar) dropAvatar.src = safeAvatarUrl;
+      if (profileAvatar) profileAvatar.src = safeAvatarUrl;
 
       localUser.avatar = newAvatarUrl;
       localUser.profile_picture = newAvatarUrl;
