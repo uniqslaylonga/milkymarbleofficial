@@ -13,17 +13,66 @@ const ProfileSwal = Swal.mixin({
     buttonsStyling: false
 });
 
+// Helper para maayos ang formatting ng image URL o Base64
+function sanitizeAvatarString(raw) {
+    if (!raw || typeof raw !== 'string') return 'images/account.png';
+    let cleaned = raw.trim();
+
+    // Tanggalin ang leading slash kung aksidenteng nalagay bago ang data URI
+    if (cleaned.startsWith('/data:') || cleaned.startsWith('/data/')) {
+        cleaned = cleaned.substring(1);
+    }
+
+    // Itama ang typo kung may data/image sa halip na data:image
+    if (cleaned.startsWith('data/image')) {
+        cleaned = 'data:image' + cleaned.substring(10);
+    }
+
+    // Kung Base64 data URI, ibalik agad nang walang binabago
+    if (cleaned.startsWith('data:image/') || cleaned.startsWith('data:')) {
+        return cleaned;
+    }
+
+    // Kung external URL (hal. Supabase Storage public link)
+    if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+        return cleaned;
+    }
+
+    // Kung local file path
+    if (cleaned.startsWith('/images/')) {
+        return cleaned.substring(1);
+    }
+    if (!cleaned.startsWith('images/')) {
+        return 'images/' + cleaned;
+    }
+
+    return cleaned;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Linisin agad ang posibleng sirang value sa kasalukuyang localStorage
+    try {
+        const stored = JSON.parse(localStorage.getItem('mm_user') || 'null');
+        if (stored && stored.avatar) {
+            const sanitized = sanitizeAvatarString(stored.avatar);
+            if (sanitized !== stored.avatar) {
+                stored.avatar = sanitized;
+                if (stored.profile_picture) stored.profile_picture = sanitized;
+                localStorage.setItem('mm_user', JSON.stringify(stored));
+            }
+        }
+    } catch {}
+
     loadProfileDetails();
     setupProfileForm();
 });
 
-// Kumuha ng datos mula sa Supabase gamit ang verified session identity
+// Kumuha ng datos mula sa Supabase/Backend gamit ang verified session identity
 async function loadProfileDetails() {
     const localUser = JSON.parse(localStorage.getItem('mm_user') || 'null');
 
     if (!localUser || (!localUser.email && !localUser.user_id && !localUser.id)) {
-        window.location.href = 'login.html?error=login_required';
+        window.location.href = 'customerlogin.html?error=login_required';
         return;
     }
 
@@ -43,7 +92,7 @@ async function loadProfileDetails() {
 
         if (res.status === 401) {
             localStorage.removeItem('mm_user');
-            window.location.href = 'login.html?error=session_expired';
+            window.location.href = 'customerlogin.html?error=session_expired';
             return;
         }
 
@@ -73,14 +122,8 @@ async function loadProfileDetails() {
 function populateProfileFields(data) {
     const user = data.users || data;
 
-    let avatarSrc = user.avatar || user.profile_picture || user.avatar_url || data.avatar || '';
-    if (avatarSrc) {
-        if (!avatarSrc.startsWith('http') && !avatarSrc.startsWith('/')) {
-            avatarSrc = '/' + avatarSrc;
-        }
-    } else {
-        avatarSrc = 'images/account.png';
-    }
+    const rawAvatar = user.avatar || user.profile_picture || user.avatar_url || data.avatar || '';
+    const avatarSrc = sanitizeAvatarString(rawAvatar);
 
     const avatarRound = document.getElementById('avatarRoundPreview');
     if (avatarRound) {
@@ -110,7 +153,10 @@ function populateProfileFields(data) {
 
     // I-sync sa localStorage ang verified account data ng kasalukuyang user
     const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
-    if (avatarSrc && avatarSrc !== 'images/account.png') localUser.avatar = avatarSrc;
+    if (avatarSrc && avatarSrc !== 'images/account.png') {
+        localUser.avatar = avatarSrc;
+        localUser.profile_picture = avatarSrc;
+    }
     if (user.full_name) localUser.full_name = user.full_name;
     if (user.username) localUser.username = user.username;
     if (user.email) localUser.email = user.email;
@@ -358,7 +404,7 @@ function setupProfileForm() {
         const fullName = document.getElementById('full_name').value.trim();
         const username = document.getElementById('username').value.trim();
         const phone = document.getElementById('phone').value.trim();
-        const fileInput = document.querySelector('input[type="file"]') || document.getElementById('avatarFileInput');
+        const fileInput = document.getElementById('profileAvatarInput') || document.querySelector('input[type="file"]');
         const avatarRound = document.getElementById('avatarRoundPreview');
         let avatarSrc = (avatarRound && !avatarRound.src.includes('account.png')) ? avatarRound.src : '';
 
@@ -395,14 +441,16 @@ function setupProfileForm() {
             return;
         }
 
-        // 1. Kung may bagong piniling larawan at available ang Supabase client sa window
-        if (fileInput && fileInput.files && fileInput.files[0] && typeof supabase !== 'undefined' && supabase.storage) {
+        const supabaseClientInstance = window.supabaseClient || window.supabase;
+
+        // 1. Kung may bagong piniling larawan at available ang Supabase client
+        if (fileInput && fileInput.files && fileInput.files[0] && supabaseClientInstance && supabaseClientInstance.storage) {
             const file = fileInput.files[0];
             const fileExt = file.name.split('.').pop();
             const filePath = `${userId || customerId}-${Date.now()}.${fileExt}`;
 
             try {
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { data: uploadData, error: uploadError } = await supabaseClientInstance.storage
                     .from('avatars')
                     .upload(filePath, file, {
                         cacheControl: '3600',
@@ -418,7 +466,7 @@ function setupProfileForm() {
                     return;
                 }
 
-                const { data: { publicUrl } } = supabase.storage
+                const { data: { publicUrl } } = supabaseClientInstance.storage
                     .from('avatars')
                     .getPublicUrl(filePath);
 
@@ -446,7 +494,7 @@ function setupProfileForm() {
                     full_name: fullName,
                     username: username,
                     phone_number: phone,
-                    avatar: avatarSrc
+                    avatar: sanitizeAvatarString(avatarSrc)
                 })
             });
             const data = await res.json();
@@ -464,11 +512,14 @@ function setupProfileForm() {
             localUser.username = username;
             localUser.phone = phone;
             localUser.phone_number = phone;
-            if (avatarSrc) localUser.avatar = avatarSrc;
+            if (avatarSrc) {
+                localUser.avatar = sanitizeAvatarString(avatarSrc);
+                localUser.profile_picture = sanitizeAvatarString(avatarSrc);
+            }
             localStorage.setItem('mm_user', JSON.stringify(localUser));
 
             const navAvatar = document.querySelector('.nav-avatar-img-badge');
-            if (navAvatar && avatarSrc) navAvatar.src = avatarSrc;
+            if (navAvatar && avatarSrc) navAvatar.src = sanitizeAvatarString(avatarSrc);
 
             ProfileSwal.fire({
                 icon: 'success',
