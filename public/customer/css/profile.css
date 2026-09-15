@@ -59,6 +59,8 @@ body {
     padding: 38px 42px 42px;
     border: 1.5px solid var(--card-border);
     box-shadow: 0 8px 24px rgba(102, 70, 56, 0.05);
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .avatar-center-wrapper {
@@ -124,12 +126,14 @@ body {
     display: flex;
     flex-direction: column;
     gap: 18px;
+    width: 100%;
 }
 
 .profile-field-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: 100%;
 }
 
 .field-label {
@@ -179,10 +183,13 @@ body {
     border: 1.5px solid #FCE1DD;
     border-radius: 14px;
     padding: 4px 6px 4px 18px;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .email-text-display {
     flex: 1;
+    min-width: 0;
     font-size: 14px;
     font-weight: 700;
     color: var(--text-dark);
@@ -201,6 +208,8 @@ body {
     cursor: pointer;
     padding: 8px 16px;
     border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
     transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -462,4 +471,54 @@ body {
     font-size: 14.5px !important;
     font-weight: 800 !important;
     margin-right: 8px !important;
+}
+
+/* Responsive adjustments for mobile viewports */
+@media (max-width: 480px) {
+    .profile-page-wrapper {
+        padding: 16px 12px 40px;
+    }
+
+    .profile-main-card {
+        padding: 24px 16px 28px;
+        border-radius: 22px;
+    }
+
+    .profile-title {
+        font-size: 1.85rem;
+    }
+
+    .email-composite-box {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 10px 14px;
+    }
+
+    .email-text-display {
+        font-size: 13.5px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .btn-change-email-trigger {
+        align-self: flex-end;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .mm-email-modal-card {
+        padding: 28px 18px 22px;
+        border-radius: 24px;
+    }
+
+    .mm-email-modal-title {
+        font-size: 20px;
+    }
+
+    .mm-code-dashed-input {
+        font-size: 18px;
+        letter-spacing: 6px;
+    }
 }
