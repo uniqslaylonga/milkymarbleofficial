@@ -146,7 +146,7 @@ async function loadCustomerNotifications() {
       let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
       let notifTitle = 'Order Confirmed!';
       let notifDesc = "We've received your order! Hang tight, your jelly cups will be prepared soon.";
-      let actionBtnHTML = `<button type="button" class="btn-notif-action" onclick="window.location.href='orders.html'">View Details</button>`;
+      let actionBtnHTML = `<button class="view-details-btn" onclick="openOrderSummary('${item.order_id}')">View Details</button>`;
 
       if (rawStatus.includes('COMPLET')) {
         notifTitle = 'Order Complete! How was your sip?';
