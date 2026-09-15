@@ -280,7 +280,8 @@ function renderOrders(orders) {
   const filtered = orders.filter(order => {
     let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
     let uiStatus = 'Confirmed';
-    if (rawStatus.includes('PREP')) uiStatus = 'Preparing';
+    if (rawStatus.includes('PENDING PAYMENT')) uiStatus = 'Awaiting Payment';
+    else if (rawStatus.includes('PREP')) uiStatus = 'Preparing';
     else if (rawStatus.includes('READY')) uiStatus = 'Ready for Pickup';
     else if (rawStatus.includes('COMPLET')) uiStatus = 'Completed';
     else if (rawStatus.includes('CANCEL')) uiStatus = 'Cancelled';
@@ -344,7 +345,8 @@ function renderOrders(orders) {
 
     let rawStatus = (order.status || 'CONFIRMED').toUpperCase().replace(/_/g, ' ');
     let uiStatus = 'Confirmed';
-    if (rawStatus.includes('PREP')) uiStatus = 'Preparing';
+    if (rawStatus.includes('PENDING PAYMENT')) uiStatus = 'Awaiting Payment';
+    else if (rawStatus.includes('PREP')) uiStatus = 'Preparing';
     else if (rawStatus.includes('READY')) uiStatus = 'Ready for Pickup';
     else if (rawStatus.includes('COMPLET')) uiStatus = 'Completed';
     else if (rawStatus.includes('CANCEL')) uiStatus = 'Cancelled';
@@ -422,7 +424,7 @@ function renderOrders(orders) {
 }
 
 function renderOrderButtons(orderId, statusKey, orderDataEncoded) {
-  if (statusKey === 'confirmed') {
+  if (statusKey === 'confirmed' || statusKey === 'awaiting payment') {
     return `<button type="button" class="btn-action-primary" onclick="cancelOrder('${orderId}')">Cancel Order</button>`;
   } else if (statusKey === 'ready for pickup') {
     return `
@@ -458,7 +460,10 @@ window.openOrderDetailsModal = function(orderOrId) {
   let uiStatus = 'Confirmed';
   let progressPercent = 25;
 
-  if (rawStatus.includes('PREP')) {
+  if (rawStatus.includes('PENDING PAYMENT')) {
+    uiStatus = 'Awaiting Payment';
+    progressPercent = 10;
+  } else if (rawStatus.includes('PREP')) {
     uiStatus = 'Preparing';
     progressPercent = 50;
   } else if (rawStatus.includes('READY')) {
@@ -727,10 +732,10 @@ window.cancelOrder = function(orderId) {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch('/api/orders/action', {
-        method: 'POST',
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', order_id: orderId })
+        body: JSON.stringify({ status: 'CANCELLED' })
       });
       const data = await res.json();
       if (data.status === 'success') {

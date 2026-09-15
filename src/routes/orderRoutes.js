@@ -414,18 +414,37 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(400).json({ status: 'error', message: `Status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
 
+    // Guard against a stale/late cancel request clobbering an order that has
+    // already been paid or is already being fulfilled (e.g. the PayMongo
+    // webhook confirms payment around the same moment the customer's
+    // "cancelled" redirect fires).
+    if (cleanStatus === 'CANCELLED') {
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('id', id)
+        .maybeSingle();
+
+      const NON_CANCELLABLE = ['PAID_VERIFIED', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED'];
+      if (existingOrder && NON_CANCELLABLE.includes(existingOrder.status)) {
+        return res.status(409).json({
+          status: 'error',
+          message: `Order is already ${existingOrder.status.replace(/_/g, ' ').toLowerCase()} and can no longer be cancelled this way.`
+        });
+      }
+    }
+
     const { data: updatedOrder, error: updateErr } = await supabase
       .from('orders')
       .update({ status: cleanStatus })
       .eq('id', id)
       .select(`
-        id, order_number, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
+        id, order_number, status, total_amount, subtotal, discount_amount, payment_method, pickup_date, pickup_instructions,
         guest_name, guest_email, customer_id,
         order_items (item_label, quantity, unit_price),
         customers ( user_id, users ( email, full_name, username ) )
       `)
       .maybeSingle();
-
     if (updateErr || !updatedOrder) {
       return res.status(404).json({ status: 'error', message: updateErr ? updateErr.message : 'Order not found.' });
     }

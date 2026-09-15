@@ -141,6 +141,21 @@
       }
     }
 
+    async function cancelOrder(orderId) {
+      try {
+        await fetch(`/api/orders/${orderId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'CANCELLED' })
+        });
+      } catch (err) {
+        // Best-effort: even if this fails, we still show the "not completed"
+        // message below. The order just won't be auto-cancelled and can be
+        // handled manually.
+        console.error('Failed to mark order cancelled:', err.message);
+      }
+    }
+
     (function init() {
       const orderId = getParam('order_id');
       const cancelled = getParam('cancelled');
@@ -149,7 +164,8 @@
         return renderResult('failed', null, 'Missing order reference.');
       }
       if (cancelled === '1') {
-        return renderResult('failed', null, 'You cancelled the PayMongo checkout before paying.');
+        cancelOrder(orderId);
+        return renderResult('failed', null, 'You cancelled the PayMongo checkout before paying. Your order has been cancelled.');
       }
       verifyPayment(orderId);
     })();
