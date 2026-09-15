@@ -785,12 +785,11 @@ function renderCustomizerUI() {
     } else if (currentStage === 'toppings') {
       let toppingSlotsHTML = '';
       customConfig.toppings.forEach((top, idx) => {
-        const price = getToppingUnitPrice(top);
         toppingSlotsHTML += `
           <div class="topping-slot-card ${customConfig.activeToppingSlot === idx ? 'active-slot' : ''}" onclick="selectToppingSlot(${idx})">
             <div class="slot-info">
               <span class="slot-number">Topping #${idx + 1}</span>
-              <span class="slot-value">${top} (+₱${price.toFixed(2)})</span>
+              <span class="slot-value">${top}</span>
             </div>
             <button type="button" class="btn-remove-slot" onclick="removeToppingSlot(${idx}, event)">
               <i class="fa-solid fa-xmark"></i>
@@ -815,12 +814,11 @@ function renderCustomizerUI() {
           <div class="toppings-selection-list">
             <span class="sidebar-instruction">Choose for Slot #${customConfig.activeToppingSlot + 1}:</span>
             ${AVAILABLE_TOPPINGS.map(t => {
-              const price = getToppingUnitPrice(t);
               return `
                 <label class="custom-radio-label">
                   <input type="radio" name="slot_topping" value="${t}" ${currentActiveVal === t ? 'checked' : ''} onchange="setToppingForActiveSlot('${t}')">
                   <span class="radio-mark"></span>
-                  <span class="radio-text">${t} (+₱${price.toFixed(2)})</span>
+                  <span class="radio-text">${t}</span>
                 </label>
               `;
             }).join('')}
