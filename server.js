@@ -976,6 +976,25 @@ app.post('/api/customer/request-password-otp', async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
+
+    if (!supabase) return res.status(503).json({ status: 'error', message: 'Database service unavailable.' });
+
+    const escapedEmail = cleanEmail.replace(/[%_]/g, '\\$&');
+    const { data: userRecord, error: lookupErr } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', escapedEmail)
+      .maybeSingle();
+
+    if (lookupErr) {
+      console.error('[request-password-otp] User lookup failed:', lookupErr.message);
+      return res.status(500).json({ status: 'error', message: 'Something went wrong looking up your account. Please try again.' });
+    }
+
+    if (!userRecord) {
+      return res.status(404).json({ status: 'error', message: 'No account found for that email.' });
+    }
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     const otpKey = cleanEmail;
@@ -1007,6 +1026,7 @@ app.post('/api/customer/request-password-otp', async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Failed to deliver security code email.' });
   }
 });
+
 
 app.post('/api/customer/change-password', async (req, res) => {
   try {
