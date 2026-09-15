@@ -1,0 +1,222 @@
+@font-face {
+  font-family: 'Bootzy TM';
+  src: url('../../images/BootzyTM.ttf') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Urbanist';
+  src: url('../../images/Urbanist.ttf') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Kawaii RT';
+  src: url('../../images/KawaiiRT-Mona.ttf') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-family-heading: 'Bootzy TM', sans-serif;
+  --font-family-body: 'Urbanist', sans-serif;
+  --font-family-name: 'Kawaii RT', cursive;
+
+  --bg-main: #FAF0F0;
+  --card-bg: #FFE2E2;
+  --card-border: #F8C8C8;
+  --text-dark: #4A3535;
+  --text-muted: #8C6D6D;
+  --accent-pink: #F39E9E;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family-body);
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+  overflow-x: hidden;
+}
+
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.main-content {
+  margin-left: 230px;
+  width: calc(100% - 230px);
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+/* Header Topbar */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.search-box {
+  position: relative;
+  width: 380px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 36px 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--card-border);
+  background-color: #FFFFFF;
+  font-size: 13px;
+  font-family: var(--font-family-body);
+  color: var(--text-muted);
+  outline: none;
+}
+
+.search-box input::placeholder {
+  color: #E2B6B6;
+  font-family: var(--font-family-body);
+}
+
+.search-box i {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent-pink);
+  font-size: 14px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.notification-icon {
+  font-size: 18px;
+  color: var(--accent-pink);
+  cursor: pointer;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: var(--accent-pink);
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+}
+
+.user-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  font-family: var(--font-family-body);
+}
+
+/* Top Metrics Gauge Row */
+.top-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.metric-gauge-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100px;
+  box-shadow: 0 4px 12px rgba(232, 93, 136, 0.06);
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  letter-spacing: 1px;
+}
+
+.metric-label {
+  font-family: var(--font-family-heading);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  letter-spacing: 2px;
+}
+
+.metric-amount {
+  font-family: var(--font-family-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.gauge-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-percentage {
+  position: absolute;
+  font-family: var(--font-family-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Revenue Multi-Line Chart Container */
+.revenue-chart-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 28px;
+  width: 100%;
+  height: 420px;
+  box-shadow: 0 4px 12px rgba(232, 93, 136, 0.06);
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+}

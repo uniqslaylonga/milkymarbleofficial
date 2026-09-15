@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Inventory Section</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/inventorySection.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="brand-container">
+                <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                <div class="brand-title">Milky Marble</div>
+            </div>
+
+            <ul class="nav-links">
+                    <li>
+                        <a href="dashboard.html" class="nav-link">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="procurement.html" class="nav-link">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>Procurement</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="inventorySection.html" class="nav-link active">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>Inventory Section</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="stockControl.html" class="nav-link">
+                            <i class="fa-solid fa-warehouse"></i>
+                            <span>Stock Control</span>
+                        </a>
+                    </li>
+                </ul>
+        </div>
+
+        <a href="../employeelogin.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Log out</span>
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="top-actions">
+                <div class="user-profile">
+                    <i class="fa-solid fa-circle-user profile-icon"></i>
+                    <span id="userFullName">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="page-title-row">
+            <div>
+                <span class="breadcrumb-label">Inventory Section</span>
+                <h1 class="page-title">What's on hand?</h1>
+            </div>
+            <div class="header-btns">
+                <a href="stockControl.html" class="btn-stock-control">
+                    <i class="fa-solid fa-box-archive"></i> Stock Control
+                </a>
+                <button class="btn-hero-add" onclick="openModal('addStockModal')">
+                    <i class="fa-solid fa-plus"></i> Add Stock
+                </button>
+            </div>
+        </section>
+
+        <div class="category-tabs-bar">
+            <button class="cat-tab-btn active" id="tabCatAll">
+                <i class="fa-solid fa-clipboard-list"></i>
+                <span>All categories</span>
+                <span id="totalCount" class="tab-badge">0</span>
+            </button>
+            <button class="cat-tab-btn" id="tabCatIngredients">
+                <i class="fa-solid fa-store"></i>
+                <span>Ingredients</span>
+                <span id="ingCount" class="tab-badge">0</span>
+            </button>
+            <button class="cat-tab-btn" id="tabCatPackaging">
+                <i class="fa-solid fa-store"></i>
+                <span>Packaging</span>
+                <span id="pkgCount" class="tab-badge">0</span>
+            </button>
+            <button class="cat-tab-btn" id="tabCatEquipment">
+                <i class="fa-solid fa-store"></i>
+                <span>Equipment</span>
+                <span id="eqpCount" class="tab-badge">0</span>
+            </button>
+        </div>
+
+        <section class="table-panel">
+            <div class="panel-controls">
+                <div class="panel-info">
+                    <h2>Items Levels</h2>
+                    <p><span id="visibleCount">0</span> items in view</p>
+                </div>
+
+                <div class="filter-group">
+                    <div class="inner-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="tableSearch" placeholder="Search items...">
+                    </div>
+
+                    <div class="custom-select-wrap">
+                        <i class="fa-solid fa-filter filter-icon"></i>
+                        <select id="statusFilter">
+                            <option value="">Filters Status</option>
+                            <option value="low">Low Stock Only</option>
+                            <option value="normal">Normal Stock</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-chevron"></i>
+                    </div>
+                </div>
+            </div>
+
+            <table class="data-table" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Item</th>
+                        <th style="width: 18%;">Category</th>
+                        <th style="width: 18%;">Available</th>
+                        <th style="width: 15%;">Reserved</th>
+                        <th style="width: 14%;">Reorder Point</th>
+                        <th style="width: 10%; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2.5rem 0; color: var(--text-body); font-weight: 700;">
+                            Loading inventory items...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</div>
+
+<!-- Modal: Add Stock -->
+<div class="modal-backdrop" id="addStockModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Add Stock</h2>
+        </div>
+
+        <form id="addStockForm">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="addName" placeholder="e.g Condense Milk" required>
+            </div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Department</label>
+                    <div class="select-wrap">
+                        <select id="addDepartment">
+                            <option value="Ingredients">Ingredients</option>
+                            <option value="Packaging">Packaging</option>
+                            <option value="Equipment">Equipment</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" step="0.01" id="addQuantity" value="10" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Unit</label>
+                    <div class="select-wrap">
+                        <select id="addUnit">
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                            <option value="oz">oz</option>
+                            <option value="pcs">pcs</option>
+                            <option value="pc">pc</option>
+                            <option value="liters">liters</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Reserved Quantity</label>
+                    <input type="number" id="addReservedQty" value="0" min="0" placeholder="e.g. 10">
+                </div>
+
+                <div class="form-group">
+                    <label>Reorder Point</label>
+                    <input type="number" step="0.01" id="addReorderLevel" value="10" min="0" placeholder="e.g. 50">
+                </div>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Requester Name</label>
+                    <input type="text" id="addRequester" placeholder="e.g Juan Dela Cruz">
+                </div>
+
+                <div class="form-group">
+                    <label>Vendor</label>
+                    <div class="select-wrap">
+                        <select id="addVendorSelect">
+                            <option value="">e.g Sample Store 1</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('addStockModal')">Not Yet</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Add stock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Adjust Stock -->
+<div class="modal-backdrop" id="adjustStockModal">
+    <div class="modal-card">
+        <div class="modal-title-row" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+                <h2>Adjust Stock</h2>
+            </div>
+            <form id="deleteStockForm">
+                <input type="hidden" id="deleteItemId">
+                <button type="submit" class="btn-delete-icon" title="Delete Item">
+                    <i class="fa-regular fa-trash-can"></i>
+                </button>
+            </form>
+        </div>
+
+        <form id="adjustStockForm">
+            <input type="hidden" id="adjustItemId">
+
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="adjustItemName" placeholder="e.g Condense Milk" required>
+            </div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Department</label>
+                    <div class="select-wrap">
+                        <select id="adjustItemDept">
+                            <option value="Ingredients">Ingredients</option>
+                            <option value="Packaging">Packaging</option>
+                            <option value="Equipment">Equipment</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" step="0.01" id="adjustItemQty" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Unit</label>
+                    <div class="select-wrap">
+                        <select id="adjustItemUnit">
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                            <option value="oz">oz</option>
+                            <option value="pcs">pcs</option>
+                            <option value="pc">pc</option>
+                            <option value="liters">liters</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Reserved Quantity</label>
+                    <input type="number" id="adjustItemReserved" min="0" placeholder="e.g. 10">
+                </div>
+
+                <div class="form-group">
+                    <label>Reorder Point</label>
+                    <input type="number" step="0.01" id="adjustItemReorder" min="0" placeholder="e.g. 50">
+                </div>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Requester Name</label>
+                    <input type="text" id="adjustRequester" placeholder="e.g Juan Dela Cruz">
+                </div>
+
+                <div class="form-group">
+                    <label>Vendor</label>
+                    <div class="select-wrap">
+                        <select id="adjustVendorSelect">
+                            <option value="">e.g Sample Store 1</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('adjustStockModal')">Not Yet</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Adjust stock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/inventorySection.js"></script>
+</body>
+</html>

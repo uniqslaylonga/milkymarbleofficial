@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Dashboard</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Urbanist:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="brand-section">
+                <div class="brand-logo-wrap">
+                    <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img" style="max-width: 70px; max-height: 70px; width: 100%; object-fit: contain;">
+                </div>
+                <h2 class="brand-title">Milky Marble</h2>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="dashboard.html" class="nav-item active">
+                    <i class="fa-solid fa-border-all"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="revenue.html" class="nav-item">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Revenue</span>
+                </a>
+                <a href="budget.html" class="nav-item">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Budget</span>
+                </a>
+                <a href="expenses.html" class="nav-item">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Expenses</span>
+                </a>
+                <a href="payments.html" class="nav-item">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <span>Payments</span>
+                </a>
+            </nav>
+
+            <div class="logout-item">
+                <a href="../employeelogin.html" class="nav-item">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Log out</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-box">
+                    <input type="text" placeholder="Search for anything...">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <img id="userAvatar" src="../images/account.png" alt="User Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../../images/account.png';">
+                        </div>
+                        <span id="userName" class="user-name">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="welcome-banner">
+                <h1>Glad to have you here, <span id="userFirstName">User</span>!</h1>
+                <p>Here's how the sips are moving today.</p>
+            </section>
+
+            <div class="dashboard-grid">
+                <div class="left-column">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Budget</span>
+                                <span id="totalBudget" class="metric-value">₱0.00</span>
+                            </div>
+                            <div class="mini-progress progress-blue"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Revenue</span>
+                                <span id="totalRevenue" class="metric-value">₱0.00</span>
+                            </div>
+                            <div class="mini-progress progress-purple"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Payments</span>
+                                <span id="totalPayments" class="metric-value">₱0.00</span>
+                            </div>
+                            <div class="mini-progress progress-coral"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Expenses</span>
+                                <span id="totalExpenses" class="metric-value">₱0.00</span>
+                            </div>
+                            <div class="mini-progress progress-pink"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card wave-chart-card">
+                        <canvas id="waveChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="right-column">
+                    <div class="chart-card bar-chart-card">
+                        <div class="bar-chart-wrapper">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                        <div class="chart-legend-right">
+                            <div class="legend-item"><span class="dot outflow"></span> OutFlow</div>
+                            <div class="legend-item"><span class="dot inflow"></span> InFlow</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card donut-chart-card">
+                        <div class="donut-wrapper">
+                            <canvas id="donutChart"></canvas>
+                        </div>
+                        <div class="donut-legend">
+                            <div class="legend-row">
+                                <span class="year">2026</span>
+                                <span class="legend-box yellow"></span>
+                                <span id="pct2026" class="val">0%</span>
+                            </div>
+                            <div class="legend-row">
+                                <span class="year">2025</span>
+                                <span class="legend-box green"></span>
+                                <span id="pct2025" class="val">0%</span>
+                            </div>
+                            <div class="legend-row">
+                                <span class="year">2024</span>
+                                <span class="legend-box pink"></span>
+                                <span id="pct2024" class="val">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

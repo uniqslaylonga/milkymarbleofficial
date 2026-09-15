@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Order List</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/orderlist.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+<div class="dashboard-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="brand-container">
+                <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                <div class="brand-title">Milky Marble</div>
+            </div>
+
+            <ul class="nav-links">
+                <li>
+                    <a href="dashboard.html" class="nav-link">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="orderList.html" class="nav-link active">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Order List</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="orderProduction.html" class="nav-link">
+                        <i class="fa-solid fa-industry"></i>
+                        <span>Order Production</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="productionPlanning.html" class="nav-link">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Production Planning</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <a href="../employeelogin.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Log out</span>
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" id="orderSearchInput" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+
+            <div class="top-actions">
+                <button class="notification-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
+                <div class="user-profile">
+                    <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
+                        <img id="userAvatar" src="../images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../../images/account.png';">
+                    </span>
+                    <span id="userFullName">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="page-header">
+            <div class="header-crumb">Order List</div>
+            <div class="header-row">
+                <h1>Keep the shelves organized</h1>
+                <a href="productionPlanning.html" class="request-btn" style="text-decoration: none;">Add Plan <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <article class="kpi-card">
+                <div class="kpi-top">
+                    <span>Pending Orders</span>
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div id="pendingCount" class="kpi-value">00</div>
+            </article>
+
+            <article class="kpi-card">
+                <div class="kpi-top">
+                    <span>In progress</span>
+                    <i class="fa-solid fa-store"></i>
+                </div>
+                <div id="inProgressCount" class="kpi-value">00</div>
+            </article>
+
+            <article class="kpi-card">
+                <div class="kpi-top">
+                    <span>Completed Orders</span>
+                    <i class="fa-solid fa-warehouse"></i>
+                </div>
+                <div id="completedCount" class="kpi-value">00</div>
+            </article>
+        </section>
+
+        <section class="pending-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Orders Queue</h2>
+                    <p>Click any row to open and execute order production.</p>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table class="orders-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Order / Size</th>
+                            <th>Name</th>
+                            <th>Qty</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 24px; color: #888;">Loading orders list...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="saved-panel">
+            <div class="saved-header">
+                <h3>Saved Presets</h3>
+                <p>Repeatable flavors configured in your database catalog</p>
+            </div>
+
+            <div id="presetGrid" class="preset-grid">
+                <!-- Preset cards rendered dynamically -->
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="js/orderList.js"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Payments</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Urbanist:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/payments.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="brand-section">
+                <div class="brand-logo-wrap">
+                    <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img" style="max-width: 70px; max-height: 70px; width: 100%; object-fit: contain;">
+                </div>
+                <h2 class="brand-title">Milky Marble</h2>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="dashboard.html" class="nav-item">
+                    <i class="fa-solid fa-border-all"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="revenue.html" class="nav-item">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Revenue</span>
+                </a>
+                <a href="budget.html" class="nav-item">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Budget</span>
+                </a>
+                <a href="expenses.html" class="nav-item">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Expenses</span>
+                </a>
+                <a href="payments.html" class="nav-item active">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <span>Payments</span>
+                </a>
+            </nav>
+
+            <div class="logout-item">
+                <a href="../employeelogin.html" class="nav-item">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Log out</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-box">
+                    <input type="text" placeholder="Search for anything...">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <img id="userAvatar" src="../images/account.png" alt="User Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
+                        </div>
+                        <span id="userName" class="user-name">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="payments-card">
+                <table class="payments-table">
+                    <thead>
+                        <tr>
+                            <th>DATE</th>
+                            <th>NAME</th>
+                            <th>USER ID</th>
+                            <th>TRANSACTION ID</th>
+                            <th>PAYMENT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 20px;">Loading payment transactions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="payments-summary-row">
+                <div class="summary-card">
+                    <span class="summary-title">Monthly</span>
+                    <h2 id="monthlyTotal" class="summary-amount">0.00</h2>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-title">Quarterly</span>
+                    <h2 id="quarterlyTotal" class="summary-amount">0.00</h2>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-title">Yearly</span>
+                    <h2 id="yearlyTotal" class="summary-amount">0.00</h2>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/payments.js"></script>
+</body>
+</html>

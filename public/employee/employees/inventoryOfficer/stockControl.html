@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Stock Control & Alerts</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/stockcontrol.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+</head>
+
+<body>
+
+    <div class="dashboard-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="brand-container">
+                    <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                    <div class="brand-title">Milky Marble</div>
+                </div>
+
+                <ul class="nav-links">
+                    <li>
+                        <a href="dashboard.html" class="nav-link">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="procurement.html" class="nav-link">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>Procurement</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="inventorySection.html" class="nav-link">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>Inventory Section</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="stockControl.html" class="nav-link active">
+                            <i class="fa-solid fa-warehouse"></i>
+                            <span>Stock Control</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <a href="../employeelogin.html" class="logout-btn">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>Log out</span>
+            </a>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="search-box">
+                    <input type="text" placeholder="Search for anything...">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+
+                <div class="top-actions">
+                    <div class="user-profile">
+                        <i class="fa-solid fa-circle-user profile-icon"></i>
+                        <span id="userFullName">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Header -->
+            <section class="page-title-row">
+                <div>
+                    <span class="breadcrumb-label">Stock Control</span>
+                    <h1 class="page-title">Keep the shelves organized</h1>
+                </div>
+                <a href="inventorySection.html" class="btn-stock-control-top">
+                    <i class="fa-solid fa-sliders"></i> Inventory Management
+                </a>
+            </section>
+
+            <!-- KPI Grid -->
+            <section class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Open Requests</span>
+                        <i class="fa-solid fa-clipboard-list kpi-icon"></i>
+                    </div>
+                    <div id="openRequests" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Active Vendors</span>
+                        <i class="fa-solid fa-store kpi-icon"></i>
+                    </div>
+                    <div id="activeVendors" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Items Monitored</span>
+                        <i class="fa-solid fa-cube kpi-icon"></i>
+                    </div>
+                    <div id="itemsMonitored" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Reserved Stocks</span>
+                        <i class="fa-solid fa-warehouse kpi-icon"></i>
+                    </div>
+                    <div id="reservedStocks" class="kpi-value">0</div>
+                </div>
+            </section>
+
+            <!-- Mid Grid: Items Levels & Reorder Alerts -->
+            <section class="mid-grid">
+                <!-- Left: Items Levels -->
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Items Levels</h2>
+                            <p><span id="movementCount">0</span> items in view</p>
+                        </div>
+
+                        <div class="custom-select-wrap">
+                            <i class="fa-solid fa-filter filter-icon"></i>
+                            <select id="dateFilter">
+                                <option value="all">Filter date</option>
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="older">Older</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down select-chevron"></i>
+                        </div>
+                    </div>
+
+                    <div class="movement-list" id="movementList">
+                        <div class="empty-state">Loading stock activity...</div>
+                    </div>
+
+                    <div class="panel-bottom-link">
+                        <a href="inventorySection.html">View all inventory <i class="fa-solid fa-chevron-right"></i></a>
+                    </div>
+                </div>
+
+                <!-- Right: Reorder Alerts -->
+                <div class="panel-card alerts-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Reorder Alerts</h2>
+                            <p>Low in stock</p>
+                        </div>
+                        <span id="alertsCountBadge" class="alerts-count-badge">0 items</span>
+                    </div>
+
+                    <div id="alertsList" class="alerts-list">
+                        <div class="empty-state">Loading reorder alerts...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/stockControl.js"></script>
+</body>
+
+</html>

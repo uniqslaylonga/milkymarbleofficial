@@ -74,7 +74,7 @@
                 <form id="profileForm" class="profile-form">
                     <div class="avatar-center-wrapper">
                         <div class="avatar-circle-box">
-                            <img src="/images/account.png" alt="Profile Avatar" id="avatarRoundPreview" class="avatar-img-round"> 
+                            <img src="images/account.png" alt="Profile Avatar" id="avatarRoundPreview" class="avatar-img-round" onerror="this.src='images/account.png'"> 
                             <label class="btn-avatar-camera" for="profileAvatarInput" title="Change Avatar">
                                 <i class="fa-solid fa-camera"></i>
                             </label>
@@ -144,9 +144,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const SUPABASE_URL = 'https://oryfjckrximudxkbpaag.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_secret_2b6mbe4S9ko1zZP2Q-9SAQ_bMWjTM3K';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.SUPABASE_URL = 'https://oryfjckrximudxkbpaag.supabase.co';
+        window.SUPABASE_ANON_KEY = 'sb_secret_2b6mbe4S9ko1zZP2Q-9SAQ_bMWjTM3K';
+        if (!window.supabaseClient && window.supabase) {
+            window.supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+        }
     </script>
     <script src="js/navbar.js"></script>
     <script src="js/profile.js"></script>

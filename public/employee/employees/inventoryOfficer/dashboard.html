@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Procurement & Inventory Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+</head>
+
+<body>
+
+    <div class="dashboard-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="brand-container">
+                    <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                    <div class="brand-title">Milky Marble</div>
+                </div>
+
+                <ul class="nav-links">
+                    <li>
+                        <a href="dashboard.html" class="nav-link active">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="procurement.html" class="nav-link">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>Procurement</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="inventorySection.html" class="nav-link">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>Inventory Section</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="stockControl.html" class="nav-link">
+                            <i class="fa-solid fa-warehouse"></i>
+                            <span>Stock Control</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <a href="../employeelogin.html" class="logout-btn">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>Log out</span>
+            </a>
+        </aside>
+
+        <!-- Main Container -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-box">
+                    <input type="text" placeholder="Search...">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+
+                <div class="top-actions">
+                    <div class="user-profile">
+                        <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
+                            <img id="userAvatar" src="../images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../images/account.png';">
+                        </span>
+                        <span id="userName">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Hero Greeting -->
+            <section class="welcome-banner">
+                <div class="welcome-text">
+                    <h1>Glad to have you here, <span id="userFirstName">User</span>!</h1>
+                    <p>Here's how the sips are moving today.</p>
+                </div>
+                <div class="banner-buttons">
+                    <button class="btn-primary" onclick="openModal('addRequestModal')"><i class="fa-solid fa-plus"></i> Add Request</button>
+                </div>
+            </section>
+
+            <!-- KPI Grid -->
+            <section class="kpi-grid">
+                <div class="kpi-card" onclick="window.location.href='purchasingVendorManagement.html'" style="cursor: pointer;">
+                    <div class="kpi-header">
+                        <span>Open Requests</span>
+                        <i class="fa-solid fa-clipboard-list kpi-icon"></i>
+                    </div>
+                    <div id="openRequests" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card" onclick="window.location.href='purchasingVendorManagement.html'" style="cursor: pointer;">
+                    <div class="kpi-header">
+                        <span>Active Vendors</span>
+                        <i class="fa-solid fa-store kpi-icon"></i>
+                    </div>
+                    <div id="activeVendors" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card" onclick="window.location.href='inventoryCategoryManagement.html'" style="cursor: pointer;">
+                    <div class="kpi-header">
+                        <span>Items Monitored</span>
+                        <i class="fa-solid fa-cube kpi-icon"></i>
+                    </div>
+                    <div id="itemsMonitored" class="kpi-value">00</div>
+                </div>
+
+                <div class="kpi-card" onclick="window.location.href='inventoryCategoryManagement.html'" style="cursor: pointer;">
+                    <div class="kpi-header">
+                        <span>Reserved Stocks</span>
+                        <i class="fa-solid fa-warehouse kpi-icon"></i>
+                    </div>
+                    <div id="reservedStocks" class="kpi-value">0</div>
+                </div>
+            </section>
+
+            <!-- Mid Grid: Purchase Requests + Vendor Transactions -->
+            <section class="mid-grid">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Latest Purchase Requests</h2>
+                            <p>Here's how the sips are moving today.</p>
+                        </div>
+                        <a href="purchasingVendorManagement.html" class="view-link">View all <i class="fa-solid fa-chevron-right"></i></a>
+                    </div>
+
+                    <div id="purchaseRequestsList" class="request-list">
+                        <p class="no-data">Loading purchase requests...</p>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Latest Vendor Transaction</h2>
+                            <p>Active supplier List</p>
+                        </div>
+                        <button class="circle-arrow-btn" onclick="window.location.href='purchasingVendorManagement.html'"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+
+                    <div id="vendorList" class="vendor-list">
+                        <p class="no-data">Loading active vendors...</p>
+                    </div>
+
+                    <div class="vendor-footer-stats">
+                        <div><strong id="totalVendorsCount">0</strong> Suppliers in Directory</div>
+                        <div><strong id="activeVendorsPercent">0%</strong> Active Supplier</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bottom Panel: Inventory List & Stock Alerts -->
+            <section class="panel-card bottom-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Inventory List</h2>
+                        <p>A summary of available units</p>
+                    </div>
+                    <a href="inventoryCategoryManagement.html" class="view-link">Open inventory <i class="fa-solid fa-chevron-right"></i></a>
+                </div>
+
+                <div class="inventory-overview-grid">
+                    <div class="bars-container">
+                        <div class="bars-header">
+                            <span>Available units per category</span>
+                            <span class="total-units"><strong id="totalAvailableUnits">0</strong> Units</span>
+                        </div>
+
+                        <div class="progress-row">
+                            <span class="row-label">Ingredients</span>
+                            <div class="progress-track">
+                                <div id="ingFill" class="progress-fill" style="width: 0%;"></div>
+                            </div>
+                            <span id="ingUnits" class="row-count">0</span>
+                        </div>
+
+                        <div class="progress-row">
+                            <span class="row-label">Packaging</span>
+                            <div class="progress-track">
+                                <div id="pkgFill" class="progress-fill" style="width: 0%;"></div>
+                            </div>
+                            <span id="pkgUnits" class="row-count">0</span>
+                        </div>
+
+                        <div class="progress-row">
+                            <span class="row-label">Equipment</span>
+                            <div class="progress-track">
+                                <div id="eqpFill" class="progress-fill" style="width: 0%;"></div>
+                            </div>
+                            <span id="eqpUnits" class="row-count">0</span>
+                        </div>
+                    </div>
+
+                    <div class="stock-callout-card">
+                        <div class="callout-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="callout-content">
+                            <span class="callout-tag">STOCK CONTROL</span>
+                            <h3><span id="attentionCount">0</span> items deserve attention</h3>
+                            <p>Handle low stock items immediately</p>
+                            <a href="stockControlAlerts.html" class="callout-link">View alerts <i class="fa-solid fa-chevron-right"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: Add Purchase Request -->
+    <div class="modal-backdrop" id="addRequestModal">
+        <div class="modal-card">
+            <div class="modal-title-row">
+                <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+                <h2>Add Purchase Request</h2>
+            </div>
+
+            <form id="addRequestForm">
+                <div class="form-group">
+                    <label>Item Name / Description</label>
+                    <input type="text" id="itemName" placeholder="e.g Raw Jelly Ingredients & Milk Supplies" required>
+                </div>
+
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Store / Supplier Name</label>
+                        <input type="text" id="storeName" placeholder="e.g All-In Wholesaler" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Estimated Amount (&#8369;)</label>
+                        <input type="number" step="0.01" id="amount" placeholder="e.g. 5000.00" min="1" required>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal('addRequestModal')">Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>

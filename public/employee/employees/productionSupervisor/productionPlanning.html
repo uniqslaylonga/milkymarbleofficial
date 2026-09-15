@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Production Planning</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/productionplanning.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="brand-container">
+                <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                <div class="brand-title">Milky Marble</div>
+            </div>
+
+            <ul class="nav-links">
+                <li>
+                    <a href="dashboard.html" class="nav-link">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="orderList.html" class="nav-link">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Order List</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="orderProduction.html" class="nav-link">
+                        <i class="fa-solid fa-industry"></i>
+                        <span>Order Production</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="productionPlanning.html" class="nav-link active">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Production Planning</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <a href="../employeelogin.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Log out</span>
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" id="planningSearchInput" placeholder="Search planning runs...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="top-actions">
+                <div class="user-profile">
+                    <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
+                        <img id="userAvatar" src="../images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../../images/account.png';">
+                    </span>
+                    <span id="userFullName">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="page-title-row">
+            <div>
+                <span class="breadcrumb-label">Production Planning</span>
+                <h1 class="page-title">Make the next move visible.</h1>
+                <p class="page-subtitle">Shape the week around available materials and a pace the floor can keep.</p>
+            </div>
+            <button class="btn-primary-plan" onclick="openModal('addPlanModal')">
+                <i class="fa-solid fa-plus"></i> Add production plan
+            </button>
+        </section>
+
+        <div class="timeline-bar">
+            <div class="timeline-left">
+                <div class="custom-select-wrap">
+                    <i class="fa-regular fa-calendar filter-icon"></i>
+                    <select id="timeRangeFilter">
+                        <option value="this_week">This week</option>
+                        <option value="next_week">Next week</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down select-chevron"></i>
+                </div>
+                <span id="dateRangeText" class="date-range-text">Loading range...</span>
+            </div>
+
+            <div class="view-switch-group">
+                <button class="view-btn active" id="btnViewBoard">
+                    <i class="fa-solid fa-table-columns"></i> Board
+                </button>
+                <button class="view-btn" id="btnViewList">
+                    <i class="fa-solid fa-list"></i> List
+                </button>
+            </div>
+        </div>
+
+        <!-- BOARD VIEW -->
+        <section class="planning-board-grid" id="boardViewArea">
+            <!-- Today Column -->
+            <div class="board-column">
+                <div class="column-header">
+                    <h2>Today</h2>
+                    <span id="todayCount" class="column-count-badge">0</span>
+                </div>
+
+                <div id="todayPlansList" class="column-cards-list">
+                    <div style="padding: 16px; color: #888; font-size: 13px;">Loading tasks...</div>
+                </div>
+            </div>
+
+            <!-- Tomorrow Column -->
+            <div class="board-column">
+                <div class="column-header">
+                    <h2>Tomorrow</h2>
+                    <span id="tomorrowCount" class="column-count-badge">0</span>
+                </div>
+
+                <div id="tomorrowPlansList" class="column-cards-list">
+                    <div style="padding: 16px; color: #888; font-size: 13px;">Loading tasks...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LIST VIEW -->
+        <section class="planning-list-panel" id="listViewArea" style="display: none;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Plan Code</th>
+                        <th style="width: 35%;">Product / Recipe</th>
+                        <th style="width: 25%;">Scheduled Date & Time</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 10%; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="allPlansTableBody">
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 20px; color: #888;">Loading production plans...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</div>
+
+<!-- MODAL 1: ADD PRODUCTION PLAN -->
+<div class="modal-backdrop" id="addPlanModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Add Production Plan</h2>
+        </div>
+
+        <form id="addPlanForm">
+            <div class="form-group">
+                <label>Select Recipe / Catalog Item</label>
+                <select id="recipeSelect" style="margin-bottom: 8px;">
+                    <option value="">-- Choose from Recipes (Optional) --</option>
+                </select>
+                <label>Product / Operation Name *</label>
+                <input type="text" id="addOpInput" placeholder="e.g. Buko Pandan Supreme Batch" required>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="addDueDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Time *</label>
+                    <input type="time" id="addScheduleTime" value="08:00" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select id="addStatus">
+                    <option value="PENDING">Planned</option>
+                    <option value="IN PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('addPlanModal')">Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Save Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 2: EDIT PRODUCTION PLAN -->
+<div class="modal-backdrop" id="editPlanModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Edit Production Plan</h2>
+        </div>
+
+        <form id="editPlanForm">
+            <input type="hidden" id="editPlanId">
+
+            <div class="form-group">
+                <label>Product / Recipe *</label>
+                <input type="text" id="editProductName" required>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="editDueDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Time *</label>
+                    <input type="time" id="editScheduleTime" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select id="editStatus">
+                    <option value="PENDING">Planned</option>
+                    <option value="IN PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('editPlanModal')">Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Update Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/productionPlanning.js"></script>
+</body>
+</html>

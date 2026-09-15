@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble - Procurement & Vendor Management</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/vendormanagement.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/sidebar.css"
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="brand-container">
+                <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
+                <div class="brand-title">Milky Marble</div>
+            </div>
+
+            <ul class="nav-links">
+                    <li>
+                        <a href="dashboard.html" class="nav-link">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="procurement.html" class="nav-link active">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>Procurement</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="inventorySection.html" class="nav-link">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>Inventory Section</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="stockControl.html" class="nav-link">
+                            <i class="fa-solid fa-warehouse"></i>
+                            <span>Stock Control</span>
+                        </a>
+                    </li>
+                </ul>
+        </div>
+
+        <a href="../employeelogin.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Log out</span>
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="top-actions">
+                <div class="user-profile">
+                    <i class="fa-solid fa-circle-user profile-icon"></i>
+                    <span id="userFullName">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="page-title-row">
+            <div>
+                <span class="breadcrumb-label">Procurement Desk</span>
+                <h1 class="page-title">Keep Purchasing Moving</h1>
+            </div>
+            <button class="btn-hero-add" onclick="openModal('addRequestModal')">
+                <i class="fa-solid fa-plus"></i> Add Request
+            </button>
+        </section>
+
+        <section class="table-panel">
+            <div class="panel-controls">
+                <div class="tab-group">
+                    <button class="tab-btn active" id="tabBtnRequests">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <span>Purchase Requests</span>
+                        <span id="requestsCount" class="counter-badge">0</span>
+                    </button>
+                    <button class="tab-btn" id="tabBtnVendors">
+                        <i class="fa-solid fa-store"></i>
+                        <span>Vendor Records</span>
+                        <span id="vendorsCount" class="counter-badge">0</span>
+                    </button>
+                </div>
+
+                <div class="filter-group">
+                    <button class="btn-panel-add-vendor" id="btnAddVendorTrigger" onclick="openModal('addVendorModal')">
+                        <i class="fa-solid fa-plus"></i> Add Vendor
+                    </button>
+
+                    <div class="inner-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="tableSearch" placeholder="Search requests...">
+                    </div>
+
+                    <div class="custom-select-wrap">
+                        <i class="fa-solid fa-filter filter-icon"></i>
+                        <select id="statusFilter">
+                            <option value="">Filters Status</option>
+                            <option value="Active">Active</option>
+                            <option value="PENDING_FINANCE">PENDING_FINANCE</option>
+                            <option value="PENDING_CEO">PENDING_CEO</option>
+                            <option value="APPROVED">APPROVED</option>
+                            <option value="PURCHASED">PURCHASED</option>
+                            <option value="Review">Review</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-chevron"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-view active" id="requestsTableView">
+                <table class="data-table" id="requestsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Request</th>
+                            <th style="width: 18%;">Requester</th>
+                            <th style="width: 18%;">Department</th>
+                            <th style="width: 18%;">Status</th>
+                            <th style="width: 16%; text-align: right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestsTableBody">
+                        <tr><td colspan="5" class="empty-cell">Loading purchase requests...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-view" id="vendorsTableView">
+                <table class="data-table" id="vendorsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Vendor</th>
+                            <th style="width: 22%;">Category</th>
+                            <th style="width: 20%;">Contact</th>
+                            <th style="width: 14%;">Status</th>
+                            <th style="width: 14%; text-align: right;">Total Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendorsTableBody">
+                        <tr><td colspan="5" class="empty-cell">Loading vendors...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Modal: Add Purchase Request -->
+<div class="modal-backdrop" id="addRequestModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Purchase Request</h2>
+        </div>
+
+        <form id="addRequestForm">
+            <div class="form-group">
+                <label>What do you need?</label>
+                <input type="text" id="reqItemName" placeholder="e.g Condense Milk" required>
+            </div>
+
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label>Estimated Amount (&#8369;)</label>
+                    <input type="number" step="0.01" id="reqAmount" placeholder="e.g. 200" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Vendor / Store</label>
+                    <select id="reqVendorName">
+                        <option value="">e.g Sample Store 1</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('addRequestModal')">Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Add Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Vendor -->
+<div class="modal-backdrop" id="addVendorModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Add Vendor</h2>
+        </div>
+
+        <form id="addVendorForm">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="addVendorName" placeholder="e.g Sample Store 1" required>
+            </div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="addVendorCategory" placeholder="e.g. Packaging Supplier" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Contact</label>
+                    <input type="text" id="addVendorContact" placeholder="email.sample@store.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="addVendorStatus">
+                        <option value="Active">Active</option>
+                        <option value="Review">Review</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('addVendorModal')">Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Add Vendor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Vendor -->
+<div class="modal-backdrop" id="editVendorModal">
+    <div class="modal-card">
+        <div class="modal-title-row">
+            <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
+            <h2>Edit Vendor</h2>
+        </div>
+
+        <form id="editVendorForm">
+            <input type="hidden" id="editVendorId">
+            
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="editVendorName" required>
+            </div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="editVendorCategory" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Contact</label>
+                    <input type="text" id="editVendorContact" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="editVendorStatus">
+                        <option value="Active">Active</option>
+                        <option value="Review">Review</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('editVendorModal')">Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Confirm Edit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/purchasingVendorManagement.js"></script>
+</body>
+</html>
