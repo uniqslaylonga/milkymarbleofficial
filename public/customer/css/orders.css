@@ -1153,8 +1153,19 @@ body {
         max-height: 88px;
     }
 
+    .order-header-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+    }
+
     .order-item-title {
         font-size: 15.5px !important;
+    }
+
+    .order-status-badge {
+        font-size: 13.5px !important;
+        align-self: flex-start;
     }
 
     .order-meta-grid {
@@ -1167,6 +1178,44 @@ body {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
+    }
+
+    .order-card-footer {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        padding-top: 10px !important;
+    }
+
+    .order-actions-group {
+        width: 100%;
+    }
+
+    .order-actions-group .btn-action-primary,
+    .order-actions-group .btn-action-secondary {
+        width: 100%;
+        text-align: center;
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .order-total-block {
+        width: 100%;
+        margin-left: 0 !important;
+        display: flex !important;
+        align-items: baseline !important;
+        justify-content: space-between !important;
+        white-space: nowrap !important;
+    }
+
+    .total-label {
+        font-size: 13px !important;
+    }
+
+    .total-value {
+        font-size: 20px !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.5px;
     }
 
     .product-modal-container.order-status-modal-card,
