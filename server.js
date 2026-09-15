@@ -1050,12 +1050,17 @@ app.post('/api/customer/change-password', async (req, res) => {
 
     const newHash = bcrypt ? await bcrypt.hash(new_password, 10) : new_password;
 
-    const { error: passUpdateErr } = await supabase
+    const { data: updatedRows, error: passUpdateErr } = await supabase
       .from('users')
       .update({ password_hash: newHash })
-      .eq('id', userRecord.id);
+      .eq('id', userRecord.id)
+      .select('id');
 
     if (passUpdateErr) return res.status(400).json({ status: 'error', message: passUpdateErr.message });
+    if (!updatedRows || updatedRows.length === 0) {
+      console.error('[change-password] Update matched 0 rows for user', userRecord.id, '- check SUPABASE_SERVICE_ROLE_KEY / RLS policies.');
+      return res.status(500).json({ status: 'error', message: 'Could not update password. Please try again or contact support.' });
+    }
 
     passwordOtpStore.delete(cleanEmail);
     return res.json({ status: 'success', message: 'Your password has been changed successfully!' });
@@ -1095,12 +1100,17 @@ app.post('/api/customer/forgot-password', async (req, res) => {
 
     const newHash = bcrypt ? await bcrypt.hash(new_password, 10) : new_password;
 
-    const { error: passUpdateErr } = await supabase
+    const { data: updatedRows, error: passUpdateErr } = await supabase
       .from('users')
       .update({ password_hash: newHash })
-      .eq('id', userRecord.id);
+      .eq('id', userRecord.id)
+      .select('id');
 
     if (passUpdateErr) return res.status(400).json({ status: 'error', message: passUpdateErr.message });
+    if (!updatedRows || updatedRows.length === 0) {
+      console.error('[forgot-password] Update matched 0 rows for user', userRecord.id, '- check SUPABASE_SERVICE_ROLE_KEY / RLS policies.');
+      return res.status(500).json({ status: 'error', message: 'Could not update password. Please try again or contact support.' });
+    }
 
     passwordOtpStore.delete(cleanEmail);
     return res.json({ status: 'success', message: 'Your password has been reset successfully! You can now log in.' });
