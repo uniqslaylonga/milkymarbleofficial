@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Google OAuth client
   if (typeof google !== 'undefined') {
     google.accounts.id.initialize({
-      client_id: "661579582958-k9te98cv15osgvqeojgshcvvvdguatfc.apps.googleusercontent.com",
+      client_id: "1077352091553-6d77b0rtu3km8r1har7ra3lsmbf5en35.apps.googleusercontent.com",
       callback: handleGoogleCredentialResponse,
       auto_select: false
     });
