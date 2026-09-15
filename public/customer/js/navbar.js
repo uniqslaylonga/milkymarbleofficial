@@ -220,7 +220,8 @@ function initNavbarState() {
   // REGISTERED CUSTOMER STATE
   if (user && (user.customer_id || user.user_id || user.id)) {
     const displayName = escapeHtml(user.full_name || user.username || 'Customer');
-// BAGONG CODE:
+
+    // Sinusuri lahat ng posibleng column names para sa profile image (kasama ang data: url check)
     let rawAvatar = user.avatar || user.profile_picture || user.avatar_url || user.photo_url || user.image || '';
     if (rawAvatar && !rawAvatar.startsWith('http') && !rawAvatar.startsWith('/') && !rawAvatar.startsWith('data:')) {
       rawAvatar = '/' + rawAvatar;
@@ -258,8 +259,6 @@ function initNavbarState() {
           </div>
         </div>
       `;
-
-      setupDropdownToggle();
     }
 
     // Auto-sync avatar at fresh user details mula sa database para manatiling updated sa kahit saang page
@@ -300,7 +299,7 @@ function initNavbarState() {
     if (notifContainer) {
       notifContainer.innerHTML = `
         <div class="nav-notif-wrapper" id="navNotifWrapper">
-          <a href="notifications.html" class="nav-icon-btn ${isNotifPage ? 'active' : ''}" title="Notifications" id="navNotifBell">
+          <a href="javascript:void(0)" class="nav-icon-btn ${isNotifPage ? 'active' : ''}" title="Notifications" id="navNotifBell">
             <i class="fa-regular fa-bell"></i>
           </a>
 
@@ -321,6 +320,8 @@ function initNavbarState() {
 
       loadNavbarDropdownNotifs(user.customer_id);
     }
+
+    setupDropdownToggle();
   } else {
     // GUEST STATE
     if (userSlot) {
@@ -348,6 +349,42 @@ function initNavbarState() {
       `;
     }
   }
+}
+
+function setupDropdownToggle() {
+  const trigger = document.getElementById('navAvatarTrigger');
+  const dropdown = document.getElementById('navProfileDropdown');
+  const notifWrapper = document.getElementById('navNotifWrapper');
+  const notifBell = document.getElementById('navNotifBell');
+
+  // Toggle para sa Profile Avatar Menu
+  if (trigger && dropdown) {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('active');
+      if (notifWrapper) notifWrapper.classList.remove('active');
+    });
+  }
+
+  // Toggle para sa Sweet Updates Dropdown (mag-i-stay bukas kapag clinick)
+  if (notifBell && notifWrapper) {
+    notifBell.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      notifWrapper.classList.toggle('active');
+      if (dropdown) dropdown.classList.remove('active');
+    });
+  }
+
+  // I-close ang alinmang bukas kapag nag-click sa labas
+  document.addEventListener('click', (e) => {
+    if (dropdown && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('active');
+    }
+    if (notifWrapper && !notifWrapper.contains(e.target)) {
+      notifWrapper.classList.remove('active');
+    }
+  });
 }
 
 function setupGlobalAvatarUpload() {
@@ -528,23 +565,6 @@ window.markAllNotificationsAsRead = function(event) {
       });
     });
 };
-
-function setupDropdownToggle() {
-  const trigger = document.getElementById('navAvatarTrigger');
-  const dropdown = document.getElementById('navProfileDropdown');
-  if (!trigger || !dropdown) return;
-
-  trigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle('active');
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target)) {
-      dropdown.classList.remove('active');
-    }
-  });
-}
 
 function initNavbarSearch() {
   const navWrapper = document.querySelector('.navbar-wrapper');
