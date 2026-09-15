@@ -142,6 +142,12 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://oryfjckrximudxkbpaag.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_secret_2b6mbe4S9ko1zZP2Q-9SAQ_bMWjTM3K';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
     <script src="js/navbar.js"></script>
     <script src="js/profile.js"></script>
 </body>

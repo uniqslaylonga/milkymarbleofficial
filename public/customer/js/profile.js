@@ -358,8 +358,9 @@ function setupProfileForm() {
         const fullName = document.getElementById('full_name').value.trim();
         const username = document.getElementById('username').value.trim();
         const phone = document.getElementById('phone').value.trim();
+        const fileInput = document.querySelector('input[type="file"]') || document.getElementById('avatarFileInput');
         const avatarRound = document.getElementById('avatarRoundPreview');
-        const avatarSrc = (avatarRound && !avatarRound.src.includes('account.png')) ? avatarRound.src : '';
+        let avatarSrc = (avatarRound && !avatarRound.src.includes('account.png')) ? avatarRound.src : '';
 
         if (!fullName) {
             ProfileSwal.fire({ icon: 'warning', title: 'Missing Field', text: 'Full name is required.' });
@@ -394,6 +395,46 @@ function setupProfileForm() {
             return;
         }
 
+        // 1. Kung may bagong piniling larawan at available ang Supabase client sa window
+        if (fileInput && fileInput.files && fileInput.files[0] && typeof supabase !== 'undefined' && supabase.storage) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${userId || customerId}-${Date.now()}.${fileExt}`;
+
+            try {
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('avatars')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (uploadError) {
+                    ProfileSwal.fire({
+                        icon: 'error',
+                        title: 'Upload Failed',
+                        text: uploadError.message
+                    });
+                    return;
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(filePath);
+
+                avatarSrc = publicUrl;
+            } catch (storageErr) {
+                console.error('Storage upload error:', storageErr);
+                ProfileSwal.fire({
+                    icon: 'error',
+                    title: 'Upload Error',
+                    text: 'Could not upload image to storage.'
+                });
+                return;
+            }
+        }
+
+        // 2. I-save sa database gamit ang API endpoint
         try {
             const res = await fetch('/api/customer/profile', {
                 method: 'PUT',
