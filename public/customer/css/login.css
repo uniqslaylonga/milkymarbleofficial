@@ -686,3 +686,4 @@ button.swal2-cancel.mm-swal-cancel-btn {
   border: none !important;
   cursor: pointer !important;
 }
+#forgotPasswordLink { margin-top: 6px; }
