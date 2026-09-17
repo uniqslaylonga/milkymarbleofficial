@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble — Order Monitoring</title>
-    <link rel="stylesheet" href="css/orderMonitoring.css">
+    <title>Milky Marble — Sales Target Tracking</title>
+    <link rel="stylesheet" href="css/salesTarget.css">
 </head>
 <body>
     <div class="app-container">
@@ -27,7 +27,7 @@
                     <span>Dashboard</span>
                 </a>
 
-                <a href="orderMonitoring.html" class="nav-link active">
+                <a href="orderMonitoring.html" class="nav-link">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="4" width="20" height="16" rx="3" />
                         <path d="M7 15h10M7 9h10" />
@@ -61,7 +61,7 @@
                     <span>Promotions</span>
                 </a>
 
-                <a href="salesTarget.html" class="nav-link">
+                <a href="salesTarget.html" class="nav-link active">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="9" />
                         <circle cx="12" cy="12" r="5" />
@@ -80,7 +80,7 @@
             </nav>
 
             <div class="sidebar-bottom">
-                <a href="../employeelogin.html" class="nav-link logout-btn">
+                <a href="../login.html" class="nav-link logout-btn">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
                     </svg>
@@ -108,38 +108,48 @@
                 </div>
             </header>
 
-            <div class="page-eyebrow">Order Monitoring Desk</div>
+            <!-- EYEBROW TEXT ONLY -->
+            <div class="page-eyebrow">Sales Target Desk</div>
 
             <section class="section">
-                <h2 class="section-title">Overview</h2>
+                <h2 class="section-title">Quota Progress Gauges</h2>
                 <div class="overview-grid">
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Pending Preparation</span></div>
-                        <div class="stat-body"><span id="preparingCount" class="stat-value">0</span></div>
-                        <div class="stat-footer">Items in kitchen</div>
+                    <div class="target-card">
+                        <div class="target-card-top">
+                            <span class="period-pill">Today</span>
+                            <span id="dailyPct" class="pct-badge">0%</span>
+                        </div>
+                        <div class="target-revenue-row">
+                            <div>
+                                <div id="todaySales" class="current-rev">₱0.00</div>
+                                <div id="dailyTarget" class="quota-sub">Target: ₱0.00</div>
+                            </div>
+                        </div>
+                        <div class="gauge-bar-track">
+                            <div id="dailyGaugeFill" class="gauge-bar-fill" style="width: 0%;"></div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">In Transit / Pickup</span></div>
-                        <div class="stat-body"><span id="transitCount" class="stat-value">0</span></div>
-                        <div class="stat-footer">Ready for customer</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Cancelled</span></div>
-                        <div class="stat-body"><span id="cancelledCount" class="stat-value">0</span></div>
-                        <div class="stat-footer">Total voided orders</div>
-                    </div>
-                </div>
-            </section>
 
-            <section class="section">
-                <h2 class="section-title">Active Orders</h2>
-                <div id="activeOrdersGrid" class="orders-grid">
-                    <p style="padding: 20px;">Loading active orders...</p>
+                    <div class="target-card">
+                        <div class="target-card-top">
+                            <span class="period-pill">Monthly</span>
+                            <span id="monthlyPct" class="pct-badge">0%</span>
+                        </div>
+                        <div class="target-revenue-row">
+                            <div>
+                                <div id="monthSales" class="current-rev">₱0.00</div>
+                                <div id="monthlyTarget" class="quota-sub">Target: ₱0.00</div>
+                            </div>
+                        </div>
+                        <div class="gauge-bar-track">
+                            <div id="monthlyGaugeFill" class="gauge-bar-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <script src="js/orderMonitoring.js"></script>
+    <script src="js/salesTarget.js"></script>
 </body>
 </html>

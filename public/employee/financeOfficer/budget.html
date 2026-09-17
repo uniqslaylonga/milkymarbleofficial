@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Expenses</title>
+    <title>Milky Marble - Budget</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="css/sidebar.css">
-    <link rel="stylesheet" href="css/expenses.css">
+    <link rel="stylesheet" href="css/budget.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -32,11 +32,11 @@
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Revenue</span>
                 </a>
-                <a href="budget.html" class="nav-item">
+                <a href="budget.html" class="nav-item active">
                     <i class="fa-solid fa-wallet"></i>
                     <span>Budget</span>
                 </a>
-                <a href="expenses.html" class="nav-item active">
+                <a href="expenses.html" class="nav-item">
                     <i class="fa-solid fa-pen-to-square"></i>
                     <span>Expenses</span>
                 </a>
@@ -47,7 +47,7 @@
             </nav>
 
             <div class="logout-item">
-                <a href="../employeelogin.html" class="nav-item">
+                <a href="../login.html" class="nav-item">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     <span>Log out</span>
                 </a>
@@ -70,19 +70,20 @@
                 </div>
             </header>
 
-            <section class="expenses-card">
-                <table class="expenses-table">
+            <section class="budget-card">
+                <table class="budget-table">
                     <thead>
                         <tr>
                             <th>DATE</th>
-                            <th>MARKETING</th>
-                            <th>TAXES</th>
-                            <th>COGS</th>
+                            <th>CAPITAL</th>
+                            <th>RAW MATERIAL</th>
+                            <th>EMERGENCY FUNDS</th>
+                            <th>MANPOWER COST</th>
                         </tr>
                     </thead>
-                    <tbody id="expenseTableBody">
+                    <tbody id="budgetTableBody">
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 20px;">Loading expense records...</td>
+                            <td colspan="5" style="text-align: center; padding: 20px;">Loading budget records...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -90,6 +91,6 @@
         </main>
     </div>
 
-    <script src="js/expenses.js"></script>
+    <script src="js/budget.js"></script>
 </body>
 </html>

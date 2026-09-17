@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Budget</title>
+    <title>Milky Marble - Payments</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="css/sidebar.css">
-    <link rel="stylesheet" href="css/budget.css">
+    <link rel="stylesheet" href="css/payments.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -32,7 +32,7 @@
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Revenue</span>
                 </a>
-                <a href="budget.html" class="nav-item active">
+                <a href="budget.html" class="nav-item">
                     <i class="fa-solid fa-wallet"></i>
                     <span>Budget</span>
                 </a>
@@ -40,14 +40,14 @@
                     <i class="fa-solid fa-pen-to-square"></i>
                     <span>Expenses</span>
                 </a>
-                <a href="payments.html" class="nav-item">
+                <a href="payments.html" class="nav-item active">
                     <i class="fa-solid fa-money-bill-transfer"></i>
                     <span>Payments</span>
                 </a>
             </nav>
 
             <div class="logout-item">
-                <a href="../employeelogin.html" class="nav-item">
+                <a href="../login.html" class="nav-item">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     <span>Log out</span>
                 </a>
@@ -70,27 +70,42 @@
                 </div>
             </header>
 
-            <section class="budget-card">
-                <table class="budget-table">
+            <section class="payments-card">
+                <table class="payments-table">
                     <thead>
                         <tr>
                             <th>DATE</th>
-                            <th>CAPITAL</th>
-                            <th>RAW MATERIAL</th>
-                            <th>EMERGENCY FUNDS</th>
-                            <th>MANPOWER COST</th>
+                            <th>NAME</th>
+                            <th>USER ID</th>
+                            <th>TRANSACTION ID</th>
+                            <th>PAYMENT</th>
                         </tr>
                     </thead>
-                    <tbody id="budgetTableBody">
+                    <tbody id="paymentsTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 20px;">Loading budget records...</td>
+                            <td colspan="5" style="text-align: center; padding: 20px;">Loading payment transactions...</td>
                         </tr>
                     </tbody>
                 </table>
             </section>
+
+            <section class="payments-summary-row">
+                <div class="summary-card">
+                    <span class="summary-title">Monthly</span>
+                    <h2 id="monthlyTotal" class="summary-amount">0.00</h2>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-title">Quarterly</span>
+                    <h2 id="quarterlyTotal" class="summary-amount">0.00</h2>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-title">Yearly</span>
+                    <h2 id="yearlyTotal" class="summary-amount">0.00</h2>
+                </div>
+            </section>
         </main>
     </div>
 
-    <script src="js/budget.js"></script>
+    <script src="js/payments.js"></script>
 </body>
 </html>

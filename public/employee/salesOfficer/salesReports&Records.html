@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble — Sales Target Tracking</title>
-    <link rel="stylesheet" href="css/salesTarget.css">
+    <title>Milky Marble — Sales Reports & Operational Records</title>
+    <link rel="stylesheet" href="css/salesReports&Records.css">
 </head>
 <body>
     <div class="app-container">
@@ -61,7 +61,7 @@
                     <span>Promotions</span>
                 </a>
 
-                <a href="salesTarget.html" class="nav-link active">
+                <a href="salesTarget.html" class="nav-link">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="9" />
                         <circle cx="12" cy="12" r="5" />
@@ -70,7 +70,7 @@
                     <span>Sales Target</span>
                 </a>
 
-                <a href="salesReports&Records.html" class="nav-link">
+                <a href="salesReports&Records.html" class="nav-link active">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 3v18h18" />
                         <path d="M7 15l4-6 3 3 5-7" />
@@ -80,7 +80,7 @@
             </nav>
 
             <div class="sidebar-bottom">
-                <a href="../employeelogin.html" class="nav-link logout-btn">
+                <a href="../login.html" class="nav-link logout-btn">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
                     </svg>
@@ -109,47 +109,51 @@
             </header>
 
             <!-- EYEBROW TEXT ONLY -->
-            <div class="page-eyebrow">Sales Target Desk</div>
+            <div class="page-eyebrow">Reports Desk</div>
 
             <section class="section">
-                <h2 class="section-title">Quota Progress Gauges</h2>
+                <h2 class="section-title">Financial Highlights</h2>
                 <div class="overview-grid">
-                    <div class="target-card">
-                        <div class="target-card-top">
-                            <span class="period-pill">Today</span>
-                            <span id="dailyPct" class="pct-badge">0%</span>
-                        </div>
-                        <div class="target-revenue-row">
-                            <div>
-                                <div id="todaySales" class="current-rev">₱0.00</div>
-                                <div id="dailyTarget" class="quota-sub">Target: ₱0.00</div>
-                            </div>
-                        </div>
-                        <div class="gauge-bar-track">
-                            <div id="dailyGaugeFill" class="gauge-bar-fill" style="width: 0%;"></div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Gross Sales</span></div>
+                        <div class="stat-body"><span id="grossSales" class="stat-value">₱0.00</span></div>
+                        <div class="stat-footer">Total Billed Revenue</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Net Sales</span></div>
+                        <div class="stat-body"><span id="netSales" class="stat-value">₱0.00</span></div>
+                        <div class="stat-footer">Post-discount revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Average Order Value</span></div>
+                        <div class="stat-body"><span id="aov" class="stat-value">₱0.00</span></div>
+                        <div class="stat-footer">Average ticket per order</div>
+                    </div>
+                </div>
+            </section>
 
-                    <div class="target-card">
-                        <div class="target-card-top">
-                            <span class="period-pill">Monthly</span>
-                            <span id="monthlyPct" class="pct-badge">0%</span>
-                        </div>
-                        <div class="target-revenue-row">
-                            <div>
-                                <div id="monthSales" class="current-rev">₱0.00</div>
-                                <div id="monthlyTarget" class="quota-sub">Target: ₱0.00</div>
-                            </div>
-                        </div>
-                        <div class="gauge-bar-track">
-                            <div id="monthlyGaugeFill" class="gauge-bar-fill" style="width: 0%;"></div>
-                        </div>
-                    </div>
+            <section class="section">
+                <h2 class="section-title">Product Performance (SKU Rankings)</h2>
+                <div class="directory-card">
+                    <table class="cust-table">
+                        <thead>
+                            <tr>
+                                <th>Product SKU & Name</th>
+                                <th>Units Sold</th>
+                                <th>Revenue Generated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr>
+                                <td colspan="3" style="text-align: center; padding: 20px;">Loading product rankings...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </main>
     </div>
 
-    <script src="js/salesTarget.js"></script>
+    <script src="js/salesReports.js"></script>
 </body>
 </html>
