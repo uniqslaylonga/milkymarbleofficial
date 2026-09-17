@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Google OAuth client
   if (typeof google !== 'undefined') {
     google.accounts.id.initialize({
-      client_id: "661579582958-k9te98cv15osgvqeojgshcvvvdguatfc.apps.googleusercontent.com",
+      client_id: "1077352091553-6d77b0rtu3km8r1har7ra3lsmbf5en35.apps.googleusercontent.com",
       callback: handleGoogleCredentialResponse,
       auto_select: false
     });
@@ -227,6 +227,25 @@ document.addEventListener('DOMContentLoaded', () => {
         size: 'large'
       });
     }
+  }
+
+  // Make the visible, styled Google button trigger the real (hidden) GSI button
+  const btnGoogleLogin = document.getElementById('btnGoogleLogin');
+  if (btnGoogleLogin) {
+    btnGoogleLogin.addEventListener('click', () => {
+      const hiddenDiv = document.getElementById('googleButtonHidden');
+      const hiddenBtn = hiddenDiv && hiddenDiv.querySelector('div[role="button"]');
+      if (hiddenBtn) {
+        hiddenBtn.click();
+      } else {
+        showSweetAlert({
+          title: 'Google Sign-In Unavailable',
+          text: 'Google Sign-In is still loading. Please wait a moment and try again.',
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
   }
 
   // Handle Google OAuth callback
