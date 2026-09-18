@@ -65,9 +65,14 @@ function populateSettingsUI(data) { //[cite: 4]
     document.getElementById('otpTargetEmail').textContent = email; //[cite: 4]
     
     if (user.avatar) { //[cite: 4]
-        document.getElementById('overviewAvatar').src = user.avatar; //[cite: 4]
+        const overviewAvatarEl = document.getElementById('overviewAvatar');
+        overviewAvatarEl.src = user.avatar; //[cite: 4]
+        overviewAvatarEl.onerror = () => { overviewAvatarEl.onerror = null; overviewAvatarEl.src = 'images/account.png'; };
         const navAvatar = document.querySelector('.nav-avatar-img-badge');
-        if (navAvatar) navAvatar.src = user.avatar;
+        if (navAvatar) {
+            navAvatar.src = user.avatar;
+            navAvatar.onerror = () => { navAvatar.onerror = null; navAvatar.src = 'images/account.png'; };
+        }
     }
 
     // Notification Toggles[cite: 4]

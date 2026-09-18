@@ -123,7 +123,7 @@ router.get('/profile', async (req, res) => {
       full_name: userRec.full_name || '',
       username: userRec.username || '',
       email: userRec.email || '',
-      avatar: userRec.avatar || '/images/account.png',
+      avatar: userRec.avatar || '/customer/images/account.png',
       users: userRec
     };
 
