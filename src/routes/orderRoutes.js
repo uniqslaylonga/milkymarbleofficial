@@ -186,7 +186,15 @@ router.post('/', async (req, res) => {
         item_label: item.title || item.item_label || 'Special Blend Cup',
         quantity: parseInt(item.quantity || 1, 10),
         unit_price: parseFloat(item.unit_price || item.price || orderSubtotal),
-        line_total: parseFloat((parseInt(item.quantity || 1, 10)) * (parseFloat(item.unit_price || item.price || orderSubtotal)))
+        line_total: parseFloat((parseInt(item.quantity || 1, 10)) * (parseFloat(item.unit_price || item.price || orderSubtotal))),
+        size: item.size || null,
+        is_custom: !!(item.is_custom || item.custom_build),
+        toppings: Array.isArray(item.toppings) ? item.toppings.join(', ') : (item.toppings || null),
+        addons: item.addons || null,
+        flavor_img: item.flavor_img || item.image || null,
+        toppings_img: item.toppings_img || null,
+        cup_img: item.cup_img || null,
+        accent_color: item.accent_color || null
       }));
 
       await supabase.from('order_items').insert(orderItemsToInsert);
@@ -269,7 +277,7 @@ router.get('/', async (req, res) => {
       .select(`
         id, order_number, status, subtotal, discount_amount, total_amount, 
         pickup_instructions, pickup_date, placed_at,
-        order_items (id, item_label, quantity, unit_price, line_total)
+        order_items (id, item_label, quantity, unit_price, line_total, size, is_custom, toppings, addons, flavor_img, toppings_img, cup_img, accent_color)
       `)
       .eq('customer_id', customer.id)
       .order('placed_at', { ascending: false });
@@ -291,8 +299,17 @@ router.get('/', async (req, res) => {
         pickup_date: schedule,
         items: (o.order_items || []).map(it => ({
           item_label: it.item_label,
+          title: it.item_label,
           quantity: it.quantity,
-          unit_price: it.unit_price
+          unit_price: it.unit_price,
+          size: it.size,
+          is_custom: it.is_custom,
+          toppings: it.toppings,
+          addons: it.addons,
+          flavor_img: it.flavor_img,
+          toppings_img: it.toppings_img,
+          cup_img: it.cup_img,
+          accent_color: it.accent_color
         }))
       };
     });
@@ -344,7 +361,7 @@ router.get('/track', async (req, res) => {
       .select(`
         id, order_number, status, subtotal, discount_amount, total_amount,
         pickup_instructions, pickup_date, placed_at, guest_name, guest_email, customer_id, payment_method,
-        order_items (id, item_label, quantity, unit_price, line_total),
+        order_items (id, item_label, quantity, unit_price, line_total, size, is_custom, toppings, addons, flavor_img, toppings_img, cup_img, accent_color),
         customers (
           id,
           users (email, full_name, username)
@@ -386,7 +403,15 @@ router.get('/track', async (req, res) => {
         title: it.item_label,
         quantity: it.quantity,
         unit_price: it.unit_price,
-        line_total: it.line_total
+        line_total: it.line_total,
+        size: it.size,
+        is_custom: it.is_custom,
+        toppings: it.toppings,
+        addons: it.addons,
+        flavor_img: it.flavor_img,
+        toppings_img: it.toppings_img,
+        cup_img: it.cup_img,
+        accent_color: it.accent_color
       }))
     };
 

@@ -135,6 +135,30 @@ function resolveOrderAssets(cleanTitle, size, toppingsStr) {
   };
 }
 
+// Prefer the real layer images/flags saved on the order item itself
+// (once the backend persists them); only fall back to guessing them
+// from the title/toppings text for older orders placed before that
+// data was saved.
+function resolveDisplayAssets(item, cleanTitle, size, toppingsStr) {
+  const hasResolvedLayers = item && (item.flavor_img || item.toppings_img || item.cup_img);
+  if (hasResolvedLayers) {
+    let accent = '#8bb35c';
+    const cl = (cleanTitle || '').toLowerCase();
+    if (cl.includes('strawberry')) accent = '#f48a8e';
+    else if (cl.includes('coffee')) accent = '#664638';
+
+    return {
+      is_custom: !!(item.is_custom || item.custom_build || item.toppings_img),
+      image: item.image || item.flavor_img,
+      flavor_img: item.flavor_img || item.image,
+      toppings_img: item.toppings_img || '',
+      cup_img: item.cup_img || (size === '8oz' ? 'images/Layer 3/Small Cup.png' : 'images/Layer 3/Large Cup.png'),
+      accent_color: item.accent_color || accent
+    };
+  }
+  return resolveOrderAssets(cleanTitle, size, toppingsStr);
+}
+
 async function loadOrders() {
   const container = getOrdersContainer();
   const guestBox = document.getElementById('guestTrackBox');
@@ -370,7 +394,7 @@ function renderOrders(orders) {
     else if (firstRaw.toppings) toppingsStr = firstRaw.toppings;
 
     const cleanTitle = cleanItemTitle(rawLabel);
-    const assets = resolveOrderAssets(cleanTitle, size, toppingsStr);
+    const assets = resolveDisplayAssets(firstRaw, cleanTitle, size, toppingsStr);
 
     let displayTitle = cleanTitle;
     if (rawItems.length > 1) {
@@ -543,14 +567,17 @@ window.openOrderDetailsModal = function(orderOrId) {
       const linePrice = (unitPrice * qty).toFixed(2);
 
       let toppingsStr = '';
-      const tMatch = rawItemLabel.match(/\(\+(.*?)\)/) || rawItemLabel.match(/\((.*?)\)/);
-      if (tMatch && !tMatch[1].includes('oz')) {
-        toppingsStr = tMatch[1].replace(/^\+\s*/, '').trim();
-      } else if (it.toppings) {
-        toppingsStr = it.toppings.replace(/^\+\s*/, '').trim();
+      if (it.toppings) {
+        toppingsStr = String(it.toppings).replace(/^\+\s*/, '').trim();
+      } else {
+        const tMatch = rawItemLabel.match(/\(\+(.*?)\)/) || rawItemLabel.match(/\((.*?)\)/);
+        if (tMatch && !tMatch[1].includes('oz')) {
+          toppingsStr = tMatch[1].replace(/^\+\s*/, '').trim();
+        }
       }
+      const addonsStr = it.addons ? String(it.addons).replace(/^\+\s*/, '').trim() : '';
 
-      const assets = resolveOrderAssets(cleanTitle, size, toppingsStr);
+      const assets = resolveDisplayAssets(it, cleanTitle, size, toppingsStr);
 
       return `
         <div class="status-cup-item-row">
@@ -568,6 +595,7 @@ window.openOrderDetailsModal = function(orderOrId) {
           <div class="status-cup-details">
             <h4 class="status-cup-name">${size} ${cleanTitle}</h4>
             ${toppingsStr ? `<span class="status-cup-sub">+ ${toppingsStr}</span>` : ''}
+            ${addonsStr ? `<span class="status-cup-sub">+ ${addonsStr}</span>` : ''}
           </div>
           <span class="status-cup-qty">${qty}x</span>
           <span class="status-cup-price">₱ ${linePrice}</span>
