@@ -65,6 +65,70 @@ async function getActiveCustomerProfile() {
   return null;
 }
 
+// Resolve Layer 1 (flavor/jelly), Layer 2 (toppings) and Layer 3 (cup) image paths
+// for an item so the Order Summary preview can show all layers the customer added,
+// not just the Layer 1 (Jelly and Milk) image.
+function resolveOrderSummaryAssets(title, flavor, variation, size, toppingsList) {
+  const titleLower = (title || '').toLowerCase();
+  const flavorLower = (flavor || title || '').toLowerCase();
+  const varLower = (variation || '').toLowerCase();
+  const isLarge = size !== '8oz';
+  const folderSize = isLarge ? 'Large' : 'Small';
+
+  const presets = {
+    'chocolatey coffee noodly jelly': { image: 'images/Chocolatey Coffee Noodly Jelly.png' },
+    'cheesy pandan cubes': { image: 'images/Cheesy Pandan Cubes.png' },
+    'bubbly coffee jelly': { image: 'images/Bubbly Coffee Jelly.png' },
+    'strawberry string party': { image: 'images/Strawberry String Party.png' }
+  };
+
+  for (const [pName, pData] of Object.entries(presets)) {
+    if (titleLower.includes(pName)) {
+      return { is_custom: false, image: pData.image, flavor_img: pData.image, toppings_img: '', cup_img: '' };
+    }
+  }
+
+  let resolvedFlavor = 'Pandan';
+  if (flavorLower.includes('strawberry') || titleLower.includes('strawberry')) {
+    resolvedFlavor = 'Strawberry';
+  } else if (flavorLower.includes('coffee') || titleLower.includes('coffee')) {
+    resolvedFlavor = 'Coffee';
+  }
+
+  let resolvedJelly = 'cube';
+  if (varLower.includes('spaghetti') || titleLower.includes('spaghetti') || titleLower.includes('string')) {
+    resolvedJelly = 'spaghetti';
+  } else if (varLower.includes('whole') || titleLower.includes('whole')) {
+    resolvedJelly = 'whole';
+  }
+
+  const l1Path = `images/Layer 1/${folderSize} Flavors/${resolvedFlavor} ${resolvedJelly}.png`;
+  const l3Path = isLarge ? 'images/Layer 3/Large Cup.png' : 'images/Layer 3/Small Cup.png';
+
+  let l2Path = '';
+  const toppingsStr = (toppingsList || []).join(' ').toLowerCase();
+  const toppingMap = {
+    'cheese': 'Cheese',
+    'tapioca': 'Tapioca',
+    'marshmallow': 'Mashmallow',
+    'nuts': 'Nuts',
+    'assorted sprinkles': 'Assorted Sprinkles',
+    'choco sprinkles': 'Choco Sprinkles',
+    'sprinkles': 'Assorted Sprinkles',
+    'choco chips': 'Choco Chips',
+    'chocolate chip': 'Choco Chips'
+  };
+
+  for (const [keyword, fileBase] of Object.entries(toppingMap)) {
+    if (toppingsStr.includes(keyword)) {
+      l2Path = `images/Layer 2/${folderSize} Toppings/${fileBase}.png`;
+      break;
+    }
+  }
+
+  return { is_custom: true, image: l1Path, flavor_img: l1Path, toppings_img: l2Path, cup_img: l3Path };
+}
+
 function showSweetAlert(options) {
   if (typeof Swal === 'undefined') return Promise.resolve({ isConfirmed: false });
 
@@ -185,12 +249,35 @@ window.renderOrderSummaryModal = async function(items = []) {
       const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 15.00;
       const qty = parseInt(item.quantity ?? 1, 10);
       const lineTotal = price * qty;
-      const thumbSrc = item.image || item.flavor_img || 'images/1.jpg';
+
+      // Kunin ang Layer 1 (flavor/jelly), Layer 2 (toppings), at Layer 3 (cup) na
+      // idinagdag ng customer sa customization, hindi lang ang Layer 1 image.
+      const toppingsArr = item.toppings ? String(item.toppings).split(',').map(t => t.trim()).filter(Boolean) : [];
+      const hasResolvedLayers = item.flavor_img || item.toppings_img || item.cup_img;
+      const assets = hasResolvedLayers
+        ? {
+            is_custom: !!(item.is_custom || item.custom_build || item.toppings_img),
+            image: item.image || item.flavor_img,
+            flavor_img: item.flavor_img || item.image,
+            toppings_img: item.toppings_img || '',
+            cup_img: item.cup_img || (item.size === '8oz' ? 'images/Layer 3/Small Cup.png' : 'images/Layer 3/Large Cup.png')
+          }
+        : resolveOrderSummaryAssets(item.title, item.flavor, item.variation, item.size, toppingsArr);
+
+      const thumbHTML = assets.is_custom
+        ? `
+            <div class="composite-cart-thumb summary-composite-thumb">
+              <img src="${assets.flavor_img}" alt="Flavor Layer" class="cart-layer-flavor" onerror="this.style.display='none'">
+              ${assets.toppings_img ? `<img src="${assets.toppings_img}" alt="Toppings Layer" class="cart-layer-toppings" onerror="this.style.display='none'">` : ''}
+              <img src="${assets.cup_img}" alt="Cup Outline" class="cart-layer-cup" onerror="this.style.display='none'">
+            </div>
+          `
+        : `<img src="${assets.image || 'images/1.jpg'}" alt="Cup" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.src='images/1.jpg'">`;
 
       return `
         <div class="summary-cup-item" style="display: flex; align-items: center; justify-content: space-between; background: #FFF4F2; border-radius: 18px; padding: 12px 16px; margin-bottom: 8px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${thumbSrc}" alt="Cup" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.src='images/1.jpg'">
+            ${thumbHTML}
             <div style="display: flex; flex-direction: column;">
               <h4 style="font-size: 14.5px; font-weight: 800; color: #594A42; margin: 0;">${item.size || '12oz'} ${item.title || 'Milky Marble Cup'}</h4>
               <span style="font-size: 12px; font-weight: 600; color: #7C4F38;">${item.toppings || ''} ${item.addons || ''}</span>
