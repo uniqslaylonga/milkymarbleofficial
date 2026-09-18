@@ -312,6 +312,7 @@ body {
   font-size: 0.95rem;
   margin: 0;
   font-weight: 600;
+  transform: translateX(102px);  /* positive = right, negative = left */
 }
 
 .hero-guest-link {
@@ -782,6 +783,9 @@ body {
   .image-about,
   .image-faq {
     display: none;
+  }
+  .hero-guest-text {
+    transform: translateX(20px); /* positive = right, negative = left; adjust value */
   }
 }
 
