@@ -57,7 +57,7 @@ body {
   min-height: 100vh;
 }
 
-/* App Container (Eksaktong sukat gaya ng customerRecords.css) */
+/* App Container Layout (Eksaktong Grid gaya ng ibang files) */
 .app-container {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -65,7 +65,7 @@ body {
   align-items: start;
 }
 
-/* ===== STICKY SIDEBAR (PAREHONG SPACING, FONT, AT SIZES SA IBANG PAGES) ===== */
+/* ===== STICKY SIDEBAR (EXACT SIZES, SPACING, AT FONTS NG IBANG PAGES) ===== */
 .sidebar {
   position: sticky;
   top: 0;
@@ -579,7 +579,7 @@ body {
 }
 
 /* ==========================================================================
-   KANANG COLUMN (RECENT TRANSACTIONS CARD WITH FILTER & PAGER)
+   KANANG COLUMN (RECENT TRANSACTIONS CARD WITH DATE FILTER & PAGER)
    ========================================================================== */
 .transactions-column {
   min-width: 0;
@@ -728,14 +728,14 @@ body {
   font-weight: 600;
 }
 
-/* ===== PAGINATION BAR ===== */
+/* ===== PERMANENT PAGINATION BAR ===== */
 .tx-pagination-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 12px;
+  padding-top: 14px;
   margin-top: auto;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1.5px solid var(--border-soft);
 }
 
 .tx-page-info {
