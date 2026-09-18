@@ -552,7 +552,7 @@ body {
   font-weight: 800;
   color: var(--brown-soft);
   font-size: 40px;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   line-height: 1.15;
   margin: 0 0 8px 0;
 }
