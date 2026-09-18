@@ -699,3 +699,17 @@ body {
     grid-template-columns: 1fr;
   }
 }
+.nav-svg {
+  width: 18px;
+  height: 18px;
+  fill: none !important;
+  stroke: var(--accent-pink) !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.nav-link.active .nav-svg {
+  stroke: #ffffff !important;
+}
