@@ -92,7 +92,7 @@
         <main class="main-content">
             <header class="topbar">
                 <div class="search-box">
-                    <input type="text" placeholder="Search orders, customers, promos, or reports...">
+                    <input type="text" id="dashboardSearch" placeholder="Search orders, customers, promos, or reports...">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <circle cx="11" cy="11" r="7" />
                         <path d="M21 21l-4.35-4.35" />
@@ -114,6 +114,7 @@
                 <p class="welcome-sub">Here's how the sips are moving today.</p>
             </div>
 
+            <!-- TODAY'S OPERATIONAL PERFORMANCE -->
             <section class="section">
                 <h2 class="section-title">Today's Performance</h2>
                 <div class="overview-grid">
@@ -135,6 +136,77 @@
                 </div>
             </section>
 
+            <!-- CUSTOMER ACQUISITION (NEW SIGN-UPS TRACKER) -->
+            <section class="section">
+                <div class="section-head-bar">
+                    <h2 class="section-title">Customer Acquisition</h2>
+                    <span class="section-subtitle">New Account Sign-ups</span>
+                </div>
+                <div class="acquisition-grid">
+                    <div class="stat-card mini-card">
+                        <div class="stat-header"><span class="stat-title">Today</span></div>
+                        <div class="stat-body"><span id="newAccountsToday" class="stat-value mini-val">0</span></div>
+                        <div class="stat-footer">Registered today</div>
+                    </div>
+                    <div class="stat-card mini-card">
+                        <div class="stat-header"><span class="stat-title">This Week</span></div>
+                        <div class="stat-body"><span id="newAccountsWeek" class="stat-value mini-val">0</span></div>
+                        <div class="stat-footer">Last 7 days</div>
+                    </div>
+                    <div class="stat-card mini-card">
+                        <div class="stat-header"><span class="stat-title">This Month</span></div>
+                        <div class="stat-body"><span id="newAccountsMonth" class="stat-value mini-val">0</span></div>
+                        <div class="stat-footer">Calendar month</div>
+                    </div>
+                    <div class="stat-card mini-card">
+                        <div class="stat-header"><span class="stat-title">Last 3 Months</span></div>
+                        <div class="stat-body"><span id="newAccounts3Months" class="stat-value mini-val">0</span></div>
+                        <div class="stat-footer">Quarterly acquisition</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BUSINESS INTELLIGENCE: GUEST VS. REGISTERED SALES -->
+            <section class="section">
+                <div class="section-head-bar">
+                    <h2 class="section-title">Revenue Share: Guest vs. Registered</h2>
+                    <span class="section-subtitle">Engagement & Conversion Insight</span>
+                </div>
+                
+                <div class="split-analytics-grid">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Registered Customers</span></div>
+                        <div class="stat-body"><span id="registeredRevenue" class="stat-value">₱0.00</span></div>
+                        <div class="stat-footer"><span id="registeredPercent" class="highlight-pill">0%</span> of total gross revenue</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Guest Checkouts</span></div>
+                        <div class="stat-body"><span id="guestRevenue" class="stat-value">₱0.00</span></div>
+                        <div class="stat-footer"><span id="guestPercent" class="highlight-pill highlight-alt">0%</span> of total gross revenue</div>
+                    </div>
+                </div>
+
+                <!-- Visual Proportion Bar -->
+                <div class="ratio-bar-card">
+                    <div class="ratio-labels">
+                        <span><strong>Registered:</strong> <span id="barRegLabel">0%</span></span>
+                        <span><strong>Guest:</strong> <span id="barGuestLabel">0%</span></span>
+                    </div>
+                    <div class="ratio-track">
+                        <div id="barRegFill" class="ratio-fill-reg" style="width: 50%;"></div>
+                        <div id="barGuestFill" class="ratio-fill-guest" style="width: 50%;"></div>
+                    </div>
+                    <div id="decisionInsightBox" class="insight-box">
+                        <div class="insight-icon">💡</div>
+                        <div class="insight-text" id="insightMessage">
+                            Analyzing revenue trends to formulate promotional strategy...
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RECENT TRANSACTIONS -->
             <section class="section">
                 <h2 class="section-title">Recent Transactions</h2>
                 <div id="recentOrdersGrid" class="orders-grid">
