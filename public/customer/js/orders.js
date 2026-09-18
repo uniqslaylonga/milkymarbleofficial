@@ -773,12 +773,40 @@ window.cancelOrder = function(orderId) {
         body: JSON.stringify({ status: 'CANCELLED' })
       });
       const data = await res.json();
-      if (data.status === 'success') {
-        Swal.fire({ icon: 'success', title: 'Order Cancelled', text: 'Status has been updated.' });
-        loadOrders();
-      } else {
-        Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Error cancelling order.' });
-      }
+   if (data.status === 'success') {
+  Swal.fire({
+    icon: 'success',
+    title: 'Order Cancelled',
+    text: 'Status has been updated.',
+    target: document.body,
+    customClass: {
+      container: 'mm-swal-container-top',
+      popup: 'mm-swal-popup',
+      title: 'mm-swal-title',
+      htmlContainer: 'mm-swal-html',
+      actions: 'mm-swal-actions',
+      confirmButton: 'mm-swal-confirm-btn'
+    },
+    buttonsStyling: false
+  });
+  loadOrders();
+} else {
+  Swal.fire({
+    icon: 'error',
+    title: 'Failed',
+    text: data.message || 'Error cancelling order.',
+    target: document.body,
+    customClass: {
+      container: 'mm-swal-container-top',
+      popup: 'mm-swal-popup',
+      title: 'mm-swal-title',
+      htmlContainer: 'mm-swal-html',
+      actions: 'mm-swal-actions',
+      confirmButton: 'mm-swal-confirm-btn'
+    },
+    buttonsStyling: false
+  });
+}
     } catch (e) {
       loadOrders();
     }
