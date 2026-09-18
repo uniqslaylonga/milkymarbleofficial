@@ -4,17 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Milky Marble — Sales Officer Dashboard</title>
-
-  <!-- Chart.js para sa compact visual graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- External Stylesheet -->
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
 
   <div class="app-container">
-    <!-- STICKY SIDEBAR (ORIGINAL NAVIGATION) -->
     <aside class="sidebar">
       <div class="brand-section">
         <div class="brand-logo-wrap">
@@ -164,14 +159,9 @@
         </div>
       </section>
 
-      <!-- COMPACT GRAPHS + RECENT TRANSACTIONS (Side-by-side Layout) -->
       <div class="split-dashboard-layout">
-        
-        <!-- KALIWA: MINI GRAPHS -->
         <div class="analytics-column">
-          
-          <!-- Customer Acquisition Chart -->
-          <div class="compact-chart-card">
+            <div class="compact-chart-card">
             <div class="card-head-row">
               <div class="head-titles">
                 <span class="chart-main-title" id="acquisitionPeriodTitle">Customer Acquisition</span>
@@ -241,14 +231,12 @@
             </div>
 
             <div class="insight-box">
-              <span class="insight-icon">💡</span>
               <p class="insight-text" id="insightMessage">Analyzing revenue trends to formulate promotional strategy...</p>
             </div>
           </div>
 
         </div>
 
-        <!-- KANAN: RECENT TRANSACTIONS (High-Visibility Priority) -->
         <div class="transactions-column">
           <div class="transactions-panel-card">
             <div class="section-head-bar">
@@ -267,7 +255,6 @@
     </main>
   </div>
 
-  <!-- External Script -->
   <script src="js/dashboard.js"></script>
 </body>
 </html>

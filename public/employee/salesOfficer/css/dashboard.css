@@ -1,22 +1,22 @@
-/* ==========================================================================
-   ORIGINAL CUSTOM FONT FAMILY SETUP
-   ========================================================================== */
 @font-face {
   font-family: 'Bootzy TM';
-  src: url('../../images/BootzyTM.ttf') format('woff2');
+  src: url('../images/BootzyTM.ttf') format('truetype'),
+       url('../../images/BootzyTM.ttf') format('truetype');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Urbanist';
-  src: url('../../images/Urbanist.ttf') format('woff2');
+  src: url('../images/Urbanist.ttf') format('truetype'),
+       url('../../images/Urbanist.ttf') format('truetype');
   font-weight: 400 700;
   font-style: normal;
 }
 @font-face {
   font-family: 'Kawaii RT';
-  src: url('../../images/KawaiiRT-Mona.ttf') format('woff2');
+  src: url('../images/KawaiiRT-Mona.ttf') format('truetype'),
+       url('../../images/KawaiiRT-Mona.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -27,17 +27,18 @@
   --font-family-body: 'Urbanist', sans-serif;
   --font-family-name: 'Kawaii RT', cursive;
 
-  /* Original Milky Marble Color Scheme */
+  /* Consistent Palette mula sa Order Monitoring */
   --bg-main: #FDEFEE;
   --card-bg: #FFE4E2;
-  --accent-pink: #F69299;
-  --accent-pink-soft: #F69299;
+  --accent-pink: #f28b95;
+  --accent-pink-soft: #f8a5ad;
+  --accent-pink-light: #fad5d9;
   --brown-soft: #7C4F38;
+  --text-dark: #453434;
   --text-muted: #7d5f5f;
-  --nav-link-color: #725555;
+  --text-light: #9e7e7e;
   --guest-badge: #E89E80;
   --member-badge: #68B0AB;
-  --border-soft: rgba(246, 146, 153, 0.25);
 }
 
 * {
@@ -49,7 +50,7 @@
 body {
   font-family: var(--font-family-body);
   background-color: var(--bg-main);
-  color: var(--brown-soft);
+  color: var(--text-dark);
   min-height: 100vh;
 }
 
@@ -57,30 +58,15 @@ body {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
-  align-items: start;
 }
 
-/* ===== ORIGINAL SIDEBAR ===== */
+/* ===== SIDEBAR ===== */
 .sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  align-self: start;
-  overflow-y: auto;
   padding: 30px 20px 30px 24px;
   display: flex;
   flex-direction: column;
   gap: 28px;
-  background-color: var(--bg-main);
-  z-index: 100;
-}
-
-.sidebar::-webkit-scrollbar {
-  width: 5px;
-}
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(246, 146, 153, 0.3);
-  border-radius: 4px;
+  border: none;
 }
 
 .brand-section {
@@ -104,13 +90,14 @@ body {
   height: 100%;
   object-fit: contain;
   border-radius: 12px;
+  border: none;
 }
 
 .brand-title {
   font-family: var(--font-family-name);
   font-size: 26px;
   font-weight: 500;
-  color: var(--accent-pink);
+  color: #F69299;
   -webkit-text-stroke: 1px var(--brown-soft);
 }
 
@@ -125,14 +112,15 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  color: var(--nav-link-color);
+  color: #725555;
   text-decoration: none;
   font-family: var(--font-family-body);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   border-radius: 20px;
   transition: all 0.2s ease;
   white-space: nowrap;
+  border: none;
 }
 
 .nav-svg {
@@ -153,23 +141,23 @@ body {
 
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 15px;
 }
 
 .logout-btn {
-  color: var(--nav-link-color);
+  color: #725555;
 }
 
-/* ===== MAIN CONTENT & TOPBAR ===== */
+/* ===== MAIN CONTENT ===== */
 .main-content {
   padding: 24px 40px 40px 24px;
 }
 
+/* TOPBAR */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   gap: 20px;
 }
 
@@ -189,9 +177,9 @@ body {
   padding: 10px 42px 10px 18px;
   font-family: var(--font-family-body);
   font-size: 13.5px;
-  color: var(--brown-soft);
+  color: var(--text-dark);
   outline: none;
-  box-shadow: 0 2px 6px rgba(246, 146, 153, 0.08);
+  box-shadow: 0 2px 6px rgba(242, 139, 149, 0.05);
 }
 
 .search-box input::placeholder {
@@ -223,6 +211,7 @@ body {
   height: 36px;
   border-radius: 50%;
   background-color: var(--accent-pink);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,6 +223,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border: none;
 }
 
 .user-avatar-placeholder {
@@ -246,23 +236,22 @@ body {
   font-family: var(--font-family-body);
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--brown-soft);
+  color: var(--text-dark);
 }
 
-/* WELCOME BANNER */
+/* GREETING BANNER */
 .welcome-banner {
   background-color: var(--card-bg);
-  border-radius: 20px;
-  padding: 22px 28px;
+  border-radius: 14px;
+  padding: 18px 24px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(246, 146, 153, 0.12);
 }
 
 .welcome-title {
   font-family: var(--font-family-heading);
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--brown-soft);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-dark);
   letter-spacing: 2px;
   line-height: 1.2;
   margin-bottom: 4px;
@@ -270,37 +259,38 @@ body {
 
 .welcome-sub {
   font-family: var(--font-family-body);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-/* SECTION & ROW 1 OVERVIEW */
+/* SECTION & OVERVIEW */
 .section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .section-head-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .section-title {
   font-family: var(--font-family-heading);
   font-size: 18px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 2px;
+  color: var(--text-dark);
+  margin-bottom: 14px;
+  letter-spacing: 3px;
 }
 
 .section-subtitle {
-  font-size: 12px;
+  font-family: var(--font-family-body);
+  font-size: 11px;
   font-weight: 700;
   color: var(--accent-pink);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .overview-grid {
@@ -311,33 +301,35 @@ body {
 
 .stat-card {
   background-color: var(--card-bg);
+  border: none;
   border-radius: 14px;
-  padding: 16px 20px 14px;
+  padding: 16px 20px 12px;
   display: flex;
   flex-direction: column;
 }
 
 .stat-title {
   font-family: var(--font-family-heading);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 1.5px;
+  color: var(--text-dark);
+  letter-spacing: 2px;
 }
 
 .stat-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 6px 0 4px;
+  gap: 16px;
+  margin: 6px 0 2px;
 }
 
 .stat-value {
   font-family: var(--font-family-heading);
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 2.5px;
+  color: #4a3434;
+  letter-spacing: 3px;
 }
 
 .stat-footer {
@@ -348,7 +340,7 @@ body {
   color: var(--text-muted);
 }
 
-/* ===== SPLIT DASHBOARD LAYOUT (Compact Graphs + Recent Transactions) ===== */
+/* ===== SPLIT LAYOUT ===== */
 .split-dashboard-layout {
   display: grid;
   grid-template-columns: 460px 1fr;
@@ -362,19 +354,18 @@ body {
   gap: 16px;
 }
 
-.compact-chart-card {
+.compact-chart-card,
+.transactions-panel-card {
   background-color: var(--card-bg);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .card-head-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .head-titles {
@@ -384,10 +375,10 @@ body {
 
 .chart-main-title {
   font-family: var(--font-family-heading);
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 1px;
+  color: var(--text-dark);
+  letter-spacing: 1.5px;
 }
 
 .chart-subtitle {
@@ -405,18 +396,18 @@ body {
 .filter-label {
   font-size: 12px;
   font-weight: 700;
-  color: var(--brown-soft);
+  color: var(--text-dark);
 }
 
 .custom-select {
   background-color: #ffffff;
-  border: 1.5px solid var(--accent-pink);
+  border: 1px solid var(--accent-pink-soft);
   border-radius: 14px;
   padding: 4px 10px;
   font-family: var(--font-family-body);
   font-size: 12px;
   font-weight: 700;
-  color: var(--brown-soft);
+  color: var(--text-dark);
   outline: none;
   cursor: pointer;
 }
@@ -425,13 +416,15 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  margin-bottom: 6px;
 }
 
 .badge-total-num {
   font-family: var(--font-family-heading);
   font-size: 26px;
   font-weight: 700;
-  color: var(--brown-soft);
+  color: #4a3434;
+  letter-spacing: 2px;
 }
 
 .badge-total-desc {
@@ -446,11 +439,12 @@ body {
   height: 110px;
 }
 
-/* Revenue Share Card */
+/* REVENUE DONUT */
 .revenue-chart-layout {
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 12px;
 }
 
 .donut-box {
@@ -493,7 +487,7 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .legend-label {
@@ -502,7 +496,7 @@ body {
 }
 
 .legend-val {
-  color: var(--brown-soft);
+  color: var(--text-dark);
   font-weight: 700;
 }
 
@@ -520,12 +514,13 @@ body {
 }
 
 .ratio-track {
-  height: 12px;
+  height: 10px;
   width: 100%;
   background: rgba(124, 79, 56, 0.12);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
+  margin-bottom: 6px;
 }
 
 .ratio-fill-reg {
@@ -541,32 +536,25 @@ body {
 .ratio-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: var(--brown-soft);
+  font-size: 11.5px;
+  color: var(--text-dark);
+  margin-bottom: 10px;
 }
 
 .insight-box {
   background-color: #ffffff;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 2px 6px rgba(124, 79, 56, 0.06);
-}
-
-.insight-icon {
-  font-size: 18px;
 }
 
 .insight-text {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.35;
-  color: var(--brown-soft);
+  color: var(--text-dark);
   font-weight: 600;
 }
 
-/* ===== TRANSACTIONS COLUMN (RIGHT SIDE) ===== */
+/* TRANSACTIONS (RIGHT SIDE) */
 .transactions-column {
   min-width: 0;
 }
@@ -578,17 +566,12 @@ body {
 }
 
 .order-card {
-  background: var(--card-bg);
-  border-radius: 14px;
-  padding: 14px 18px;
+  background: var(--bg-main);
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: transform 0.15s ease;
-}
-
-.order-card:hover {
-  transform: translateY(-2px);
+  gap: 8px;
 }
 
 .card-main {
@@ -601,15 +584,14 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 2px;
 }
 
 .info-col .person-name {
   font-family: var(--font-family-heading);
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 1.5px;
+  color: var(--text-dark);
+  letter-spacing: 2px;
 }
 
 .client-badge {
@@ -632,7 +614,7 @@ body {
 
 .info-col .person-role {
   font-family: var(--font-family-body);
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -640,8 +622,8 @@ body {
   font-family: var(--font-family-heading);
   font-size: 16px;
   font-weight: 700;
-  color: var(--brown-soft);
-  letter-spacing: 1.5px;
+  color: #4a3434;
+  letter-spacing: 2px;
 }
 
 .card-bottom {
@@ -649,14 +631,10 @@ body {
   justify-content: space-between;
   align-items: center;
   font-family: var(--font-family-body);
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
-  border-top: 1px solid rgba(246, 146, 153, 0.25);
+  border-top: 1px solid rgba(242, 139, 149, 0.2);
   padding-top: 6px;
-}
-
-.card-bottom strong {
-  color: var(--brown-soft);
 }
 
 /* RESPONSIVE */
