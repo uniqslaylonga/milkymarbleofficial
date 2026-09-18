@@ -17,68 +17,78 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="dashboard.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
+        <!-- 1. Dashboard -->
+        <a href="dashboard.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
 
-                <a href="orderMonitoring.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="4" width="20" height="16" rx="3" />
-                        <path d="M7 15h10M7 9h10" />
-                    </svg>
-                    <span>Order Monitoring</span>
-                </a>
+        <!-- 2. Order Confirmation (NAUNA NA DITO) -->
+        <a href="orderConfirmation.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <span>Order Confirmation</span>
+        </a>
 
-                <a href="orderConfirmation.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 11l3 3L22 4" />
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                    </svg>
-                    <span>Order Confirmation</span>
-                </a>
+        <!-- 3. Order Monitoring (PUMANGALAWA NA DITO) -->
+        <a href="orderMonitoring.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2.5"/>
+            <line x1="7" y1="9" x2="13" y2="9"/>
+            <line x1="7" y1="13" x2="17" y2="13"/>
+          </svg>
+          <span>Order Monitoring</span>
+        </a>
 
-                <a href="customerRecords.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                        <path d="M16 3.13a4 4 0 010 7.75" />
-                    </svg>
-                    <span>Customer Records</span>
-                </a>
+        <!-- 4. Customer Records -->
+        <a href="customerRecords.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Customer Records</span>
+        </a>
 
-                <a href="promotions.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
-                        <line x1="7" y1="7" x2="7.01" y2="7" />
-                    </svg>
-                    <span>Promotions</span>
-                </a>
+        <!-- 5. Promotions -->
+        <a href="promotions.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+          <span>Promotions</span>
+        </a>
 
-                <a href="salesTarget.html" class="nav-link active">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9" />
-                        <circle cx="12" cy="12" r="5" />
-                        <circle cx="12" cy="12" r="1" />
-                    </svg>
-                    <span>Sales Target</span>
-                </a>
+        <!-- 6. Sales Target -->
+        <a href="salesTarget.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <span>Sales Target</span>
+        </a>
 
-                <a href="salesReports&Records.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 3v18h18" />
-                        <path d="M7 15l4-6 3 3 5-7" />
-                    </svg>
-                    <span>Reports & Records</span>
-                </a>
-            </nav>
-
+        <!-- 7. Reports & Records -->
+        <a href="salesReports&Records.html" class="nav-link">
+          <svg class="nav-svg" viewBox="0 0 24 24">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+            <polyline points="3 17 9 11 13 15 21 7"/>
+          </svg>
+          <span>Reports & Records</span>
+        </a>
+      </nav>
+      
             <div class="sidebar-bottom">
                 <a href="../login.html" class="nav-link logout-btn">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
