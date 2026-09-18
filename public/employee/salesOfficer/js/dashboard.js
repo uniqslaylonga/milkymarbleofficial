@@ -1,4 +1,19 @@
+// Global store for acquisition metrics
+let customerAcquisitionData = {
+    today: 0,
+    week: 0,
+    month: 0,
+    last3Months: 0,
+    last6Months: 0
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Bind filter listener
+    const acqFilter = document.getElementById('acquisitionFilter');
+    if (acqFilter) {
+        acqFilter.addEventListener('change', updateAcquisitionDisplay);
+    }
+
     await loadPageData();
 });
 
@@ -44,17 +59,16 @@ async function loadPageData() {
             pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
         }
 
-        // 3. Populate Customer Acquisition Metrics (New Accounts)
+        // 3. Store Customer Acquisition Metrics & Render Default View
         if (data.newAccounts) {
-            const elToday = document.getElementById('newAccountsToday');
-            const elWeek = document.getElementById('newAccountsWeek');
-            const elMonth = document.getElementById('newAccountsMonth');
-            const el3Months = document.getElementById('newAccounts3Months');
-
-            if (elToday) elToday.textContent = Number(data.newAccounts.today || 0).toLocaleString();
-            if (elWeek) elWeek.textContent = Number(data.newAccounts.week || 0).toLocaleString();
-            if (elMonth) elMonth.textContent = Number(data.newAccounts.month || 0).toLocaleString();
-            if (el3Months) el3Months.textContent = Number(data.newAccounts.last3Months || 0).toLocaleString();
+            customerAcquisitionData = {
+                today: data.newAccounts.today || 0,
+                week: data.newAccounts.week || 0,
+                month: data.newAccounts.month || 0,
+                last3Months: data.newAccounts.last3Months || 0,
+                last6Months: data.newAccounts.last6Months || 0
+            };
+            updateAcquisitionDisplay();
         }
 
         // 4. Populate Guest vs. Registered Revenue & Decision Intelligence
@@ -85,13 +99,13 @@ async function loadPageData() {
             }
             if (guestPctEl) guestPctEl.textContent = `${guestPct}%`;
 
-            // Update Progress Bar
+            // Progress Bar
             if (barRegLabel) barRegLabel.textContent = `${regPct}%`;
             if (barGuestLabel) barGuestLabel.textContent = `${guestPct}%`;
             if (barRegFill) barRegFill.style.width = `${regPct}%`;
             if (barGuestFill) barGuestFill.style.width = `${guestPct}%`;
 
-            // Actionable Decision Intelligence Recommendation
+            // Decision Intelligence Advice
             if (insightMessage) {
                 if (guestPct > regPct) {
                     insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas malaki ang kita mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Senyales ito na bumibili ang tao ngunit hindi nag-aabalang gumawa ng account. <em>Rekomendasyon:</em> Mag-alok ng 10% voucher sa "Promotions" desk para sa first-time sign-ups upang ma-convert sila sa registered loyalty members.`;
@@ -155,6 +169,51 @@ async function loadPageData() {
         if (ordersGrid) {
             ordersGrid.innerHTML = '<p style="padding: 20px; color: #d9534f;">Failed to load data. Please ensure backend server and Supabase are running.</p>';
         }
+    }
+}
+
+// Function that changes the displayed card based on the dropdown selection
+function updateAcquisitionDisplay() {
+    const filterEl = document.getElementById('acquisitionFilter');
+    const valueEl = document.getElementById('filteredNewAccounts');
+    const titleEl = document.getElementById('acquisitionPeriodTitle');
+    const footerEl = document.getElementById('acquisitionPeriodFooter');
+
+    const selected = filterEl ? filterEl.value : 'month';
+
+    const timeframeConfig = {
+        today: {
+            title: "Today's New Accounts",
+            footer: "Registered today"
+        },
+        week: {
+            title: "This Week's New Accounts",
+            footer: "Past 7 days"
+        },
+        month: {
+            title: "This Month's New Accounts",
+            footer: "Current calendar month"
+        },
+        last3Months: {
+            title: "Last 3 Months' New Accounts",
+            footer: "Quarterly acquisition (past 90 days)"
+        },
+        last6Months: {
+            title: "Last 6 Months' New Accounts",
+            footer: "Semi-annual acquisition (past 180 days)"
+        }
+    };
+
+    const config = timeframeConfig[selected] || timeframeConfig.month;
+
+    if (valueEl) {
+        valueEl.textContent = Number(customerAcquisitionData[selected] || 0).toLocaleString();
+    }
+    if (titleEl) {
+        titleEl.textContent = config.title;
+    }
+    if (footerEl) {
+        footerEl.textContent = config.footer;
     }
 }
 

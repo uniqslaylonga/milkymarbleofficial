@@ -114,7 +114,7 @@
                 <p class="welcome-sub">Here's how the sips are moving today.</p>
             </div>
 
-            <!-- TODAY'S OPERATIONAL PERFORMANCE -->
+            <!-- TODAY'S PERFORMANCE -->
             <section class="section">
                 <h2 class="section-title">Today's Performance</h2>
                 <div class="overview-grid">
@@ -136,32 +136,31 @@
                 </div>
             </section>
 
-            <!-- CUSTOMER ACQUISITION (NEW SIGN-UPS TRACKER) -->
+            <!-- CUSTOMER ACQUISITION (WITH TIMEFRAME FILTER UP TO 6 MONTHS) -->
             <section class="section">
                 <div class="section-head-bar">
                     <h2 class="section-title">Customer Acquisition</h2>
-                    <span class="section-subtitle">New Account Sign-ups</span>
+                    <div class="filter-wrapper">
+                        <label for="acquisitionFilter" class="filter-label">Filter Period:</label>
+                        <select id="acquisitionFilter" class="custom-select">
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month" selected>This Month</option>
+                            <option value="last3Months">Last 3 Months</option>
+                            <option value="last6Months">Last 6 Months</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="acquisition-grid">
-                    <div class="stat-card mini-card">
-                        <div class="stat-header"><span class="stat-title">Today</span></div>
-                        <div class="stat-body"><span id="newAccountsToday" class="stat-value mini-val">0</span></div>
-                        <div class="stat-footer">Registered today</div>
-                    </div>
-                    <div class="stat-card mini-card">
-                        <div class="stat-header"><span class="stat-title">This Week</span></div>
-                        <div class="stat-body"><span id="newAccountsWeek" class="stat-value mini-val">0</span></div>
-                        <div class="stat-footer">Last 7 days</div>
-                    </div>
-                    <div class="stat-card mini-card">
-                        <div class="stat-header"><span class="stat-title">This Month</span></div>
-                        <div class="stat-body"><span id="newAccountsMonth" class="stat-value mini-val">0</span></div>
-                        <div class="stat-footer">Calendar month</div>
-                    </div>
-                    <div class="stat-card mini-card">
-                        <div class="stat-header"><span class="stat-title">Last 3 Months</span></div>
-                        <div class="stat-body"><span id="newAccounts3Months" class="stat-value mini-val">0</span></div>
-                        <div class="stat-footer">Quarterly acquisition</div>
+
+                <div class="single-card-grid">
+                    <div class="stat-card acquisition-focus-card">
+                        <div class="stat-header">
+                            <span class="stat-title" id="acquisitionPeriodTitle">This Month's New Accounts</span>
+                        </div>
+                        <div class="stat-body">
+                            <span id="filteredNewAccounts" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-footer" id="acquisitionPeriodFooter">Calendar month registration</div>
                     </div>
                 </div>
             </section>
