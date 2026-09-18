@@ -1,6 +1,87 @@
+let customerAcquisitionData = {
+    today: 0,
+    week: 0,
+    month: 0,
+    last3Months: 0,
+    last6Months: 0
+};
+
+let acquisitionChartInstance = null;
+let revenueDonutChartInstance = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
+    initCharts();
+
+    const acqFilter = document.getElementById('acquisitionFilter');
+    if (acqFilter) {
+        acqFilter.addEventListener('change', updateAcquisitionDisplay);
+    }
+
     await loadPageData();
 });
+
+// Setup Chart.js
+function initCharts() {
+    // 1. Mini Horizontal Bar Chart para sa Acquisition
+    const acqCtx = document.getElementById('acquisitionMiniChart');
+    if (acqCtx) {
+        acquisitionChartInstance = new Chart(acqCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Today', 'Week', 'Month', '90 Days', '180 Days'],
+                datasets: [{
+                    label: 'New Users',
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: '#F69299',
+                    borderRadius: 4,
+                    barThickness: 16
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10, family: 'Urbanist' }, color: '#7C4F38' }
+                    },
+                    y: {
+                        display: false,
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Donut Chart para sa Guest vs Member Revenue
+    const revCtx = document.getElementById('revenueDonutChart');
+    if (revCtx) {
+        revenueDonutChartInstance = new Chart(revCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Registered', 'Guest'],
+                datasets: [{
+                    data: [50, 50],
+                    backgroundColor: ['#F69299', '#E89E80'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '74%',
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+}
 
 async function loadPageData() {
     try {
@@ -15,7 +96,7 @@ async function loadPageData() {
 
         const data = await response.json();
 
-        // 1. Populate User Profile
+        // 1. User Header
         if (data.user) {
             const userNameEl = document.getElementById('userName');
             const userFirstNameEl = document.getElementById('userFirstName');
@@ -26,7 +107,7 @@ async function loadPageData() {
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
-        // 2. Populate Today's Performance Metrics
+        // 2. Today's Performance
         const todayOrdersEl = document.getElementById('todayOrders');
         const todaySalesEl = document.getElementById('todaySales');
         const pendingOrdersEl = document.getElementById('pendingOrders');
@@ -44,20 +125,31 @@ async function loadPageData() {
             pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
         }
 
-        // 3. Populate Customer Acquisition Metrics (New Accounts)
+        // 3. Customer Acquisition
         if (data.newAccounts) {
-            const elToday = document.getElementById('newAccountsToday');
-            const elWeek = document.getElementById('newAccountsWeek');
-            const elMonth = document.getElementById('newAccountsMonth');
-            const el3Months = document.getElementById('newAccounts3Months');
+            customerAcquisitionData = {
+                today: data.newAccounts.today || 0,
+                week: data.newAccounts.week || 0,
+                month: data.newAccounts.month || 0,
+                last3Months: data.newAccounts.last3Months || 0,
+                last6Months: data.newAccounts.last6Months || 0
+            };
 
-            if (elToday) elToday.textContent = Number(data.newAccounts.today || 0).toLocaleString();
-            if (elWeek) elWeek.textContent = Number(data.newAccounts.week || 0).toLocaleString();
-            if (elMonth) elMonth.textContent = Number(data.newAccounts.month || 0).toLocaleString();
-            if (el3Months) el3Months.textContent = Number(data.newAccounts.last3Months || 0).toLocaleString();
+            if (acquisitionChartInstance) {
+                acquisitionChartInstance.data.datasets[0].data = [
+                    customerAcquisitionData.today,
+                    customerAcquisitionData.week,
+                    customerAcquisitionData.month,
+                    customerAcquisitionData.last3Months,
+                    customerAcquisitionData.last6Months
+                ];
+                acquisitionChartInstance.update();
+            }
+
+            updateAcquisitionDisplay();
         }
 
-        // 4. Populate Guest vs. Registered Revenue & Decision Intelligence
+        // 4. Revenue Split Donut & Insights
         if (data.revenueSplit) {
             const regAmountEl = document.getElementById('registeredRevenue');
             const regPctEl = document.getElementById('registeredPercent');
@@ -75,35 +167,35 @@ async function loadPageData() {
             const regPct = Math.round(Number(data.revenueSplit.registeredPercent || 0));
             const guestPct = Math.round(Number(data.revenueSplit.guestPercent || 0));
 
-            if (regAmountEl) {
-                regAmountEl.textContent = '₱' + regRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
+            if (regAmountEl) regAmountEl.textContent = '₱' + regRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if (regPctEl) regPctEl.textContent = `${regPct}%`;
 
-            if (guestAmountEl) {
-                guestAmountEl.textContent = '₱' + guestRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
+            if (guestAmountEl) guestAmountEl.textContent = '₱' + guestRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if (guestPctEl) guestPctEl.textContent = `${guestPct}%`;
 
-            // Update Progress Bar
+            if (revenueDonutChartInstance) {
+                const total = regRev + guestRev;
+                revenueDonutChartInstance.data.datasets[0].data = total === 0 ? [50, 50] : [regRev, guestRev];
+                revenueDonutChartInstance.update();
+            }
+
             if (barRegLabel) barRegLabel.textContent = `${regPct}%`;
             if (barGuestLabel) barGuestLabel.textContent = `${guestPct}%`;
             if (barRegFill) barRegFill.style.width = `${regPct}%`;
             if (barGuestFill) barGuestFill.style.width = `${guestPct}%`;
 
-            // Actionable Decision Intelligence Recommendation
             if (insightMessage) {
                 if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas malaki ang kita mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Senyales ito na bumibili ang tao ngunit hindi nag-aabalang gumawa ng account. <em>Rekomendasyon:</em> Mag-alok ng 10% voucher sa "Promotions" desk para sa first-time sign-ups upang ma-convert sila sa registered loyalty members.`;
+                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas mataas ang kita mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
                 } else if (regPct > 0 || guestPct > 0) {
-                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng mga Registered Members ang kabuuang benta (<strong>${regPct}%</strong>). Maganda ang loyalty retention. Panatilihin ang points system at maglunsad ng exclusive member-only flavors.`;
+                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${regPct}%</strong>). Maganda ang customer loyalty retention.`;
                 } else {
                     insightMessage.textContent = 'Wala pang sapat na sales record upang makagawa ng ratio insight.';
                 }
             }
         }
 
-        // 5. Render Recent Transactions
+        // 5. Recent Transactions Inside the Right Panel
         const ordersGrid = document.getElementById('recentOrdersGrid');
         if (ordersGrid) {
             if (data.recentOrders && data.recentOrders.length > 0) {
@@ -126,26 +218,23 @@ async function loadPageData() {
                     const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Anonymous Customer');
 
                     return `
-                        <div class="order-card">
-                            <div class="card-main">
-                                <div class="info-col">
-                                    <div class="name-row">
-                                        <span class="person-name">${displayName}</span>
-                                        <span class="client-badge ${badgeClass}">${badgeText}</span>
-                                    </div>
-                                    <div class="person-role">${escapeHtml(ord.order_number || '')} • ${dateFormatted}</div>
+                        <div class="order-row-item">
+                            <div class="row-item-main">
+                                <div class="name-badge-group">
+                                    <span class="customer-name-bold">${displayName}</span>
+                                    <span class="client-badge ${badgeClass}">${badgeText}</span>
                                 </div>
-                                <div class="price-col">₱${amount}</div>
+                                <div class="order-amount-display">₱${amount}</div>
                             </div>
-                            <div class="card-bottom">
-                                <span>Payment: <strong>${escapeHtml(ord.payment_method || 'Cash')}</strong></span>
-                                <span class="purpose-label">Status: <strong>${escapeHtml(ord.status || 'PENDING')}</strong></span>
+                            <div class="row-item-footer">
+                                <span class="order-meta-info">${escapeHtml(ord.order_number || '')} • ${dateFormatted}</span>
+                                <span>Status: <strong>${escapeHtml(ord.status || 'PENDING')}</strong></span>
                             </div>
                         </div>
                     `;
                 }).join('');
             } else {
-                ordersGrid.innerHTML = '<p style="padding: 20px; color: var(--text-muted);">No recent transactions recorded.</p>';
+                ordersGrid.innerHTML = '<p class="loading-state-text">No recent transactions recorded.</p>';
             }
         }
 
@@ -153,8 +242,33 @@ async function loadPageData() {
         console.error('Error fetching dashboard data:', error);
         const ordersGrid = document.getElementById('recentOrdersGrid');
         if (ordersGrid) {
-            ordersGrid.innerHTML = '<p style="padding: 20px; color: #d9534f;">Failed to load data. Please ensure backend server and Supabase are running.</p>';
+            ordersGrid.innerHTML = '<div class="error-state-box">Failed to load data. Please ensure backend server and Supabase are running.</div>';
         }
+    }
+}
+
+function updateAcquisitionDisplay() {
+    const filterEl = document.getElementById('acquisitionFilter');
+    const valueEl = document.getElementById('filteredNewAccounts');
+    const footerEl = document.getElementById('acquisitionPeriodFooter');
+
+    const selected = filterEl ? filterEl.value : 'today';
+
+    const timeframeConfig = {
+        today: { footer: "Registered today" },
+        week: { footer: "Past 7 days" },
+        month: { footer: "Current calendar month" },
+        last3Months: { footer: "Past 90 days" },
+        last6Months: { footer: "Past 180 days" }
+    };
+
+    const config = timeframeConfig[selected] || timeframeConfig.today;
+
+    if (valueEl) {
+        valueEl.textContent = Number(customerAcquisitionData[selected] || 0).toLocaleString();
+    }
+    if (footerEl) {
+        footerEl.textContent = config.footer;
     }
 }
 
