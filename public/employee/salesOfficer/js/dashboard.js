@@ -14,7 +14,6 @@ let revenueDonutChartInstance = null;
 document.addEventListener('DOMContentLoaded', async () => {
     initCharts();
 
-    // Bind filter listener
     const acqFilter = document.getElementById('acquisitionFilter');
     if (acqFilter) {
         acqFilter.addEventListener('change', updateAcquisitionDisplay);
@@ -23,9 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadPageData();
 });
 
-// Initialize Chart.js with compact settings
+// Initialize compact Chart.js
 function initCharts() {
-    // 1. Mini Acquisition Bar Chart
+    // 1. Mini Acquisition Trend Chart
     const acqCtx = document.getElementById('acquisitionMiniChart');
     if (acqCtx) {
         acquisitionChartInstance = new Chart(acqCtx.getContext('2d'), {
@@ -36,8 +35,8 @@ function initCharts() {
                     label: 'New Users',
                     data: [0, 0, 0, 0, 0],
                     backgroundColor: '#F69299',
-                    borderRadius: 6,
-                    barThickness: 18
+                    borderRadius: 4,
+                    barThickness: 16
                 }]
             },
             options: {
@@ -99,18 +98,24 @@ async function loadPageData() {
 
         const data = await response.json();
 
-        // 1. User Profile
+        // 1. User Profile & Avatar
         if (data.user) {
             const userNameEl = document.getElementById('userName');
             const userFirstNameEl = document.getElementById('userFirstName');
             const userAvatarEl = document.getElementById('userAvatar');
+            const userAvatarSvg = document.getElementById('userAvatarSvg');
 
             if (userNameEl) userNameEl.textContent = data.user.fullName || 'Sales Officer';
-            if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Officer';
-            if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
+            if (userFirstNameEl) userFirstNameEl.textContent = (data.user.firstName || 'Officer') + '!';
+
+            if (data.user.avatarSrc && userAvatarEl) {
+                userAvatarEl.src = data.user.avatarSrc;
+                userAvatarEl.style.display = 'block';
+                if (userAvatarSvg) userAvatarSvg.style.display = 'none';
+            }
         }
 
-        // 2. Today's Performance Metrics
+        // 2. Performance Metrics
         const todayOrdersEl = document.getElementById('todayOrders');
         const todaySalesEl = document.getElementById('todaySales');
         const pendingOrdersEl = document.getElementById('pendingOrders');
@@ -128,7 +133,7 @@ async function loadPageData() {
             pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
         }
 
-        // 3. Customer Acquisition Metrics
+        // 3. Customer Acquisition
         if (data.newAccounts) {
             customerAcquisitionData = {
                 today: data.newAccounts.today || 0,
@@ -138,7 +143,6 @@ async function loadPageData() {
                 last6Months: data.newAccounts.last6Months || 0
             };
 
-            // Update mini chart bars
             if (acquisitionChartInstance) {
                 acquisitionChartInstance.data.datasets[0].data = [
                     customerAcquisitionData.today,
@@ -181,14 +185,14 @@ async function loadPageData() {
             }
             if (guestPctEl) guestPctEl.textContent = `${guestPct}%`;
 
-            // Compact Donut Update
+            // Update Donut Chart
             if (revenueDonutChartInstance) {
                 const total = regRev + guestRev;
                 revenueDonutChartInstance.data.datasets[0].data = total === 0 ? [50, 50] : [regRev, guestRev];
                 revenueDonutChartInstance.update();
             }
 
-            // Compact Progress Bar
+            // Progress Bar
             if (barRegLabel) barRegLabel.textContent = `${regPct}%`;
             if (barGuestLabel) barGuestLabel.textContent = `${guestPct}%`;
             if (barRegFill) barRegFill.style.width = `${regPct}%`;
@@ -197,11 +201,11 @@ async function loadPageData() {
             // Decision Intelligence
             if (insightMessage) {
                 if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas malaki ang benta mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
+                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas malaki ang kita mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
                 } else if (regPct > 0 || guestPct > 0) {
-                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${regPct}%</strong>). Maganda ang customer loyalty retention.`;
+                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${regPct}%</strong>). Maganda ang loyalty retention.`;
                 } else {
-                    insightMessage.textContent = 'Wala pang sapat na sales record para sa ratio insight.';
+                    insightMessage.textContent = 'Analyzing revenue trends to formulate promotional strategy...';
                 }
             }
         }
@@ -261,39 +265,38 @@ async function loadPageData() {
     }
 }
 
-// Update Acquisition Display when dropdown changes
 function updateAcquisitionDisplay() {
     const filterEl = document.getElementById('acquisitionFilter');
     const valueEl = document.getElementById('filteredNewAccounts');
     const titleEl = document.getElementById('acquisitionPeriodTitle');
     const footerEl = document.getElementById('acquisitionPeriodFooter');
 
-    const selected = filterEl ? filterEl.value : 'month';
+    const selected = filterEl ? filterEl.value : 'today';
 
     const timeframeConfig = {
         today: {
-            title: "Today's Acquisition",
+            title: "Today's New Accounts",
             footer: "Registered today"
         },
         week: {
-            title: "This Week's Acquisition",
+            title: "This Week's New Accounts",
             footer: "Past 7 days"
         },
         month: {
-            title: "This Month's Acquisition",
+            title: "This Month's New Accounts",
             footer: "Current calendar month"
         },
         last3Months: {
-            title: "Last 3 Months",
-            footer: "Past 90 days"
+            title: "Last 3 Months' New Accounts",
+            footer: "Quarterly acquisition (past 90 days)"
         },
         last6Months: {
-            title: "Last 6 Months",
-            footer: "Past 180 days"
+            title: "Last 6 Months' New Accounts",
+            footer: "Semi-annual acquisition (past 180 days)"
         }
     };
 
-    const config = timeframeConfig[selected] || timeframeConfig.month;
+    const config = timeframeConfig[selected] || timeframeConfig.today;
 
     if (valueEl) {
         valueEl.textContent = Number(customerAcquisitionData[selected] || 0).toLocaleString();
