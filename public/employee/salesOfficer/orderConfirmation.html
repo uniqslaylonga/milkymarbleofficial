@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble — Sales Officer Order Confirmation</title>
+    <title>Milky Marble — Order Confirmation</title>
     <link rel="stylesheet" href="css/orderConfirmation.css">
 </head>
 <body>
     <div class="app-container">
+        <!-- STICKY SIDEBAR -->
         <aside class="sidebar">
             <div class="brand-section">
                 <div class="brand-logo-wrap">
@@ -17,95 +18,94 @@
             </div>
 
             <nav class="nav-menu">
-        <!-- 1. Dashboard -->
-        <a href="dashboard.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-          </svg>
-          <span>Dashboard</span>
-        </a>
+    <!-- 1. Dashboard -->
+    <a href="dashboard.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+        <span>Dashboard</span>
+    </a>
 
-        <!-- 2. Order Confirmation (NAUNA NA DITO) -->
-        <a href="orderConfirmation.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <polyline points="9 11 12 14 22 4"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-          </svg>
-          <span>Order Confirmation</span>
-        </a>
+    <!-- 2. Order Confirmation (Nauna na dito) -->
+    <a href="orderConfirmation.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+        </svg>
+        <span>Order Confirmation</span>
+    </a>
 
-        <!-- 3. Order Monitoring (PUMANGALAWA NA DITO) -->
-        <a href="orderMonitoring.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <rect x="3" y="4" width="18" height="16" rx="2.5"/>
-            <line x1="7" y1="9" x2="13" y2="9"/>
-            <line x1="7" y1="13" x2="17" y2="13"/>
-          </svg>
-          <span>Order Monitoring</span>
-        </a>
+    <!-- 3. Order Monitoring (Pumangalawa na dito) -->
+    <a href="orderMonitoring.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="3" />
+            <path d="M7 15h10M7 9h10" />
+        </svg>
+        <span>Order Monitoring</span>
+    </a>
 
-        <!-- 4. Customer Records -->
-        <a href="customerRecords.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <span>Customer Records</span>
-        </a>
+    <!-- 4. Customer Records -->
+    <a href="customerRecords.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+        </svg>
+        <span>Customer Records</span>
+    </a>
 
-        <!-- 5. Promotions -->
-        <a href="promotions.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-          <span>Promotions</span>
-        </a>
+    <!-- 5. Promotions -->
+    <a href="promotions.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+            <line x1="7" y1="7" x2="7.01" y2="7" />
+        </svg>
+        <span>Promotions</span>
+    </a>
 
-        <!-- 6. Sales Target -->
-        <a href="salesTarget.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="6"/>
-            <circle cx="12" cy="12" r="2"/>
-          </svg>
-          <span>Sales Target</span>
-        </a>
+    <!-- 6. Sales Target -->
+    <a href="salesTarget.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="5" />
+            <circle cx="12" cy="12" r="1" />
+        </svg>
+        <span>Sales Target</span>
+    </a>
 
-        <!-- 7. Reports & Records -->
-        <a href="salesReports&Records.html" class="nav-link">
-          <svg class="nav-svg" viewBox="0 0 24 24">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-            <polyline points="3 17 9 11 13 15 21 7"/>
-          </svg>
-          <span>Reports & Records</span>
-        </a>
-      </nav>
-      
+    <!-- 7. Reports & Records -->
+    <a href="salesReports&Records.html" class="nav-link">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l4-6 3 3 5-7" />
+        </svg>
+        <span>Reports & Records</span>
+    </a>
+</nav>
             <div class="sidebar-bottom">
                 <a href="../login.html" class="nav-link logout-btn">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
                     <span>Log out</span>
                 </a>
             </div>
         </aside>
 
+        <!-- MAIN CONTENT AREA -->
         <main class="main-content">
             <header class="topbar">
                 <div class="search-box">
-                    <input type="text" placeholder="Search orders, customers, promos, or reports...">
+                    <input type="text" id="orderSearchInput" placeholder="Search orders, customers, promos, or reports...">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="M21 21l-4.35-4.35" />
+                        <circle cx="11" cy="11" r="7"/>
+                        <path d="M21 21l-4.35-4.35"/>
                     </svg>
                 </div>
                 <div class="topbar-right">
@@ -118,34 +118,54 @@
                 </div>
             </header>
 
-            <!-- EYEBROW TEXT ONLY -->
             <div class="page-eyebrow">Order Confirmation Desk</div>
 
+            <!-- OVERVIEW STATUS CARDS -->
             <section class="section">
-                <h2 class="section-title">Today's Performance</h2>
+                <h2 class="section-title">Validation Overview</h2>
                 <div class="overview-grid">
                     <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Today's Orders</span></div>
-                        <div class="stat-body"><span id="todayOrders" class="stat-value">0</span></div>
-                        <div class="stat-footer">Total placed today</div>
+                        <div class="stat-header"><span class="stat-title">Awaiting Confirmation</span></div>
+                        <div class="stat-body"><span id="pendingCount" class="stat-value">0</span></div>
+                        <div class="stat-footer">Needs sales approval</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Today's Revenue</span></div>
-                        <div class="stat-body"><span id="todaySales" class="stat-value">₱0.00</span></div>
-                        <div class="stat-footer">Gross sales collected</div>
+                        <div class="stat-header"><span class="stat-title">Confirmed Today</span></div>
+                        <div class="stat-body"><span id="confirmedCount" class="stat-value">0</span></div>
+                        <div class="stat-footer">Sent to production</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Pending Approvals</span></div>
-                        <div class="stat-body"><span id="pendingOrders" class="stat-value">0</span></div>
-                        <div class="stat-footer">Awaiting confirmation</div>
+                        <div class="stat-header"><span class="stat-title">Rejected / Voided</span></div>
+                        <div class="stat-body"><span id="rejectedCount" class="stat-value">0</span></div>
+                        <div class="stat-footer">Cancelled orders</div>
                     </div>
                 </div>
             </section>
 
+            <!-- PENDING ORDERS TABLE -->
             <section class="section">
-                <h2 class="section-title">Recent Transactions</h2>
-                <div id="recentOrdersGrid" class="orders-grid">
-                    <p style="padding: 20px;">Loading transactions...</p>
+                <div class="section-head-bar">
+                    <h2 class="section-title">Incoming Orders Awaiting Confirmation</h2>
+                    <span class="section-subtitle">Action Required</span>
+                </div>
+                <div class="directory-card">
+                    <table class="cust-table">
+                        <thead>
+                            <tr>
+                                <th>Order # & Time</th>
+                                <th>Customer</th>
+                                <th>Items Ordered</th>
+                                <th>Payment Method</th>
+                                <th>Total</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="confirmationTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading pending orders...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </main>
