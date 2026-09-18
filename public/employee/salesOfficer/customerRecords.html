@@ -50,7 +50,7 @@
                     <span>Order Monitoring</span>
                 </a>
 
-                <!-- 4. Customer Records (Active Dito) -->
+                <!-- 4. Customer Records (Active) -->
                 <a href="customerRecords.html" class="nav-link active">
                     <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
@@ -124,9 +124,9 @@
 
             <div class="page-eyebrow">Customer Records Desk</div>
 
-            <!-- SECTION 1: OVERVIEW & SIGN-UPS TRACKER -->
+            <!-- SECTION 1: CLEAN OVERVIEW CARDS (NO EMBEDDED DROPDOWNS) -->
             <section class="section">
-                <h2 class="section-title">Growth &amp; Acquisition Overview</h2>
+                <h2 class="section-title">Today's Customer Snapshot</h2>
                 <div class="overview-grid four-col-grid">
 
                     <!-- Total Registered -->
@@ -138,22 +138,13 @@
                         <div id="totalRegisteredGrowth" class="stat-footer">+0% vs last month</div>
                     </div>
 
-                    <!-- New Accounts (With Timeframe Filter) -->
+                    <!-- New Sign-ups Today (Clean card without dropdown) -->
                     <div class="stat-card">
-                        <div class="stat-header flex-between">
-                            <span class="stat-title">New Sign-ups</span>
-                            <select id="acquisitionPeriodSelect" class="inline-select">
-                                <option value="today" selected>Today</option>
-                                <option value="week">This Week</option>
-                                <option value="month">This Month</option>
-                                <option value="last3Months">3 Months</option>
-                                <option value="last6Months">6 Months</option>
-                            </select>
-                        </div>
+                        <div class="stat-header"><span class="stat-title">New Sign-ups Today</span></div>
                         <div class="stat-body">
-                            <span id="filteredNewAccounts" class="stat-value">0</span>
+                            <span id="todayNewAccounts" class="stat-value">0</span>
                         </div>
-                        <div id="acquisitionPeriodFooter" class="stat-footer">Registered today</div>
+                        <div class="stat-footer">Registered today</div>
                     </div>
 
                     <!-- Active Buyers Today -->
@@ -165,9 +156,9 @@
                         <div class="stat-footer">Members who placed orders today</div>
                     </div>
 
-                    <!-- Repeat Customer Rate -->
+                    <!-- Repeat Rate -->
                     <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Repeat Rate</span></div>
+                        <div class="stat-header"><span class="stat-title">Repeat Customer Rate</span></div>
                         <div class="stat-body">
                             <span id="repeatRate" class="stat-value">0%</span>
                         </div>
@@ -177,7 +168,57 @@
                 </div>
             </section>
 
-            <!-- SECTION 2: GUEST VS. REGISTERED CUSTOMER ANALYSIS (DECISION SUPPORT) -->
+            <!-- SECTION 2: DEDICATED ACQUISITION & GROWTH ANALYTICS (WITH TIMEFRAME FILTER) -->
+            <section class="section">
+                <div class="section-head-bar">
+                    <div class="title-with-subtitle">
+                        <h2 class="section-title">Customer Acquisition &amp; Growth Analytics</h2>
+                        <span class="section-badge-pink">Sign-up &amp; Registration Trends</span>
+                    </div>
+
+                    <!-- Acquisition Filter Controls -->
+                    <div class="filter-wrapper">
+                        <span class="filter-label">Acquisition Timeframe:</span>
+                        <select id="acquisitionPeriodSelect" class="custom-select-sm">
+                            <option value="today">Today</option>
+                            <option value="week" selected>This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="last3Months">Past 90 Days</option>
+                            <option value="last6Months">Past 180 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="growth-panel-card">
+                    <div class="growth-metric-row">
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Sign-ups in Selected Period</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="periodSignupsCount" class="growth-stat-number">0</strong>
+                                <span class="growth-subtag" id="periodSignupsFooter">Registered this week</span>
+                            </div>
+                        </div>
+
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Average Daily Acquisitions</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="dailyAvgAcquisition" class="growth-stat-number">0.0</strong>
+                                <span class="growth-subtag">sign-ups / day</span>
+                            </div>
+                        </div>
+
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Acquisition Velocity</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="acquisitionPaceText" class="growth-stat-number status-pace-good">Stable</strong>
+                                <span class="growth-subtag" id="acquisitionPaceDesc">Consistent member growth</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: GUEST VS. REGISTERED SEGMENTATION CARD -->
             <section class="section">
                 <div class="section-head-bar">
                     <div class="title-with-subtitle">
@@ -219,7 +260,7 @@
                         </div>
                     </div>
 
-                    <!-- Actionable Strategic Recommendation -->
+                    <!-- Actionable Strategic Recommendation (English) -->
                     <div class="insight-box-sm">
                         <span class="insight-icon">💡</span>
                         <p class="insight-text" id="decisionInsightMessage">
@@ -229,7 +270,7 @@
                 </div>
             </section>
 
-            <!-- SECTION 3: CUSTOMER DIRECTORY TABLE -->
+            <!-- SECTION 4: CUSTOMER DIRECTORY TABLE -->
             <section class="section">
                 <div class="section-head-bar">
                     <div class="dir-header-group">
@@ -261,12 +302,12 @@
                         <table class="cust-table">
                             <thead>
                                 <tr>
-                                    <th>Customer &amp; Type</th>
+                                    <th>Customer &amp; Account Type</th>
                                     <th>Contact Information</th>
                                     <th>Total Orders</th>
                                     <th>Total Spent</th>
                                     <th>Preferred Payment</th>
-                                    <th style="text-align: center;">Action</th>
+                                    <th style="text-align: center;">Quick Action</th>
                                 </tr>
                             </thead>
                             <tbody id="customerTableBody">
@@ -296,13 +337,13 @@
             </section>
         </main>
 
-        <!-- CENTERED PROFILE MODAL OVERLAY -->
+        <!-- CENTERED CUSTOMER SUMMARY MODAL (READ-ONLY ORDER & CONTACT SUPPORT) -->
         <div class="modal-overlay" id="profileModalOverlay">
             <div class="profile-modal">
 
                 <div class="modal-header">
-                    <h3 class="modal-title">Customer Profile</h3>
-                    <button class="modal-close" id="modalCloseBtn">✕</button>
+                    <h3 class="modal-title">Customer Summary &amp; History</h3>
+                    <button class="modal-close" id="modalCloseBtn" title="Close">✕</button>
                 </div>
 
                 <div class="modal-body">
@@ -314,25 +355,25 @@
                         <h4 id="modalName" class="modal-name">---</h4>
                         <p id="modalSub" class="modal-email">--- • ---</p>
 
-                        <!-- Communication Shortcuts -->
+                        <!-- Communication Shortcuts (Support & Counter Pickup Calls) -->
                         <div class="comm-shortcuts">
-                            <a id="modalCallBtn" href="#" class="comm-btn" title="Call">
+                            <a id="modalCallBtn" href="#" class="comm-btn" title="Call Customer">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                                 </svg>
                                 <span>Call</span>
                             </a>
-                            <a id="modalSmsBtn" href="#" class="comm-btn" title="SMS">
+                            <a id="modalSmsBtn" href="#" class="comm-btn" title="Send SMS">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                                 </svg>
                                 <span>SMS</span>
                             </a>
-                            <button type="button" class="comm-btn" title="Direct Chat" onclick="alert('Messaging service ready.')">
+                            <button type="button" class="comm-btn" title="Quick Message" onclick="alert('Order pickup alert notification dispatched.')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
                                 </svg>
-                                <span>Chat</span>
+                                <span>Notify</span>
                             </button>
                         </div>
                     </div>
@@ -345,7 +386,7 @@
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                                 <circle cx="12" cy="10" r="3" />
                             </svg>
-                            <p id="modalAddress">No address on file</p>
+                            <p id="modalAddress">No default address specified</p>
                         </div>
                     </div>
 
@@ -358,10 +399,10 @@
 
                     <!-- Recent Orders History -->
                     <div class="modal-section">
-                        <div class="modal-label">Order History</div>
+                        <div class="modal-label">Past Orders History</div>
                         <div class="modal-history-list" id="modalHistoryList">
                             <div class="history-item">
-                                <div>No order history available.</div>
+                                <div>No past orders found.</div>
                             </div>
                         </div>
                     </div>

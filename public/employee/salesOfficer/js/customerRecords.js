@@ -14,10 +14,10 @@ let acquisitionTimeframeData = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Timeframe filter listener for New Sign-ups
+    // 1. Timeframe filter listener for Acquisition Analytics Section
     const acqSelect = document.getElementById('acquisitionPeriodSelect');
     if (acqSelect) {
-        acqSelect.addEventListener('change', updateAcquisitionCardDisplay);
+        acqSelect.addEventListener('change', updateAcquisitionAnalyticsPanel);
     }
 
     // 2. Directory Tab Listeners (All / Members / Guests)
@@ -116,10 +116,11 @@ async function fetchCustomerRecords() {
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
-        // 2. Metrics & Counters
+        // 2. Overview Counters
         if (data.metrics) {
             document.getElementById('totalRegistered').textContent = Number(data.metrics.totalRegistered || 0).toLocaleString();
             document.getElementById('totalRegisteredGrowth').textContent = data.metrics.registeredGrowth || '+0% vs last month';
+            document.getElementById('todayNewAccounts').textContent = Number(data.metrics.todaySignups || 0).toLocaleString();
             document.getElementById('activeBuyersToday').textContent = Number(data.metrics.activeToday || 0).toLocaleString();
             document.getElementById('repeatRate').textContent = data.metrics.repeatRate || '0%';
 
@@ -142,12 +143,12 @@ async function fetchCustomerRecords() {
         allCustomers = data.customers || [];
         updateTabBadges();
         applyDirectoryFilters();
-        updateAcquisitionCardDisplay();
+        updateAcquisitionAnalyticsPanel();
 
     } catch (error) {
-        console.warn('Backend unavailable, loading comprehensive demo customer data:', error);
+        console.warn('Backend server unavailable, loading fallback demo customer data:', error);
 
-        // Fallback demo data para magamit agad kahit offline
+        // Fallback demo data para magamit agad
         allCustomers = [
             {
                 id: 1,
@@ -253,6 +254,7 @@ async function fetchCustomerRecords() {
         // Populate fallback UI
         document.getElementById('totalRegistered').textContent = '4';
         document.getElementById('totalRegisteredGrowth').textContent = '+18% vs last month';
+        document.getElementById('todayNewAccounts').textContent = '3';
         document.getElementById('activeBuyersToday').textContent = '2';
         document.getElementById('repeatRate').textContent = '75%';
 
@@ -269,11 +271,11 @@ async function fetchCustomerRecords() {
 
         updateTabBadges();
         applyDirectoryFilters();
-        updateAcquisitionCardDisplay();
+        updateAcquisitionAnalyticsPanel();
     }
 }
 
-// Segmentation Display & Strategic Insight
+// Segmentation Display & Pure English Strategic Recommendation
 function updateSegmentationDisplay(seg) {
     const memRevPct = Math.round(Number(seg.memberRevenuePercent || 0));
     const guestRevPct = Math.round(Number(seg.guestRevenuePercent || 0));
@@ -300,9 +302,9 @@ function updateSegmentationDisplay(seg) {
 
     if (insightBox) {
         if (guestRevPct > memRevPct) {
-            insightBox.innerHTML = `<strong>Strategic Alert:</strong> Mas malaki ang bahagi ng Guest Checkouts (<strong>${guestRevPct}%</strong>). Senyales ito na bumibili ang tao ngunit hindi gumagawa ng account. <em>Rekomendasyon:</em> Maglunsad ng 10% first-signup promo voucher sa "Promotions" tab upang ma-convert ang guests sa loyal registered members.`;
+            insightBox.innerHTML = `<strong>Strategic Alert:</strong> Guest Checkouts represent a larger revenue share (<strong>${guestRevPct}%</strong>). This indicates active purchasing volume without customer account retention. <em>Actionable Advice:</em> Launch a 10% first-registration voucher in the "Promotions" desk to convert guest traffic into loyal registered members.`;
         } else {
-            insightBox.innerHTML = `<strong>Healthy Customer Loyalty:</strong> Pinangungunahan ng mga Registered Members ang bentahan (<strong>${memRevPct}%</strong>). Maganda ang repeat order engagement. Panatilihin ang points rewards para sa customer retention.`;
+            insightBox.innerHTML = `<strong>Healthy Customer Loyalty:</strong> Registered Members generate the primary share of gross revenue (<strong>${memRevPct}%</strong>). High repeat purchase engagement is confirmed. Maintain current loyalty rewards to foster sustained retention.`;
         }
     }
 }
@@ -316,29 +318,47 @@ function updateTabBadges() {
     document.getElementById('countGuestBadge').textContent = guestCount;
 }
 
-// Update card display kapag pinalitan ang timeframe sa dropdown
-function updateAcquisitionCardDisplay() {
+// Update the Dedicated Acquisition Section based on the Period Dropdown
+function updateAcquisitionAnalyticsPanel() {
     const select = document.getElementById('acquisitionPeriodSelect');
-    const valueEl = document.getElementById('filteredNewAccounts');
-    const footerEl = document.getElementById('acquisitionPeriodFooter');
+    const countEl = document.getElementById('periodSignupsCount');
+    const footerEl = document.getElementById('periodSignupsFooter');
+    const avgEl = document.getElementById('dailyAvgAcquisition');
+    const paceTextEl = document.getElementById('acquisitionPaceText');
+    const paceDescEl = document.getElementById('acquisitionPaceDesc');
 
-    const selected = select ? select.value : 'today';
+    const selected = select ? select.value : 'week';
 
     const timeframeConfig = {
-        today: { footer: "Registered today" },
-        week: { footer: "Past 7 days" },
-        month: { footer: "Current calendar month" },
-        last3Months: { footer: "Past 90 days" },
-        last6Months: { footer: "Past 180 days" }
+        today: { days: 1, footer: "Registered today" },
+        week: { days: 7, footer: "Registered past 7 days" },
+        month: { days: 30, footer: "Registered current month" },
+        last3Months: { days: 90, footer: "Registered past 90 days" },
+        last6Months: { days: 180, footer: "Registered past 180 days" }
     };
 
-    const config = timeframeConfig[selected] || timeframeConfig.today;
+    const config = timeframeConfig[selected] || timeframeConfig.week;
+    const count = Number(acquisitionTimeframeData[selected] || 0);
+    const dailyAvg = (count / config.days).toFixed(1);
 
-    if (valueEl) {
-        valueEl.textContent = Number(acquisitionTimeframeData[selected] || 0).toLocaleString();
-    }
-    if (footerEl) {
-        footerEl.textContent = config.footer;
+    if (countEl) countEl.textContent = count.toLocaleString();
+    if (footerEl) footerEl.textContent = config.footer;
+    if (avgEl) avgEl.textContent = dailyAvg;
+
+    if (paceTextEl && paceDescEl) {
+        if (dailyAvg >= 1.5) {
+            paceTextEl.textContent = 'Rapid Growth';
+            paceTextEl.className = 'growth-stat-number status-pace-good';
+            paceDescEl.textContent = 'High account sign-up velocity';
+        } else if (dailyAvg >= 0.5) {
+            paceTextEl.textContent = 'Steady';
+            paceTextEl.className = 'growth-stat-number status-pace-good';
+            paceDescEl.textContent = 'Consistent member acquisition';
+        } else {
+            paceTextEl.textContent = 'Moderate';
+            paceTextEl.className = 'growth-stat-number';
+            paceDescEl.textContent = 'Consider launching signup incentives';
+        }
     }
 }
 
@@ -366,7 +386,7 @@ function applyDirectoryFilters() {
         const idMatch = String(c.id || '').includes(query);
         if (query && !nameMatch && !emailMatch && !phoneMatch && !idMatch) return false;
 
-        // Date Filter (Batay sa huling order o sign-up)
+        // Date Filter (Based on last order or registration date)
         if (dateFilterVal !== 'all' && c.last_order_at) {
             const ordDate = new Date(c.last_order_at);
             const ordDateStr = c.last_order_at.split('T')[0];
@@ -443,11 +463,11 @@ function renderCustomerTable() {
                     <div class="contact-text">${escapeHtml(cust.phone || 'N/A')}</div>
                     <div class="email-sub">${escapeHtml(cust.email || 'No email provided')}</div>
                 </td>
-                <td><strong class="order-count">${orderCount} orders</strong></td>
+                <td><strong class="order-count">${orderCount} order(s)</strong></td>
                 <td><span class="spent-val">₱${totalSpent}</span></td>
                 <td><span class="method-pill">${escapeHtml(cust.preferred_payment || 'GCash')}</span></td>
                 <td style="text-align: center;">
-                    <button type="button" class="view-profile-btn" onclick="openProfileModal('${cust.id}')">View Profile</button>
+                    <button type="button" class="view-profile-btn" onclick="openProfileModal('${cust.id}')">View Summary</button>
                 </td>
             </tr>
         `;
@@ -507,7 +527,7 @@ function openProfileModal(customerId) {
             `;
         }).join('');
     } else {
-        historyList.innerHTML = '<div class="history-item"><div>No recent orders recorded.</div></div>';
+        historyList.innerHTML = '<div class="history-item"><div>No past orders recorded.</div></div>';
     }
 
     const modal = document.getElementById('profileModalOverlay');
