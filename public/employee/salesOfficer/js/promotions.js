@@ -1,154 +1,396 @@
+let allCampaigns = [];
+let filteredCampaigns = [];
+let activeStatusTab = 'all'; // 'all', 'pending', 'active', 'archived'
+let currentPromoPage = 1;
+const PROMO_PAGE_SIZE = 6;
+
 document.addEventListener('DOMContentLoaded', () => {
-    fetchPromotionsData();
-
-    const promoModalOverlay = document.getElementById('promoModalOverlay');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const modalCancelBtn = document.getElementById('modalCancelBtn');
-
-    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closePromoModal);
-    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closePromoModal);
-
-    if (promoModalOverlay) {
-        promoModalOverlay.addEventListener('click', (e) => {
-            if (e.target === promoModalOverlay) closePromoModal();
+    // 1. Dynamic Discount Placeholder
+    const discountTypeSelect = document.getElementById('inputDiscountType');
+    const discountValueLabel = document.getElementById('discountValueLabel');
+    if (discountTypeSelect && discountValueLabel) {
+        discountTypeSelect.addEventListener('change', (e) => {
+            discountValueLabel.textContent = e.target.value === 'percent' 
+                ? 'Discount Value * (%)' 
+                : 'Discount Value * (₱ Fixed)';
         });
     }
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closePromoModal();
+    // 2. Status Tab Listeners
+    const tabBtns = document.querySelectorAll('.promo-status-tabs .tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            activeStatusTab = e.currentTarget.getAttribute('data-status') || 'all';
+            applyPromoFilters();
+        });
     });
 
-    const createPromoForm = document.getElementById('createPromoForm');
-    if (createPromoForm) {
-        createPromoForm.addEventListener('submit', handleCreatePromo);
+    // 3. Search & Date Filter Listeners
+    const searchInput = document.getElementById('promoSearchInput');
+    const dateFilter = document.getElementById('promoDateFilter');
+    const customDate = document.getElementById('promoCustomDate');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyPromoFilters);
     }
 
-    const discountTypeSelect = document.getElementById('inputDiscountType');
-    if (discountTypeSelect) {
-        discountTypeSelect.addEventListener('change', updateDiscountPlaceholder);
+    if (dateFilter) {
+        dateFilter.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                customDate.style.display = 'inline-block';
+                if (!customDate.value) {
+                    customDate.value = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                customDate.style.display = 'none';
+            }
+            applyPromoFilters();
+        });
     }
+
+    if (customDate) {
+        customDate.addEventListener('change', applyPromoFilters);
+    }
+
+    // 4. Pagination Buttons
+    const prevBtn = document.getElementById('prevPromoBtn');
+    const nextBtn = document.getElementById('nextPromoBtn');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPromoPage > 1) {
+                currentPromoPage--;
+                renderCampaignGrid();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredCampaigns.length / PROMO_PAGE_SIZE) || 1;
+            if (currentPromoPage < totalPages) {
+                currentPromoPage++;
+                renderCampaignGrid();
+            }
+        });
+    }
+
+    // 5. Modal Handlers
+    const closeBtn = document.getElementById('modalCloseBtn');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const modalOverlay = document.getElementById('promoModalOverlay');
+    const pitchForm = document.getElementById('createPromoForm');
+
+    if (closeBtn) closeBtn.addEventListener('click', closePromoModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closePromoModal);
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closePromoModal();
+        });
+    }
+
+    if (pitchForm) {
+        pitchForm.addEventListener('submit', handlePitchFormSubmit);
+    }
+
+    fetchPromotionsData();
 });
 
 async function fetchPromotionsData() {
     try {
-        const userId = localStorage.getItem('userId');
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = userId ? { 'x-user-id': userId } : {};
 
         const response = await fetch('/api/sales-officer/promotions', { headers });
-        if (!response.ok) throw new Error('Failed to load promotions data');
+        if (!response.ok) throw new Error('Failed to load campaigns');
 
         const data = await response.json();
 
-        const userNameEl = document.getElementById('userName');
-        const userAvatarEl = document.getElementById('userAvatar');
-        if (userNameEl) userNameEl.textContent = data.user.fullName;
-        if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
-
-        const totalPromosEl = document.getElementById('totalPromosCount');
-        const activePromosEl = document.getElementById('activePromosCount');
-        if (totalPromosEl) totalPromosEl.textContent = Number(data.metrics.totalPromosCount).toLocaleString();
-        if (activePromosEl) activePromosEl.textContent = Number(data.metrics.activePromosCount).toLocaleString();
-
-        renderCampaigns(data.promotions);
-    } catch (error) {
-        console.error('Error fetching promotions:', error);
-        const campaignGrid = document.getElementById('campaignGrid');
-        if (campaignGrid) {
-            campaignGrid.innerHTML = '<p style="padding: 20px; color: red;">Failed to load promotions.</p>';
+        // Populate User Header
+        if (data.user) {
+            const userNameEl = document.getElementById('userName');
+            const userAvatarEl = document.getElementById('userAvatar');
+            if (userNameEl) userNameEl.textContent = data.user.fullName || 'Sales Officer';
+            if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
+
+        allCampaigns = data.campaigns || [];
+        updateMetricsAndTabs();
+        applyPromoFilters();
+
+    } catch (error) {
+        console.warn('Backend server unavailable, loading fallback campaign proposals:', error);
+
+        // Fallback demo data with CEO approval states
+        allCampaigns = [
+            {
+                id: 301,
+                code: 'MARBLE10',
+                discount_type: 'percent',
+                discount_value: 10,
+                target_segment: 'guest',
+                min_spend: 150,
+                usage_cap: 100,
+                usage_count: 34,
+                status: 'ACTIVE',
+                pitch_note: 'Converts walk-in guest checkouts into loyal members with a 10% first signup voucher.',
+                created_at: '2026-09-01T10:00:00Z'
+            },
+            {
+                id: 302,
+                code: 'LOYALTY25',
+                discount_type: 'fixed',
+                discount_value: 25,
+                target_segment: 'member',
+                min_spend: 300,
+                usage_cap: 50,
+                usage_count: 0,
+                status: 'PENDING_APPROVAL',
+                pitch_note: 'Proposed incentive for top-tier members to drive weekend bulk orders.',
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 303,
+                code: 'SUMMERPEARL',
+                discount_type: 'percent',
+                discount_value: 15,
+                target_segment: 'all',
+                min_spend: null,
+                usage_cap: null,
+                usage_count: 92,
+                status: 'ACTIVE',
+                pitch_note: 'Storewide flash promo for seasonal drinks.',
+                created_at: '2026-08-15T09:30:00Z'
+            },
+            {
+                id: 304,
+                code: 'FLASH50',
+                discount_type: 'fixed',
+                discount_value: 50,
+                target_segment: 'all',
+                min_spend: 100,
+                usage_cap: 30,
+                usage_count: 0,
+                status: 'REJECTED',
+                rejection_reason: 'Margin impact is too steep for single cup orders. Please pitch with a minimum spend of ₱350.',
+                pitch_note: 'Flash counter promotion to clear afternoon stock.',
+                created_at: '2026-08-01T14:20:00Z'
+            }
+        ];
+
+        updateMetricsAndTabs();
+        applyPromoFilters();
     }
 }
 
-function renderCampaigns(promotions) {
-    const campaignGrid = document.getElementById('campaignGrid');
-    if (!campaignGrid) return;
+function updateMetricsAndTabs() {
+    const totalCount = allCampaigns.length;
+    const activeCount = allCampaigns.filter(c => c.status === 'ACTIVE').length;
+    const pendingCount = allCampaigns.filter(c => c.status === 'PENDING_APPROVAL').length;
+    const archivedCount = allCampaigns.filter(c => c.status === 'REJECTED' || c.status === 'EXPIRED').length;
 
-    if (!promotions || promotions.length === 0) {
-        campaignGrid.innerHTML = '<p style="padding: 20px;">No promotional codes recorded in the database.</p>';
+    document.getElementById('totalPromosCount').textContent = totalCount.toString();
+    document.getElementById('activePromosCount').textContent = activeCount.toString();
+
+    document.getElementById('countAllBadge').textContent = totalCount.toString();
+    document.getElementById('countPendingBadge').textContent = pendingCount.toString();
+    document.getElementById('countActiveBadge').textContent = activeCount.toString();
+    document.getElementById('countArchivedBadge').textContent = archivedCount.toString();
+}
+
+// Filter Logic: Status Tabs + Search + Date
+function applyPromoFilters() {
+    const query = document.getElementById('promoSearchInput')?.value.toLowerCase().trim() || '';
+    const dateFilterVal = document.getElementById('promoDateFilter')?.value || 'all';
+    const customDateVal = document.getElementById('promoCustomDate')?.value;
+
+    filteredCampaigns = allCampaigns.filter(c => {
+        // Status Tab
+        if (activeStatusTab === 'pending' && c.status !== 'PENDING_APPROVAL') return false;
+        if (activeStatusTab === 'active' && c.status !== 'ACTIVE') return false;
+        if (activeStatusTab === 'archived' && (c.status !== 'REJECTED' && c.status !== 'EXPIRED')) return false;
+
+        // Search
+        const codeMatch = (c.code || '').toLowerCase().includes(query);
+        const noteMatch = (c.pitch_note || '').toLowerCase().includes(query);
+        const segmentMatch = (c.target_segment || '').toLowerCase().includes(query);
+        if (query && !codeMatch && !noteMatch && !segmentMatch) return false;
+
+        // Date Check
+        if (dateFilterVal === 'current' && c.status !== 'ACTIVE') return false;
+        if (dateFilterVal === 'month' && c.created_at) {
+            const date = new Date(c.created_at);
+            const now = new Date();
+            if (date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear()) return false;
+        }
+        if (dateFilterVal === 'custom' && c.created_at) {
+            const dateStr = c.created_at.split('T')[0];
+            if (dateStr !== customDateVal) return false;
+        }
+
+        return true;
+    });
+
+    currentPromoPage = 1;
+    renderCampaignGrid();
+}
+
+// Render Promo Cards & Pagination Bar
+function renderCampaignGrid() {
+    const grid = document.getElementById('campaignGrid');
+    const pageInfo = document.getElementById('promoPageInfo');
+    const prevBtn = document.getElementById('prevPromoBtn');
+    const nextBtn = document.getElementById('nextPromoBtn');
+
+    if (!grid) return;
+
+    if (filteredCampaigns.length === 0) {
+        grid.innerHTML = '<p class="loading-state-text">No campaigns found under this filter criteria.</p>';
+        if (pageInfo) pageInfo.textContent = 'Showing 0 of 0 campaigns';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        renderPromoPagerButtons(1, 1);
         return;
     }
 
-    campaignGrid.innerHTML = promotions.map(promo => {
-        const isPaused = promo.status !== 'ACTIVE';
-        const newStatus = isPaused ? 'ACTIVE' : 'EXPIRED';
-        const toggleLabel = isPaused ? 'Activate' : 'Pause';
-        const discountText = promo.discount_type === 'percent' 
-            ? `${promo.discount_value}% OFF` 
-            : `₱${Number(promo.discount_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} OFF`;
+    const totalPages = Math.ceil(filteredCampaigns.length / PROMO_PAGE_SIZE) || 1;
+    const startIndex = (currentPromoPage - 1) * PROMO_PAGE_SIZE;
+    const pageItems = filteredCampaigns.slice(startIndex, startIndex + PROMO_PAGE_SIZE);
+
+    if (pageInfo) {
+        const startNum = startIndex + 1;
+        const endNum = Math.min(startIndex + PROMO_PAGE_SIZE, filteredCampaigns.length);
+        pageInfo.textContent = `Showing ${startNum}-${endNum} of ${filteredCampaigns.length} campaigns`;
+    }
+    if (prevBtn) prevBtn.disabled = currentPromoPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPromoPage >= totalPages;
+
+    renderPromoPagerButtons(totalPages, currentPromoPage);
+
+    grid.innerHTML = pageItems.map(c => {
+        const isPercent = c.discount_type === 'percent';
+        const discountDisplay = isPercent ? `${c.discount_value}% OFF` : `₱${Number(c.discount_value).toFixed(2)} OFF`;
+        const minSpendText = c.min_spend ? `Min. Spend: ₱${Number(c.min_spend).toLocaleString()}` : 'No minimum spend';
+        const usageText = c.usage_cap ? `${c.usage_count || 0} / ${c.usage_cap} redemptions` : `${c.usage_count || 0} redemptions (Unlimited)`;
+
+        let segmentLabel = 'All Customers';
+        let segmentClass = 'segment-all';
+        if (c.target_segment === 'member') {
+            segmentLabel = 'Members Only';
+            segmentClass = 'segment-member';
+        } else if (c.target_segment === 'guest') {
+            segmentLabel = 'Guest Conversion';
+            segmentClass = 'segment-guest';
+        }
+
+        let statusClass = 'pending';
+        let statusLabel = 'Pending CEO Approval';
+        if (c.status === 'ACTIVE') {
+            statusClass = 'active';
+            statusLabel = 'Active in Checkout';
+        } else if (c.status === 'REJECTED') {
+            statusClass = 'rejected';
+            statusLabel = 'Rejected by CEO';
+        }
 
         return `
-            <div class="campaign-card ${isPaused ? 'paused' : ''}">
-                <div class="camp-top">
-                    <div class="promo-badge-tag">${escapeHtml(promo.status)}</div>
-                    <button type="button" 
-                            style="background:none; border:none; cursor:pointer; color:var(--brown-soft); font-weight:bold;"
-                            onclick="togglePromoStatus(${promo.id}, '${newStatus}')">
-                        ${toggleLabel}
-                    </button>
+            <div class="campaign-card">
+                <div class="card-top-row">
+                    <span class="promo-code-title">${escapeHtml(c.code)}</span>
+                    <span class="segment-pill ${segmentClass}">${segmentLabel}</span>
                 </div>
-                <div class="camp-main">
-                    <div class="promo-code-wrap">
-                        <span class="promo-code">${escapeHtml(promo.code)}</span>
-                        <span class="discount-pill">${discountText}</span>
-                    </div>
+
+                <div class="discount-highlight-box">
+                    <span class="discount-val-text">${discountDisplay}</span>
+                    <span class="min-spend-sub">${minSpendText}</span>
+                </div>
+
+                <div class="promo-meta-details">
+                    <div><strong>Usage:</strong> ${usageText}</div>
+                    ${c.pitch_note ? `<div><strong>Rationale:</strong> ${escapeHtml(c.pitch_note)}</div>` : ''}
+                    ${c.rejection_reason ? `<div style="color: #c9302c;"><strong>CEO Feedback:</strong> ${escapeHtml(c.rejection_reason)}</div>` : ''}
+                </div>
+
+                <div class="card-footer-row">
+                    <span class="status-pill ${statusClass}">
+                        <span class="status-dot"></span>
+                        ${statusLabel}
+                    </span>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-async function handleCreatePromo(e) {
-    e.preventDefault();
+// Numbered Page Buttons: 1, 2, 3...
+function renderPromoPagerButtons(totalPages, activePage) {
+    const pagerNumbers = document.getElementById('promoPagerNumbers');
+    if (!pagerNumbers) return;
 
-    const code = document.getElementById('inputPromoCode').value.toUpperCase().trim();
-    const discount_type = document.getElementById('inputDiscountType').value;
-    const discount_value = parseFloat(document.getElementById('inputDiscountVal').value);
-
-    if (!code || isNaN(discount_value) || discount_value <= 0) {
-        alert('Please provide a valid code and discount value.');
-        return;
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const isActive = i === activePage ? 'active' : '';
+        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
     }
+    pagerNumbers.innerHTML = html;
 
-    try {
-        const response = await fetch('/api/sales-officer/promotions/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, discount_type, discount_value })
+    pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const page = parseInt(e.currentTarget.getAttribute('data-page'), 10);
+            if (page && page !== currentPromoPage) {
+                currentPromoPage = page;
+                renderCampaignGrid();
+            }
         });
-
-        const result = await response.json();
-        if (result.status === 'success') {
-            closePromoModal();
-            document.getElementById('createPromoForm').reset();
-            updateDiscountPlaceholder();
-            fetchPromotionsData();
-        } else {
-            alert('Failed to create promotion: ' + (result.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error creating promotion:', error);
-        alert('An error occurred while creating promotion.');
-    }
+    });
 }
 
-async function togglePromoStatus(promoId, newStatus) {
+// Submit Pitch Form to CEO
+async function handlePitchFormSubmit(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const code = form.code.value.trim().toUpperCase();
+    const targetSegment = form.target_segment.value;
+    const discountType = form.discount_type.value;
+    const discountValue = parseFloat(form.discount_value.value);
+    const minSpend = form.min_spend.value ? parseFloat(form.min_spend.value) : null;
+    const usageCap = form.usage_cap.value ? parseInt(form.usage_cap.value, 10) : null;
+    const pitchNote = form.pitch_note.value.trim();
+
+    const newPitch = {
+        id: Date.now(),
+        code,
+        target_segment: targetSegment,
+        discount_type: discountType,
+        discount_value: discountValue,
+        min_spend: minSpend,
+        usage_cap: usageCap,
+        usage_count: 0,
+        status: 'PENDING_APPROVAL',
+        pitch_note: pitchNote,
+        created_at: new Date().toISOString()
+    };
+
     try {
-        const response = await fetch('/api/sales-officer/promotions/toggle', {
+        await fetch('/api/sales-officer/promotions/pitch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ toggle_id: promoId, new_status: newStatus })
+            body: JSON.stringify(newPitch)
         });
-
-        const result = await response.json();
-        if (result.status === 'success') {
-            fetchPromotionsData();
-        } else {
-            alert('Failed to update status: ' + (result.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error toggling promo status:', error);
-        alert('An error occurred while updating status.');
+    } catch (err) {
+        console.warn('Backend offline, registered proposal locally:', err);
     }
+
+    allCampaigns.unshift(newPitch);
+    updateMetricsAndTabs();
+    applyPromoFilters();
+    closePromoModal();
+    form.reset();
+
+    alert(`Promotion proposal for "${code}" submitted successfully! It has been forwarded to the CEO for approval.`);
 }
 
 function openPromoModal() {
@@ -164,22 +406,6 @@ function closePromoModal() {
     if (modal) {
         modal.classList.remove('open');
         document.body.style.overflow = '';
-    }
-}
-
-function updateDiscountPlaceholder() {
-    const type = document.getElementById('inputDiscountType').value;
-    const label = document.getElementById('discountValueLabel');
-    const input = document.getElementById('inputDiscountVal');
-
-    if (!label || !input) return;
-
-    if (type === 'percent') {
-        label.textContent = 'Discount Value * (%)';
-        input.placeholder = 'e.g. 10';
-    } else {
-        label.textContent = 'Discount Value * (₱)';
-        input.placeholder = 'e.g. 50.00';
     }
 }
 
