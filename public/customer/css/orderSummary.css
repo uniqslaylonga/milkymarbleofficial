@@ -301,8 +301,8 @@ body {
 }
 
 .summary-clean-cup-img,
-.summary-cup-row img,
-.summary-cup-item img {
+.summary-cup-row img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup),
+.summary-cup-item img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup) {
     position: relative !important;
     max-height: 54px !important;
     max-width: 48px !important;
@@ -782,8 +782,8 @@ body {
     }
 
     .summary-clean-cup-img,
-    .summary-cup-row img,
-    .summary-cup-item img {
+    .summary-cup-row img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup),
+    .summary-cup-item img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup) {
         max-height: 50px !important;
     }
 
@@ -829,8 +829,8 @@ body {
     }
 
     .summary-clean-cup-img,
-    .summary-cup-row img,
-    .summary-cup-item img {
+    .summary-cup-row img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup),
+    .summary-cup-item img:not(.cart-layer-flavor):not(.cart-layer-toppings):not(.cart-layer-cup) {
         max-height: 46px !important;
     }
 
