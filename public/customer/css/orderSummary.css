@@ -69,6 +69,14 @@ body {
     visibility: visible;
 }
 
+/* Order Summary modal must stack above the fixed mobile bottom nav
+   (z-index: 999999 on navbar.css) so the Place Order button and the
+   rest of the modal are never clipped under it or blocked from taps
+   on smaller screens. */
+#orderSummaryModal.product-modal-backdrop {
+    z-index: 1000001 !important;
+}
+
 .product-modal-container.order-summary-card {
     position: relative;
     background: var(--bg-modal);
@@ -722,10 +730,15 @@ body {
 /* RESPONSIVE MOBILE VIEW (<= 768px)                    */
 /* ==================================================== */
 @media (max-width: 768px) {
+    #orderSummaryModal.product-modal-backdrop {
+        align-items: flex-end !important;
+        padding: 16px 12px calc(58px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    }
+
     .product-modal-container.order-summary-card {
         padding: 20px 14px 18px !important;
         max-width: 95% !important;
-        max-height: 86vh !important;
+        max-height: calc(86vh - 58px - env(safe-area-inset-bottom, 0px)) !important;
         border-radius: 20px !important;
         gap: 12px !important;
         margin: auto !important;
