@@ -46,7 +46,7 @@
         <a href="orderConfirmation.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24">
             <polyline points="9 11 12 14 22 4"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"/>
           </svg>
           Order Confirmation
         </a>
@@ -246,16 +246,46 @@
 
         </div>
 
-        <!-- KANANG COLUMN (RECENT TRANSACTIONS TABLE / CARDS) -->
+        <!-- KANANG COLUMN (RECENT TRANSACTIONS CARD WITH DATE FILTER & PAGER) -->
         <div class="transactions-column">
           <div class="stat-card transactions-card">
-            <div class="card-head-row">
-              <h3 class="section-title">Recent Transactions</h3>
-              <span class="section-badge-pink">LIVE UPDATES</span>
+            <!-- Header with Title & Date Filters -->
+            <div class="card-head-row tx-head-row">
+              <div class="head-titles">
+                <h3 class="section-title">Recent Transactions</h3>
+                <span class="section-badge-pink">LIVE UPDATES</span>
+              </div>
+
+              <!-- Date Filter Controls -->
+              <div class="tx-filter-wrapper">
+                <select id="txDateFilter" class="custom-select-sm">
+                  <option value="today" selected>Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="custom">Pick Date...</option>
+                  <option value="all">All Dates</option>
+                </select>
+                <input type="date" id="txCustomDate" class="custom-date-input" style="display: none;" />
+              </div>
             </div>
 
+            <!-- Scrollable Orders List Container -->
             <div class="orders-container-vertical" id="recentOrdersGrid">
               <p class="loading-state-text">Loading transactions...</p>
+            </div>
+
+            <!-- Pagination Controls (Pager) -->
+            <div class="tx-pagination-bar" id="txPaginationBar" style="display: none;">
+              <span class="tx-page-info" id="txPageInfo">Showing 1-4 of 0</span>
+              <div class="tx-pager-buttons">
+                <button type="button" class="pager-btn" id="prevTxBtn" title="Previous Page" disabled>
+                  <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span class="pager-current-page" id="txPageNum">1 / 1</span>
+                <button type="button" class="pager-btn" id="nextTxBtn" title="Next Page" disabled>
+                  <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>

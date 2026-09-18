@@ -9,12 +9,62 @@ let customerAcquisitionData = {
 let acquisitionChartInstance = null;
 let revenueDonutChartInstance = null;
 
+// Pagination & Transactions State
+let allFetchedOrders = [];
+let filteredOrders = [];
+let currentTxPage = 1;
+const TX_PAGE_SIZE = 4; // Sakto ang taas ng 4 cards katapat ng left charts
+
 document.addEventListener('DOMContentLoaded', async () => {
     initCharts();
 
+    // Customer Acquisition Filter listener
     const acqFilter = document.getElementById('acquisitionFilter');
     if (acqFilter) {
         acqFilter.addEventListener('change', updateAcquisitionDisplay);
+    }
+
+    // Recent Transactions date filter listeners
+    const txDateFilter = document.getElementById('txDateFilter');
+    const txCustomDate = document.getElementById('txCustomDate');
+    const prevBtn = document.getElementById('prevTxBtn');
+    const nextBtn = document.getElementById('nextTxBtn');
+
+    if (txDateFilter) {
+        txDateFilter.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                txCustomDate.style.display = 'inline-block';
+                if (!txCustomDate.value) {
+                    txCustomDate.value = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                txCustomDate.style.display = 'none';
+            }
+            applyTransactionFilters();
+        });
+    }
+
+    if (txCustomDate) {
+        txCustomDate.addEventListener('change', applyTransactionFilters);
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentTxPage > 1) {
+                currentTxPage--;
+                renderPaginatedTransactions();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredOrders.length / TX_PAGE_SIZE) || 1;
+            if (currentTxPage < totalPages) {
+                currentTxPage++;
+                renderPaginatedTransactions();
+            }
+        });
     }
 
     await loadPageData();
@@ -195,48 +245,9 @@ async function loadPageData() {
             }
         }
 
-        // 5. Recent Transactions Inside the Right Panel
-        const ordersGrid = document.getElementById('recentOrdersGrid');
-        if (ordersGrid) {
-            if (data.recentOrders && data.recentOrders.length > 0) {
-                ordersGrid.innerHTML = data.recentOrders.map(ord => {
-                    const dateFormatted = new Date(ord.placed_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: '2-digit',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                    });
-                    const amount = Number(ord.total_amount || 0).toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
-
-                    const isGuest = !ord.customer_id;
-                    const badgeClass = isGuest ? 'badge-guest' : 'badge-member';
-                    const badgeText = isGuest ? 'Guest' : 'Member';
-                    const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Anonymous Customer');
-
-                    return `
-                        <div class="order-row-item">
-                            <div class="row-item-main">
-                                <div class="name-badge-group">
-                                    <span class="customer-name-bold">${displayName}</span>
-                                    <span class="client-badge ${badgeClass}">${badgeText}</span>
-                                </div>
-                                <div class="order-amount-display">₱${amount}</div>
-                            </div>
-                            <div class="row-item-footer">
-                                <span class="order-meta-info">${escapeHtml(ord.order_number || '')} • ${dateFormatted}</span>
-                                <span>Status: <strong>${escapeHtml(ord.status || 'PENDING')}</strong></span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                ordersGrid.innerHTML = '<p class="loading-state-text">No recent transactions recorded.</p>';
-            }
-        }
+        // 5. Store Orders and Apply Filter & Pager
+        allFetchedOrders = data.recentOrders || [];
+        applyTransactionFilters();
 
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -245,6 +256,112 @@ async function loadPageData() {
             ordersGrid.innerHTML = '<div class="error-state-box">Failed to load data. Please ensure backend server and Supabase are running.</div>';
         }
     }
+}
+
+// Logic para sa Recent Transactions Date Filter
+function applyTransactionFilters() {
+    const filterType = document.getElementById('txDateFilter')?.value || 'today';
+    const customDateVal = document.getElementById('txCustomDate')?.value;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    filteredOrders = allFetchedOrders.filter(ord => {
+        if (!ord.placed_at) return false;
+        const ordDate = new Date(ord.placed_at);
+        const ordDateStr = ord.placed_at.split('T')[0];
+
+        if (filterType === 'today') {
+            return ordDateStr === todayStr;
+        } else if (filterType === 'week') {
+            return ordDate >= weekAgo;
+        } else if (filterType === 'month') {
+            return ordDate >= startOfMonth;
+        } else if (filterType === 'custom') {
+            return ordDateStr === customDateVal;
+        }
+        return true; // 'all'
+    });
+
+    currentTxPage = 1;
+    renderPaginatedTransactions();
+}
+
+// Render lang ang 4 na orders sa aktibong page
+function renderPaginatedTransactions() {
+    const ordersGrid = document.getElementById('recentOrdersGrid');
+    const paginationBar = document.getElementById('txPaginationBar');
+    const pageInfo = document.getElementById('txPageInfo');
+    const pageNum = document.getElementById('txPageNum');
+    const prevBtn = document.getElementById('prevTxBtn');
+    const nextBtn = document.getElementById('nextTxBtn');
+
+    if (!ordersGrid) return;
+
+    if (filteredOrders.length === 0) {
+        ordersGrid.innerHTML = '<p class="loading-state-text">No transactions found for the selected period.</p>';
+        if (paginationBar) paginationBar.style.display = 'none';
+        return;
+    }
+
+    if (paginationBar) paginationBar.style.display = 'flex';
+
+    const totalPages = Math.ceil(filteredOrders.length / TX_PAGE_SIZE);
+    const startIndex = (currentTxPage - 1) * TX_PAGE_SIZE;
+    const pageItems = filteredOrders.slice(startIndex, startIndex + TX_PAGE_SIZE);
+
+    // Update UI Pager Text & Button States
+    if (pageInfo) {
+        const startNum = startIndex + 1;
+        const endNum = Math.min(startIndex + TX_PAGE_SIZE, filteredOrders.length);
+        pageInfo.textContent = `Showing ${startNum}-${endNum} of ${filteredOrders.length}`;
+    }
+    if (pageNum) {
+        pageNum.textContent = `${currentTxPage} / ${totalPages}`;
+    }
+    if (prevBtn) prevBtn.disabled = currentTxPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentTxPage >= totalPages;
+
+    // Render Cards
+    ordersGrid.innerHTML = pageItems.map(ord => {
+        const dateFormatted = new Date(ord.placed_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+        const amount = Number(ord.total_amount || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        const isGuest = !ord.customer_id;
+        const badgeClass = isGuest ? 'badge-guest' : 'badge-member';
+        const badgeText = isGuest ? 'Guest' : 'Member';
+        const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Anonymous Customer');
+
+        return `
+            <div class="order-row-item">
+                <div class="row-item-main">
+                    <div class="name-badge-group">
+                        <span class="customer-name-bold">${displayName}</span>
+                        <span class="client-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="order-amount-display">₱${amount}</div>
+                </div>
+                <div class="row-item-footer">
+                    <span class="order-meta-info">${escapeHtml(ord.order_number || '')} • ${dateFormatted}</span>
+                    <span>Status: <strong>${escapeHtml(ord.status || 'PENDING')}</strong></span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function updateAcquisitionDisplay() {
