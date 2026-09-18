@@ -185,12 +185,22 @@ window.renderOrderSummaryModal = async function(items = []) {
       const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 15.00;
       const qty = parseInt(item.quantity ?? 1, 10);
       const lineTotal = price * qty;
+      const hasLayers = !!(item.flavor_img || item.cup_img || item.toppings_img);
       const thumbSrc = item.image || item.flavor_img || 'images/1.jpg';
+      const thumbHtml = hasLayers
+        ? `
+            <div class="composite-cart-thumb summary-composite-thumb">
+              ${item.flavor_img ? `<img src="${item.flavor_img}" alt="Flavor Layer" class="cart-layer-flavor" onerror="this.style.display='none'">` : ''}
+              ${item.toppings_img ? `<img src="${item.toppings_img}" alt="Toppings Layer" class="cart-layer-toppings" onerror="this.style.display='none'">` : ''}
+              ${item.cup_img ? `<img src="${item.cup_img}" alt="Cup Outline" class="cart-layer-cup" onerror="this.style.display='none'">` : ''}
+            </div>
+          `
+        : `<img src="${thumbSrc}" alt="Cup" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.src='images/1.jpg'">`;
 
       return `
         <div class="summary-cup-item" style="display: flex; align-items: center; justify-content: space-between; background: #FFF4F2; border-radius: 18px; padding: 12px 16px; margin-bottom: 8px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${thumbSrc}" alt="Cup" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.src='images/1.jpg'">
+            ${thumbHtml}
             <div style="display: flex; flex-direction: column;">
               <h4 style="font-size: 14.5px; font-weight: 800; color: #594A42; margin: 0;">${item.size || '12oz'} ${item.title || 'Milky Marble Cup'}</h4>
               <span style="font-size: 12px; font-weight: 600; color: #7C4F38;">${item.toppings || ''} ${item.addons || ''}</span>
