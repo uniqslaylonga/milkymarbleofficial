@@ -1226,6 +1226,7 @@ app.patch('/api/customer/preferences', async (req, res) => {
 
     return res.json({ status: 'success', message: 'Preference updated successfully!' });
   } catch (err) {
+    console.error('[preferences] Unexpected error:', err.message);
     return res.status(500).json({ status: 'error', message: 'Failed to update preference.' });
   }
 });

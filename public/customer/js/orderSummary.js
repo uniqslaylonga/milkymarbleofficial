@@ -23,7 +23,12 @@ function getStoredUser() {
 
 async function getActiveCustomerProfile() {
   try {
-    const res = await fetch('/api/customer/profile', {
+    const stored = getStoredUser();
+    const idParams = new URLSearchParams();
+    if (stored.customer_id) idParams.set('customer_id', stored.customer_id);
+    else if (stored.user_id || stored.id) idParams.set('user_id', stored.user_id || stored.id);
+
+    const res = await fetch(`/api/customer/profile${idParams.toString() ? '?' + idParams.toString() : ''}`, {
       credentials: 'include',
       headers: { 'Accept': 'application/json' }
     });
