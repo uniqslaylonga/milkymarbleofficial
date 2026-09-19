@@ -722,14 +722,28 @@ app.get(['/api/customer/profile', '/api/customers/profile'], async (req, res) =>
     let lastPaymentMethod = null;
     if (supabase && customerRecord && customerRecord.id) {
       try {
-        const { data: lastOrder } = await supabase
+        // Look at the few most recent orders (not just one) so a single row
+        // with an empty payment_method can't hide the real last-used method.
+        const { data: recentOrders, error: lastOrderErr } = await supabase
           .from('orders')
-          .select('payment_method')
+          .select('payment_method, pickup_instructions')
           .eq('customer_id', customerRecord.id)
           .order('placed_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (lastOrder) lastPaymentMethod = lastOrder.payment_method || null;
+          .limit(10);
+
+        if (lastOrderErr) {
+          console.warn('Could not resolve last payment method for customer', customerRecord.id, lastOrderErr.message);
+        } else if (Array.isArray(recentOrders)) {
+          for (const o of recentOrders) {
+            let m = o.payment_method;
+            if (!m && o.pickup_instructions) {
+              // Older orders only stored it in text: "Pick-up: ... | Payment: E-Wallet"
+              const match = String(o.pickup_instructions).match(/Payment:\s*(.+)$/i);
+              if (match) m = match[1].trim();
+            }
+            if (m) { lastPaymentMethod = m; break; }
+          }
+        }
       } catch (e) {
         console.warn('Could not resolve last payment method for customer', customerRecord.id, e);
       }
@@ -1226,6 +1240,7 @@ app.patch('/api/customer/preferences', async (req, res) => {
 
     return res.json({ status: 'success', message: 'Preference updated successfully!' });
   } catch (err) {
+    console.error('[preferences] Unexpected error:', err.message);
     return res.status(500).json({ status: 'error', message: 'Failed to update preference.' });
   }
 });

@@ -21,6 +21,22 @@ function getStoredUser() {
   }
 }
 
+// Map whatever is stored (e.g. "Cash", "GCash", "E-wallet") onto the two
+// checkout pill labels so a slightly different saved value still matches.
+function normalizePaymentMethod(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return '';
+  if (/cash/i.test(v)) return 'Cash on Pick-Up';
+  if (/wallet|gcash|maya|paymongo|qr\s*ph|online/i.test(v)) return 'E-Wallet';
+  return v;
+}
+
+// Browser-side memory of the last method used, so auto-select still works
+// even if the server can't work it out from order history.
+function lastPaymentStorageKey(customerId) {
+  return `mm_last_payment_${customerId || 'guest'}`;
+}
+
 async function getActiveCustomerProfile() {
   try {
     const stored = getStoredUser();
@@ -227,15 +243,30 @@ window.renderOrderSummaryModal = async function(items = []) {
   if (ewalletHint) ewalletHint.style.display = 'none';
 
   // Auto-select the customer's saved payment preference. If they never set
-  // one in Account Settings, fall back to whichever method they used last.
+  // one in Account Settings, fall back to whichever method they used last
+  // (from the server's order history, then from this browser's memory).
   if (activeCustomer) {
-    const preferredMethod = activeCustomer.payment_preference || activeCustomer.last_payment_method || '';
-    if (preferredMethod) {
-      const matchingPill = Array.from(document.querySelectorAll('.payment-method-pill'))
-        .find(btn => (btn.getAttribute('data-method') || btn.textContent).trim() === preferredMethod);
-      if (matchingPill) {
-        window.selectPaymentMethod(matchingPill);
-      }
+    const custKey = activeCustomer.customer_id || activeCustomer.id;
+    let localLast = '';
+    try { localLast = localStorage.getItem(lastPaymentStorageKey(custKey)) || ''; } catch (e) {}
+
+    const preferredMethod = normalizePaymentMethod(
+      activeCustomer.payment_preference || activeCustomer.last_payment_method || localLast
+    );
+    const matchingPill = preferredMethod
+      ? Array.from(document.querySelectorAll('.payment-method-pill'))
+          .find(btn => normalizePaymentMethod(btn.getAttribute('data-method') || btn.textContent) === preferredMethod)
+      : null;
+
+    console.debug('[checkout] payment auto-select', {
+      payment_preference: activeCustomer.payment_preference || null,
+      last_payment_method: activeCustomer.last_payment_method || null,
+      local_last: localLast || null,
+      picked: matchingPill ? preferredMethod : null
+    });
+
+    if (matchingPill) {
+      window.selectPaymentMethod(matchingPill);
     }
   }
 
@@ -872,6 +903,9 @@ window.confirmPlaceOrder = async function() {
 
     if (res.ok && data.status === 'success') {
       const orderObj = data.order || data.data || {};
+      if (!isGuest && customerId) {
+        try { localStorage.setItem(lastPaymentStorageKey(customerId), paymentMethodForOrder); } catch (e) {}
+      }
       const isEwallet = /wallet|gcash|maya|online|paymongo/i.test(paymentMethodForOrder) && !paymentMethodForOrder.toLowerCase().includes('cash');
       const needsEwalletPayment = isEwallet && orderObj.status !== 'PAID_VERIFIED';
 
