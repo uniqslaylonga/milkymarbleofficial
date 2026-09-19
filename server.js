@@ -2079,6 +2079,304 @@ app.get('/api/ceo/staff-directory', async (req, res) => {
   }
 });
 
+
+// ==========================================
+// MANAGEMENT ADMIN CUSTOMER STATUS TOGGLE
+// ==========================================
+app.post('/api/admin/customer-records/status', async (req, res) => {
+  try {
+    if (!supabase) throw new Error('Database disconnected');
+    const { id, is_active } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Missing customer id.' });
+    }
+
+    // "id" here is the customers.id (customer_id), so resolve the linked user first.
+    const { data: customerRow, error: custErr } = await supabase
+      .from('customers')
+      .select('user_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (custErr) throw custErr;
+    if (!customerRow) {
+      return res.status(404).json({ success: false, error: 'Customer not found.' });
+    }
+
+    const { error: userErr } = await supabase
+      .from('users')
+      .update({ is_active: is_active === 1 || is_active === '1' || is_active === true })
+      .eq('id', customerRow.user_id);
+
+    if (userErr) throw userErr;
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Customer status toggle error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN ADD / EDIT EMPLOYEE
+// ==========================================
+const employeeAvatarUpload = (req, res, next) => {
+  if (upload) {
+    return upload.single('avatar_file')(req, res, next);
+  }
+  next();
+};
+
+app.post('/api/admin/add-employee', employeeAvatarUpload, async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const { username, email, password, full_name, gender, job_title, department } = req.body;
+
+    if (!username || !email || !password || !full_name) {
+      return res.status(400).json({ status: 'error', message: 'Missing required fields.' });
+    }
+
+    const cleanUsername = String(username).trim();
+
+    // Prevent duplicate usernames
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', cleanUsername)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(409).json({ status: 'error', message: 'That username is already taken.' });
+    }
+
+    let passwordHash = password;
+    if (bcrypt) {
+      try {
+        passwordHash = await bcrypt.hash(password, 10);
+      } catch (err) {
+        console.error('[ADD EMPLOYEE] Bcrypt hash error:', err);
+      }
+    }
+
+    let avatarUrl = null;
+    if (req.file) {
+      avatarUrl = `/images/uploads/${req.file.filename}`;
+    }
+
+    // 1. Create the base user account
+    const { data: newUser, error: userErr } = await supabase
+      .from('users')
+      .insert([{
+        username: cleanUsername,
+        email: email,
+        password_hash: passwordHash,
+        full_name: full_name,
+        user_type: 'employee',
+        is_active: true,
+        avatar: avatarUrl
+      }])
+      .select()
+      .single();
+
+    if (userErr) throw userErr;
+
+    // 2. Create the linked employee profile
+    const employeeCode = 'EMP-' + String(newUser.id).padStart(3, '0');
+
+    const { data: newEmployee, error: empErr } = await supabase
+      .from('employees')
+      .insert([{
+        user_id: newUser.id,
+        employee_code: employeeCode,
+        job_title: job_title || 'Unassigned',
+        department: department || 'General',
+        gender: gender || 'Not Specified'
+      }])
+      .select()
+      .single();
+
+    if (empErr) throw empErr;
+
+    return res.json({
+      status: 'success',
+      message: 'Employee added successfully.',
+      employee: { ...newEmployee, full_name: newUser.full_name, username: newUser.username, email: newUser.email }
+    });
+  } catch (error) {
+    console.error('Add Employee Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.post('/api/admin/edit-employee', employeeAvatarUpload, async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const { emp_id, user_id, full_name, gender, job_title, department, username, email } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ status: 'error', message: 'Missing user_id.' });
+    }
+
+    // 1. Update the base user account
+    const userUpdates = {};
+    if (full_name) userUpdates.full_name = full_name;
+    if (username) userUpdates.username = username;
+    if (email) userUpdates.email = email;
+    if (req.file) userUpdates.avatar = `/images/uploads/${req.file.filename}`;
+
+    if (Object.keys(userUpdates).length > 0) {
+      const { error: userErr } = await supabase
+        .from('users')
+        .update(userUpdates)
+        .eq('id', user_id);
+
+      if (userErr) throw userErr;
+    }
+
+    // 2. Update (or create, if missing) the linked employee profile
+    const empUpdates = {};
+    if (job_title !== undefined) empUpdates.job_title = job_title;
+    if (department !== undefined) empUpdates.department = department;
+    if (gender !== undefined) empUpdates.gender = gender;
+
+    if (emp_id) {
+      const { error: empErr } = await supabase
+        .from('employees')
+        .update(empUpdates)
+        .eq('id', emp_id);
+
+      if (empErr) throw empErr;
+    } else {
+      const employeeCode = 'EMP-' + String(user_id).padStart(3, '0');
+      const { error: empErr } = await supabase
+        .from('employees')
+        .insert([{ user_id: user_id, employee_code: employeeCode, ...empUpdates }]);
+
+      if (empErr) throw empErr;
+    }
+
+    return res.json({ status: 'success', message: 'Employee updated successfully.' });
+  } catch (error) {
+    console.error('Edit Employee Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT CEO DASHBOARD API (Supabase)
+// ==========================================
+app.get('/api/ceo/dashboard', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const userId = req.headers['x-user-id'] || req.query.user_id;
+    let userFullName = 'Gabriel Louis M. Espadilla';
+    let userAvatar = '../images/account.png';
+
+    // 1. Fetch logged-in CEO profile (fallback to the default ceo1 account)
+    let userRows = null;
+    if (userId) {
+      const { data: foundUser } = await supabase
+        .from('users')
+        .select('id, full_name, avatar')
+        .eq('id', userId)
+        .maybeSingle();
+      if (foundUser) userRows = foundUser;
+    }
+    if (!userRows) {
+      const { data: defaultCeo } = await supabase
+        .from('users')
+        .select('id, full_name, avatar')
+        .eq('username', 'ceo1')
+        .limit(1)
+        .maybeSingle();
+      if (defaultCeo) userRows = defaultCeo;
+    }
+
+    if (userRows) {
+      if (userRows.full_name) userFullName = userRows.full_name;
+      if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+        const cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+        userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+      }
+    }
+
+    // 2. Top-level KPIs
+    const { data: completedOrders } = await supabase
+      .from('orders')
+      .select('id, placed_at, total_amount')
+      .eq('status', 'COMPLETED');
+
+    let totalSales = 0;
+    const orderDates = {};
+    (completedOrders || []).forEach(o => {
+      totalSales += (parseFloat(o.total_amount) || 0);
+      orderDates[o.id] = new Date(o.placed_at);
+    });
+
+    const { count: totalCustomers } = await supabase
+      .from('customers')
+      .select('*', { count: 'exact', head: true });
+
+    // 3. Revenue chart data (monthly + yearly, by flavor)
+    let monthlyCoffee = new Array(12).fill(0), monthlyStrawberry = new Array(12).fill(0), monthlyPandan = new Array(12).fill(0);
+    let yearlyCoffee = [0, 0, 0, 0], yearlyStrawberry = [0, 0, 0, 0], yearlyPandan = [0, 0, 0, 0];
+
+    try {
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('line_total, order_id, item_label, flavor_value_id');
+
+      if (items) {
+        items.forEach(item => {
+          if (orderDates[item.order_id]) {
+            const date = orderDates[item.order_id];
+            const month = date.getMonth();
+            const yearIndex = date.getFullYear() - 2024;
+            const amt = parseFloat(item.line_total) || 0;
+            const label = (item.item_label || '').toLowerCase();
+            const fId = parseInt(item.flavor_value_id, 10);
+
+            if (label.includes('strawberr') || fId === 3) {
+              monthlyStrawberry[month] += amt;
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyStrawberry[yearIndex] += amt;
+            } else if (label.includes('pandan') || fId === 4) {
+              monthlyPandan[month] += amt;
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyPandan[yearIndex] += amt;
+            } else {
+              monthlyCoffee[month] += amt;
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyCoffee[yearIndex] += amt;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Could not compute CEO dashboard chart breakdown', e);
+    }
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      stats: {
+        totalSales,
+        totalCustomers: totalCustomers || 0
+      },
+      chart: {
+        months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        years: ['2024', '2025', '2026', '2027'],
+        monthlyCoffee, monthlyStrawberry, monthlyPandan,
+        yearlyCoffee, yearlyStrawberry, yearlyPandan
+      }
+    });
+  } catch (error) {
+    console.error('CEO dashboard fetch error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ status: 'error', message: 'Endpoint not found.' });
 });
