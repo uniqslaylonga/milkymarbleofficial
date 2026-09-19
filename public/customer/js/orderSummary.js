@@ -228,16 +228,11 @@ window.renderOrderSummaryModal = async function(items = []) {
 
   // Auto-select the customer's saved payment preference. If they never set
   // one in Account Settings, fall back to whichever method they used last.
-  console.log('[DEBUG payment-pref] activeCustomer:', activeCustomer);
   if (activeCustomer) {
     const preferredMethod = activeCustomer.payment_preference || activeCustomer.last_payment_method || '';
-    console.log('[DEBUG payment-pref] preferredMethod:', JSON.stringify(preferredMethod));
     if (preferredMethod) {
-      const pillTexts = Array.from(document.querySelectorAll('.payment-method-pill')).map(btn => (btn.getAttribute('data-method') || btn.innerText).trim());
-      console.log('[DEBUG payment-pref] available pill labels:', JSON.stringify(pillTexts));
       const matchingPill = Array.from(document.querySelectorAll('.payment-method-pill'))
-        .find(btn => (btn.getAttribute('data-method') || btn.innerText).trim() === preferredMethod);
-      console.log('[DEBUG payment-pref] matchingPill found:', !!matchingPill);
+        .find(btn => (btn.getAttribute('data-method') || btn.textContent).trim() === preferredMethod);
       if (matchingPill) {
         window.selectPaymentMethod(matchingPill);
       }
@@ -432,7 +427,7 @@ function updateSummaryTotals() {
 window.selectPaymentMethod = function(btnElement) {
   document.querySelectorAll('.payment-method-pill').forEach(b => b.classList.remove('active'));
   btnElement.classList.add('active');
-  selectedPaymentMethod = (btnElement.getAttribute('data-method') || btnElement.innerText).trim();
+  selectedPaymentMethod = (btnElement.getAttribute('data-method') || btnElement.textContent).trim();
 
   const paymentReq = document.getElementById('paymentRequiredMsg');
   if (paymentReq) paymentReq.style.display = 'none';
