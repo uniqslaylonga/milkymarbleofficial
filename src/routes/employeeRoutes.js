@@ -33,12 +33,15 @@ async function getEmployeeProfile(req) {
   if (userId && supabase) {
     const { data: user } = await supabase
       .from('users')
-      .select('full_name, avatar')
+      .select('full_name, username, avatar')
       .eq('id', userId)
       .maybeSingle();
 
     if (user) {
-      fullName = user.full_name || fullName;
+      // Prefer the real full name; if that column is empty for this account,
+      // show the username rather than the generic 'Employee' placeholder.
+      const cleanFull = (user.full_name || '').trim();
+      fullName = cleanFull || (user.username || '').trim() || fullName;
       const rawAvatar = user.avatar;
       if (rawAvatar && rawAvatar !== 'account.png') {
         avatarUrl = rawAvatar.startsWith('/') || rawAvatar.startsWith('http')

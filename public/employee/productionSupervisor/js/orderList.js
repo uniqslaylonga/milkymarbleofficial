@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchOrderListData() {
     try {
-        const response = await fetch('/api/production-supervisor/order-list');
+        const response = await employeeFetch('/api/production-supervisor/order-list');
         if (!response.ok) throw new Error('Failed to load order list data');
 
         const data = await response.json();

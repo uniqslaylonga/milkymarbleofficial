@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchProductionPlanningData() {
     try {
-        const response = await fetch('/api/production-supervisor/production-planning');
+        const response = await employeeFetch('/api/production-supervisor/production-planning');
         if (!response.ok) throw new Error('Failed to load production planning data');
 
         const data = await response.json();
@@ -184,7 +184,7 @@ async function handleAddPlan(e) {
     }
 
     try {
-        const response = await fetch('/api/production-supervisor/add-plan', {
+        const response = await employeeFetch('/api/production-supervisor/add-plan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operation, due_date, schedule_time, status })
@@ -213,7 +213,7 @@ async function handleEditPlan(e) {
     const status = document.getElementById('editStatus').value;
 
     try {
-        const response = await fetch('/api/production-supervisor/edit-plan', {
+        const response = await employeeFetch('/api/production-supervisor/edit-plan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan_id, operation, due_date, schedule_time, status })

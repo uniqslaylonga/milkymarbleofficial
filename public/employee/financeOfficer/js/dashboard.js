@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchFinanceDashboardData() {
     try {
-        const response = await fetch('/api/finance-officer/dashboard');
+        const response = await employeeFetch('/api/finance-officer/dashboard');
         if (!response.ok) throw new Error('Failed to load dashboard data');
 
         const data = await response.json();
