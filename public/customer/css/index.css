@@ -785,7 +785,7 @@ body {
     display: none;
   }
   .hero-guest-text {
-    transform: translateX(20px); /* positive = right, negative = left; adjust value */
+    transform: translateX(20px); 
   }
 }
 

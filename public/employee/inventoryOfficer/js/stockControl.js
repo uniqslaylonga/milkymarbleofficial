@@ -131,7 +131,7 @@ function renderLowStockAlerts(alerts) {
 
                     <div class="alert-actions">
                         <span class="urgent-tag">Urgent</span>
-                        <a href="../inventorySection.html?handle_id=${alert.id}" class="handle-btn">
+                        <a href="inventorySection.html?handle_id=${alert.id}" class="handle-btn">
                             <i class="fa-solid fa-check"></i> Handle
                         </a>
                     </div>
