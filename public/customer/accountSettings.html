@@ -178,6 +178,34 @@
                 </div>
             </section>
 
+            <!-- 3.5 Payment Preference Card -->
+            <section class="settings-section-card">
+                <div class="section-card-header">
+                    <div class="section-header-title">
+                        <i class="fa-solid fa-wallet"></i>
+                        <h2>Payment Preference</h2>
+                    </div>
+                    <p class="section-header-desc">Choose the payment method we should pre-select for you at checkout.</p>
+                </div>
+
+                <div class="payment-pref-pills-row">
+                    <button type="button" class="payment-pref-pill" data-method="Cash on Pick-Up" onclick="selectPaymentPreference(this)">
+                        <i class="fa-solid fa-money-bill-wave"></i> Cash on Hand
+                    </button>
+                    <button type="button" class="payment-pref-pill" data-method="E-Wallet" onclick="selectPaymentPreference(this)">
+                        <i class="fa-solid fa-mobile-screen-button"></i> E-Wallet
+                    </button>
+                </div>
+
+                <p class="payment-pref-note" id="paymentPrefNote">
+                    No preference set — we'll auto-select whichever method you used last at checkout.
+                </p>
+
+                <button type="button" class="btn-clear-payment-pref" id="btnClearPaymentPref" onclick="clearPaymentPreference()" style="display: none;">
+                    Clear preference (go back to auto)
+                </button>
+            </section>
+
             <!-- 4. Account Summary Metadata Card -->
             <section class="settings-section-card">
                 <div class="section-card-header">

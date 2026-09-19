@@ -80,6 +80,9 @@ function populateSettingsUI(data) { //[cite: 4]
     document.getElementById('toggle_notify_email_receipts').checked = Boolean(data.notify_email_receipts); //[cite: 4]
     document.getElementById('toggle_notify_promos').checked = Boolean(data.notify_promos); //[cite: 4]
 
+    // Payment Preference
+    populatePaymentPreferenceUI(data.payment_preference || null);
+
     // Metadata Grid[cite: 4]
     const formattedId = `MM-CUST-${String(data.id || 0).padStart(4, '0')}`; //[cite: 4]
     document.getElementById('metaCustomerId').textContent = formattedId; //[cite: 4]
@@ -194,6 +197,75 @@ async function updateAccountPreference(prefKey, isChecked, label) { //[cite: 4]
             title: 'Connection Error', //[cite: 4]
             text: 'Could not connect to update preference.' //[cite: 4]
         }); //[cite: 4]
+    }
+}
+
+// Reflect the saved payment preference (or "auto") on the pills
+function populatePaymentPreferenceUI(preference) {
+    const pills = document.querySelectorAll('.payment-pref-pill');
+    pills.forEach(pill => {
+        const isMatch = pill.getAttribute('data-method') === preference;
+        pill.classList.toggle('active', isMatch);
+    });
+
+    const note = document.getElementById('paymentPrefNote');
+    const clearBtn = document.getElementById('btnClearPaymentPref');
+
+    if (preference) {
+        if (note) note.textContent = `We'll pre-select "${preference}" for you at checkout.`;
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+    } else {
+        if (note) note.textContent = "No preference set — we'll auto-select whichever method you used last at checkout.";
+        if (clearBtn) clearBtn.style.display = 'none';
+    }
+}
+
+// Save a chosen payment preference (Cash on Hand / E-Wallet)
+async function selectPaymentPreference(pillElement) {
+    const method = pillElement.getAttribute('data-method');
+    await savePaymentPreference(method, `Payment preference set to ${method}.`);
+}
+
+// Clear the saved preference so checkout falls back to "last used"
+async function clearPaymentPreference() {
+    await savePaymentPreference(null, "Preference cleared — we'll use whichever method you used last.");
+}
+
+async function savePaymentPreference(method, successMessage) {
+    try {
+        const res = await fetch('/api/customer/preferences', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'payment_preference', value: method })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            populatePaymentPreferenceUI(method);
+            if (currentCustomerData) currentCustomerData.payment_preference = method;
+
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2800,
+                timerProgressBar: false,
+                customClass: { popup: 'custom-swal-toast' }
+            });
+            Toast.fire({ icon: 'success', title: successMessage });
+        } else {
+            SettingsSwal.fire({
+                icon: 'error',
+                title: 'Oops!',
+                text: data.message || 'Could not update your payment preference.'
+            });
+        }
+    } catch {
+        SettingsSwal.fire({
+            icon: 'error',
+            title: 'Connection Error',
+            text: 'Could not connect to update your payment preference.'
+        });
     }
 }
 

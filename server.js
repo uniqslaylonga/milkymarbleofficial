@@ -716,6 +716,25 @@ app.get(['/api/customer/profile', '/api/customers/profile'], async (req, res) =>
     const resolvedEmail = (userRecord && userRecord.email) || (customerRecord && customerRecord.email) || '';
     const resolvedPhone = (customerRecord && (customerRecord.phone || customerRecord.phone_number)) || (userRecord && (userRecord.phone || userRecord.phone_number)) || '';
 
+    // Payment preference: an explicit choice saved in Account Settings takes
+    // priority. If the customer never set one, fall back to whichever
+    // payment method they used most recently, so checkout can auto-select it.
+    let lastPaymentMethod = null;
+    if (supabase && customerRecord && customerRecord.id) {
+      try {
+        const { data: lastOrder } = await supabase
+          .from('orders')
+          .select('payment_method')
+          .eq('customer_id', customerRecord.id)
+          .order('placed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastOrder) lastPaymentMethod = lastOrder.payment_method || null;
+      } catch (e) {
+        console.warn('Could not resolve last payment method for customer', customerRecord.id, e);
+      }
+    }
+
     const profileData = {
       id: customerRecord ? customerRecord.id : userRecord.id,
       customer_id: customerRecord ? customerRecord.id : null,
@@ -723,6 +742,11 @@ app.get(['/api/customer/profile', '/api/customers/profile'], async (req, res) =>
       phone: resolvedPhone,
       phone_number: resolvedPhone,
       loyalty_points: customerRecord ? (parseFloat(customerRecord.loyalty_points) || 0) : 0,
+      payment_preference: (customerRecord && customerRecord.payment_preference) || null,
+      last_payment_method: lastPaymentMethod,
+      notify_pickup: customerRecord ? Boolean(customerRecord.notify_pickup) : false,
+      notify_email_receipts: customerRecord ? Boolean(customerRecord.notify_email_receipts) : false,
+      notify_promos: customerRecord ? Boolean(customerRecord.notify_promos) : false,
       users: {
         id: userRecord ? userRecord.id : null,
         full_name: resolvedFullName,
@@ -1163,15 +1187,27 @@ app.patch('/api/customer/preferences', async (req, res) => {
     if (!customerId) return res.status(401).json({ status: 'error', message: 'Authentication required.' });
 
     const { key, value } = req.body;
-    const validKeys = ['notify_pickup', 'notify_email_receipts', 'notify_promos'];
-    if (!validKeys.includes(key)) {
+    const booleanKeys = ['notify_pickup', 'notify_email_receipts', 'notify_promos'];
+    const VALID_PAYMENT_METHODS = ['Cash on Pick-Up', 'E-Wallet'];
+
+    let updatePayload;
+    if (booleanKeys.includes(key)) {
+      updatePayload = { [key]: Boolean(value) };
+    } else if (key === 'payment_preference') {
+      // Allow clearing the preference (null/empty) to fall back to
+      // "auto" mode, which uses the customer's last-used payment method.
+      if (value !== null && value !== '' && !VALID_PAYMENT_METHODS.includes(value)) {
+        return res.status(400).json({ status: 'error', message: 'Invalid payment method.' });
+      }
+      updatePayload = { payment_preference: value || null };
+    } else {
       return res.status(400).json({ status: 'error', message: 'Invalid preference key.' });
     }
 
     if (supabase) {
       await supabase
         .from('customers')
-        .update({ [key]: Boolean(value) })
+        .update(updatePayload)
         .eq('id', customerId);
     }
 

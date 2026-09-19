@@ -221,6 +221,19 @@ window.renderOrderSummaryModal = async function(items = []) {
   const ewalletHint = document.getElementById('ewalletHint');
   if (ewalletHint) ewalletHint.style.display = 'none';
 
+  // Auto-select the customer's saved payment preference. If they never set
+  // one in Account Settings, fall back to whichever method they used last.
+  if (activeCustomer) {
+    const preferredMethod = activeCustomer.payment_preference || activeCustomer.last_payment_method || '';
+    if (preferredMethod) {
+      const matchingPill = Array.from(document.querySelectorAll('.payment-method-pill'))
+        .find(btn => (btn.getAttribute('data-method') || btn.innerText).trim() === preferredMethod);
+      if (matchingPill) {
+        window.selectPaymentMethod(matchingPill);
+      }
+    }
+  }
+
   const promoInput = document.getElementById('promoCodeInput');
   if (promoInput) promoInput.value = '';
   const promoMsg = document.getElementById('promoAppliedMsg');
