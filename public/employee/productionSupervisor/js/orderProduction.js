@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchOrderProductionData(orderId) {
     try {
-        const response = await fetch(`/api/production-supervisor/order-production?order_id=${orderId}`);
+        const response = await employeeFetch(`/api/production-supervisor/order-production?order_id=${orderId}`);
         if (!response.ok) throw new Error('Failed to load order production data');
 
         const data = await response.json();
@@ -116,7 +116,7 @@ async function handleCompleteOrder(e) {
     }
 
     try {
-        const response = await fetch('/api/production-supervisor/complete-order', {
+        const response = await employeeFetch('/api/production-supervisor/complete-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ order_id: currentOrderId })

@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchInventorySectionData() {
     try {
-        const response = await fetch('/api/procurement-officer/inventory-section');
+        const response = await employeeFetch('/api/procurement-officer/inventory-section');
         if (!response.ok) throw new Error('Failed to load inventory section data');
 
         const data = await response.json();
@@ -195,7 +195,7 @@ async function handleAddStock(e) {
     }
 
     try {
-        const response = await fetch('/api/procurement-officer/add-stock', {
+        const response = await employeeFetch('/api/procurement-officer/add-stock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, department, quantity, unit, reorder_level })
@@ -223,7 +223,7 @@ async function handleAdjustStock(e) {
     const reorder_level = parseFloat(document.getElementById('adjustItemReorder').value);
 
     try {
-        const response = await fetch('/api/procurement-officer/adjust-stock', {
+        const response = await employeeFetch('/api/procurement-officer/adjust-stock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ item_id, name, department, quantity, unit, reorder_level })
@@ -248,7 +248,7 @@ async function handleDeleteStock(e) {
 
     const item_id = document.getElementById('deleteItemId').value;
     try {
-        const response = await fetch('/api/procurement-officer/delete-stock', {
+        const response = await employeeFetch('/api/procurement-officer/delete-stock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ item_id })

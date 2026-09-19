@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchProcurementData() {
     try {
-        const response = await fetch('/api/procurement-officer/purchasing-vendor');
+        const response = await employeeFetch('/api/procurement-officer/purchasing-vendor');
         if (!response.ok) throw new Error('Failed to load data');
 
         const data = await response.json();
@@ -186,7 +186,7 @@ async function handleAddRequest(e) {
     }
 
     try {
-        const response = await fetch('/api/procurement-officer/add-request', {
+        const response = await employeeFetch('/api/procurement-officer/add-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ item_name, amount, store_name: vendor_name })
@@ -217,7 +217,7 @@ async function handleAddVendor(e) {
     }
 
     try {
-        const response = await fetch('/api/procurement-officer/add-vendor', {
+        const response = await employeeFetch('/api/procurement-officer/add-vendor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ vendor_name, category, contact, status })
@@ -244,7 +244,7 @@ async function handleEditVendor(e) {
     const status = document.getElementById('editVendorStatus').value;
 
     try {
-        const response = await fetch('/api/procurement-officer/edit-vendor', {
+        const response = await employeeFetch('/api/procurement-officer/edit-vendor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ vendor_id, vendor_name, category, contact, status })
