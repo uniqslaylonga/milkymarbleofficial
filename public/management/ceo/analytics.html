@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="only light">
+    <title>Analytics - Milky Marble</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Sniglet:wght@400;800&family=Urbanist:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/analytics.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand-section">
+            <div class="brand-logo-wrap">
+                <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img">
+            </div>
+            <h1 class="brand-title">Milky Marble</h1>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-link">
+                <i class="fa-solid fa-chart-line nav-icon"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="analytics.html" class="nav-link active">
+                <i class="fa-solid fa-chart-pie nav-icon"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="budgetApproval.html" class="nav-link">
+                <i class="fa-solid fa-file-invoice-dollar nav-icon"></i>
+                <span>Budget Approval</span>
+            </a>
+            <a href="staffDirectory.html" class="nav-link">
+                <i class="fa-solid fa-users nav-icon"></i>
+                <span>Staff Directory</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="../managementlogin.html" class="nav-link logout-btn">
+                <i class="fa-solid fa-right-from-bracket nav-icon"></i>
+                <span>Log out</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="user-profile">
+                    <img id="userAvatarImg" src="../images/account.png" class="user-avatar" style="object-fit: cover; border: none;" alt="User">
+                    <span id="userFullNameDisplay">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section>
+            <h2 class="section-title">Overview</h2>
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="overview-title">New Orders</div>
+                    <div class="overview-body">
+                        <span id="statNewOrders" class="overview-value">0</span>
+                        <i class="fa-regular fa-clipboard overview-icon"></i>
+                    </div>
+                    <div class="overview-change">Live Orders</div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-title">Pre-Order</div>
+                    <div class="overview-body">
+                        <span id="statPreOrders" class="overview-value">0</span>
+                        <i class="fa-solid fa-box-open overview-icon"></i>
+                    </div>
+                    <div class="overview-change">Active Orders</div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-title">Finished Goods</div>
+                    <div class="overview-body">
+                        <span id="statFinishedGoods" class="overview-value">0</span>
+                        <i class="fa-solid fa-cubes-stacked overview-icon"></i>
+                    </div>
+                    <div class="overview-change">Units on Hand</div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-title">Sales</div>
+                    <div class="overview-body">
+                        <span id="statSales" class="overview-value">₱0.00</span>
+                        <i class="fa-solid fa-chart-column overview-icon"></i>
+                    </div>
+                    <div class="overview-change">Completed Total</div>
+                </div>
+            </div>
+        </section>
+
+        <section style="display: flex; flex-direction: column; gap: 20px;">
+            <h2 class="section-title" style="margin-bottom: 0;">Analytics</h2>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Revenue</div>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" id="btnMonths">Months</button>
+                        <button type="button" class="toggle-btn" id="btnYears">Years</button>
+                    </div>
+                </div>
+                <div class="chart-container-large">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bottom-charts-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Sales (Units)</div>
+                    </div>
+                    <div class="chart-container-small">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Customers</div>
+                    </div>
+                    <div class="chart-container-small">
+                        <canvas id="customersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/analytics.js"></script>
+</body>
+</html>

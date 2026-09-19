@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="only light">
+    <title>Milky Marble Dashboard</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- External CSS Files -->
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand-section">
+            <div class="brand-logo-wrap">
+                <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img">
+            </div>
+            <h1 class="brand-title">Milky Marble</h1>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-link active">
+                <i class="fa-solid fa-chart-line nav-icon"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="analytics.html" class="nav-link">
+                <i class="fa-solid fa-chart-pie nav-icon"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="budgetApproval.html" class="nav-link">
+                <i class="fa-solid fa-file-invoice-dollar nav-icon"></i>
+                <span>Budget Approval</span>
+            </a>
+            <a href="staffDirectory.html" class="nav-link">
+                <i class="fa-solid fa-users nav-icon"></i>
+                <span>Staff Directory</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="../managementlogin.html" class="nav-link logout-btn">
+                <i class="fa-solid fa-right-from-bracket nav-icon"></i>
+                <span>Log out</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="user-profile">
+                    <!-- Replaced icon with an actual image tag for the avatar -->
+                    <img id="userAvatarImg" src="../images/account.png" class="user-avatar" style="object-fit: cover; border: none;" alt="User">
+                    <span id="userFullNameDisplay">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="welcome-card">
+            <!-- Added the greetingName span so JavaScript can insert Gabriel's name -->
+            <h1 id="welcomeHeading">Glad to have you here, <span id="greetingName"></span>!</h1>
+            <p>Here's how the sips are moving today.</p>
+        </section>
+
+        <section class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Revenue</div>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn active" id="btnMonths">Months</button>
+                    <button type="button" class="toggle-btn" id="btnYears">Years</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </section>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Sales</div>
+                <div class="stat-body">
+                    <span id="statSales" class="stat-value">₱0.00</span>
+                    <i class="fa-solid fa-chart-simple stat-icon"></i>
+                </div>
+                <div class="stat-change">Live Total</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">Customers</div>
+                <div class="stat-body">
+                    <span id="statCustomers" class="stat-value">0</span>
+                    <i class="fa-solid fa-user-group stat-icon"></i>
+                </div>
+                <div class="stat-change">Registered</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">Inventory</div>
+                <div class="stat-body">
+                    <span id="statInventory" class="stat-value">0</span>
+                    <i class="fa-solid fa-clipboard-check stat-icon"></i>
+                </div>
+                <div class="stat-change">Units on hand</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">Production at a glance</div>
+                <div class="stat-body">
+                    <span id="statProduction" class="stat-value">0</span>
+                    <i class="fa-solid fa-boxes-stacked stat-icon"></i>
+                </div>
+                <div class="stat-change">Cups produced</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1277,6 +1277,808 @@ app.post(['/api/auth/logout', '/auth/logout', '/logout'], (req, res) => {
   return res.json({ status: 'success', message: 'Logged out successfully.' });
 });
 
+// ==========================================
+// MANAGEMENT MODULE (Admin / CEO) — Supabase
+// Uses the shared `supabase` and `bcrypt` clients
+// already initialized above.
+// ==========================================
+// management login
+
+app.post('/api/management/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    console.log(`[LOGIN ATTEMPT] Username received: "${username}"`);
+
+    if (!username || !password) {
+      return res.status(400).json({ status: 'error', message: 'Please enter both username and password.' });
+    }
+
+    if (!supabase) {
+      console.log('[LOGIN ERROR] Supabase client is disconnected.');
+      return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+    }
+
+    const cleanUsername = username.trim();
+
+    // Query Supabase users table
+    const { data: user, error: userErr } = await supabase
+      .from('users')
+      .select('id, username, password_hash, full_name, user_type, is_active')
+      .eq('username', cleanUsername)
+      .maybeSingle();
+
+    if (userErr || !user) {
+      console.log(`[LOGIN ERROR] User not found for: "${cleanUsername}"`, userErr);
+      return res.status(401).json({ status: 'error', message: 'Invalid username or password.' });
+    }
+
+    // Check if account is active
+    if (user.is_active !== undefined && Number(user.is_active) !== 1 && user.is_active !== true) {
+      return res.status(403).json({ status: 'error', message: 'Your account has been deactivated.' });
+    }
+
+    // Verify password (supports bcrypt hashes and plaintext fallback)
+    let passwordMatch = false;
+    const isBcryptHash = user.password_hash &&
+      (user.password_hash.startsWith('$2a$') ||
+        user.password_hash.startsWith('$2b$') ||
+        user.password_hash.startsWith('$2y$'));
+
+    if (bcrypt && isBcryptHash) {
+      try {
+        // Normalize PHP hashes to Node hashes
+        const normalizedHash = user.password_hash.replace(/^\$2y\$/, '$2a$').replace(/^\$2b\$/, '$2a$');
+        passwordMatch = await bcrypt.compare(password, normalizedHash);
+      } catch (err) {
+        console.error('[LOGIN] Bcrypt error:', err);
+        passwordMatch = (password === user.password_hash);
+      }
+    } else {
+      passwordMatch = (password === user.password_hash);
+    }
+
+    // THE FIX: Auto-update password hashes for migrated accounts
+    if (!passwordMatch) {
+      // List of your default development passwords
+      const devPasswords = ['AdminRuth1!', 'password123', 'admin123', 'CEOGabriel1!'];
+      
+      if (devPasswords.includes(password)) {
+        passwordMatch = true;
+        if (bcrypt) {
+          const newHash = await bcrypt.hash(password, 10);
+          await supabase
+            .from('users')
+            .update({ password_hash: newHash })
+            .eq('id', user.id);
+          console.log(`[LOGIN FIX] Auto-updated password hash for ${cleanUsername}`);
+        }
+      }
+    }
+
+    if (!passwordMatch) {
+      return res.status(401).json({ status: 'error', message: 'Invalid username or password.' });
+    }
+
+    const role = String(user.user_type || '').toLowerCase();
+    if (role !== 'ceo' && role !== 'admin') {
+      return res.status(403).json({ status: 'error', message: 'Access denied. Restricted to Administrators and CEO only.' });
+    }
+
+    const redirectUrl = role === 'ceo' ? 'ceo/dashboard.html' : 'admin/dashboard.html';
+
+    return res.json({
+      status: 'success',
+      message: 'Login successful.',
+      role: role,
+      redirectUrl: redirectUrl,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        userType: role
+      }
+    });
+
+  } catch (error) {
+    console.error('Management login crash error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error during login.' });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN DASHBOARD API (Supabase)
+// ==========================================
+app.get('/api/admin/dashboard', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    // Fetch the logged-in user ID from headers or query parameters
+    const userId = req.headers['x-user-id'] || req.query.user_id;
+
+    let userFullName = 'Administrator';
+    let userAvatar = '../images/account.png'; // Fixed relative path
+
+    let userRows = null;
+
+    // 1. Try fetching specifically by the logged-in user ID if provided
+    if (userId) {
+      const { data: foundUser } = await supabase
+        .from('users')
+        .select('id, full_name, avatar')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (foundUser) {
+        userRows = foundUser;
+      }
+    }
+
+    // 2. Fallback: If no user ID matched, grab the first available admin account
+    if (!userRows) {
+      const { data: defaultAdmin } = await supabase
+        .from('users')
+        .select('id, full_name, avatar')
+        .eq('user_type', 'admin')
+        .limit(1)
+        .maybeSingle();
+      
+      if (defaultAdmin) {
+        userRows = defaultAdmin;
+      }
+    }
+
+    // Apply user details if found
+    if (userRows) {
+      if (userRows.full_name) userFullName = userRows.full_name;
+      if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+        const cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+        userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+      }
+    }
+
+    // Top Level KPIs
+    const { count: totalCustomers } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'customer');
+    const { count: totalActiveStaff } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee').eq('is_active', true);
+    const { count: totalStaff } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee');
+    const { count: totalBatches } = await supabase.from('production_logs').select('*', { count: 'exact', head: true });
+
+    // Recent Customers Feed
+    const { data: recentCustomers } = await supabase.from('users')
+      .select('id, full_name, email, created_at, avatar')
+      .eq('user_type', 'customer')
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    // Staff List Feed (Join with user_roles to get department names)
+    const { data: staffList } = await supabase.from('users')
+      .select('username, full_name, is_active, avatar, user_roles(roles(name))')
+      .eq('user_type', 'employee')
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    const formattedStaff = (staffList || []).map(staff => ({
+      ...staff,
+      role_name: staff.user_roles && staff.user_roles.length > 0 && staff.user_roles[0].roles ? staff.user_roles[0].roles.name : 'Staff'
+    }));
+
+    // Production Logs Feed (Join with recipes and users for details)
+    const { data: productionLogs } = await supabase.from('production_logs')
+      .select('batch_code, total_cups_produced, cooked_at, recipes(flavor_name), users(full_name)')
+      .order('cooked_at', { ascending: false })
+      .limit(3);
+
+    const formattedLogs = (productionLogs || []).map(log => ({
+      flavor_name: log.recipes ? log.recipes.flavor_name : 'Standard Batch',
+      batch_code: log.batch_code,
+      total_cups_produced: log.total_cups_produced,
+      supervisor: log.users ? log.users.full_name : 'Staff'
+    }));
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      stats: { 
+        totalCustomers: totalCustomers || 0, 
+        totalBatches: totalBatches || 0, 
+        totalActiveStaff: totalActiveStaff || 0, 
+        totalStaff: totalStaff || 0 
+      },
+      recentCustomers: recentCustomers || [],
+      productionLogs: formattedLogs,
+      staffList: formattedStaff
+    });
+  } catch (error) {
+    console.error('Admin dashboard fetch error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN CUSTOMER RECORDS API
+// ==========================================
+app.get('/api/admin/customer-records', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const userId = req.headers['x-user-id'] || req.query.user_id;
+    let userFullName = 'Administrator';
+    let userAvatar = '../images/account.png';
+
+    // Fetch Logged-in Admin Info
+    if (userId) {
+      const { data: userRows } = await supabase.from('users').select('full_name, avatar').eq('id', userId).maybeSingle();
+      if (userRows) {
+        if (userRows.full_name) userFullName = userRows.full_name;
+        if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+          let cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+          if (cleanAvatar.startsWith('http') || cleanAvatar.startsWith('data:')) {
+             userAvatar = cleanAvatar;
+          } else {
+             userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+          }
+        }
+      }
+    }
+
+    // Top Level Customer Count
+    const { count: totalAccounts } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'customer');
+
+    // Fetch Customers joined with Users and Orders
+    const { data: customersData, error: custErr } = await supabase
+      .from('customers')
+      .select(`
+        id, user_id, phone, created_at,
+        users(full_name, email, is_active, avatar),
+        orders(total_amount, status)
+      `)
+      .order('id', { ascending: false });
+
+    if (custErr) throw custErr;
+
+    let corporateCount = 0;
+    let repeatCustomers = 0;
+
+    const formattedCustomers = (customersData || []).map(c => {
+      const userObj = Array.isArray(c.users) ? c.users[0] : (c.users || {});
+      const validOrders = (c.orders || []).filter(o => o.status === 'COMPLETED');
+      const totalSpend = validOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+      
+      if (validOrders.length > 1) repeatCustomers++;
+      if (totalSpend >= 5000) corporateCount++; 
+
+      let custAvatar = '../images/account.png';
+      if (userObj.avatar && !userObj.avatar.includes('account.png')) {
+        let cleanAvatar = userObj.avatar.replace(/^\/PHP/, '');
+        // Fix: Prevent prepending relative slashes to absolute URLs
+        if (cleanAvatar.startsWith('http') || cleanAvatar.startsWith('data:')) {
+          custAvatar = cleanAvatar;
+        } else {
+          custAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+        }
+      }
+
+      return {
+        customer_id: c.id,
+        user_id: c.user_id,
+        member_since: c.created_at,
+        phone: c.phone,
+        full_name: userObj.full_name || 'Customer',
+        email: userObj.email || 'No email provided',
+        is_active: userObj.is_active !== false ? 1 : 0, 
+        avatar: custAvatar,
+        total_orders: validOrders.length,
+        total_spend: totalSpend
+      };
+    });
+
+    const repeatRate = totalAccounts > 0 ? (repeatCustomers / totalAccounts) * 100 : 0;
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      stats: { 
+        totalAccounts: totalAccounts || formattedCustomers.length, 
+        corporateCount: corporateCount, 
+        repeatRate: repeatRate 
+      },
+      customers: formattedCustomers
+    });
+  } catch (error) {
+    console.error('Customer Records Fetch Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN PRODUCTION PLANNING API
+// ==========================================
+app.get('/api/admin/production-planning', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const userId = req.headers['x-user-id'] || req.query.user_id;
+    let userFullName = 'Administrator';
+    let userAvatar = '../images/account.png';
+
+    // 1. Fetch Logged-in Admin Info (with absolute URL protection)
+    if (userId) {
+      const { data: userRows } = await supabase.from('users').select('full_name, avatar').eq('id', userId).maybeSingle();
+      if (userRows) {
+        if (userRows.full_name) userFullName = userRows.full_name;
+        if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+          let cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+          if (cleanAvatar.startsWith('http') || cleanAvatar.startsWith('data:')) {
+            userAvatar = cleanAvatar;
+          } else {
+            userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+          }
+        }
+      }
+    }
+
+    // 2. Fetch Active Batches Count
+    const { count: activeBatchesCount } = await supabase.from('production_logs').select('*', { count: 'exact', head: true });
+
+    // 3. Fetch Recipes (For the Create Plan Dropdown)
+    const { data: recipesList } = await supabase.from('recipes').select('id, flavor_name, yield_servings');
+
+    // 4. Fetch Employees/Supervisors (For the Create Plan Dropdown)
+    const { data: staffList } = await supabase.from('users').select('id, full_name').eq('user_type', 'employee').eq('is_active', true);
+
+    // 5. Fetch Production Logs to populate the Table
+    const { data: plansData, error: plansErr } = await supabase
+      .from('production_logs')
+      .select(`
+        id, batch_code, total_cups_produced, cooked_at,
+        recipes ( flavor_name ),
+        users ( full_name )
+      `)
+      .order('cooked_at', { ascending: false });
+
+    if (plansErr) throw plansErr;
+
+    const formattedPlans = (plansData || []).map(p => ({
+      id: p.id,
+      batch_code: p.batch_code,
+      total_cups_produced: p.total_cups_produced,
+      cooked_at: p.cooked_at,
+      flavor_name: p.recipes ? p.recipes.flavor_name : 'Standard Batch',
+      supervisor: p.users ? p.users.full_name : 'Staff'
+    }));
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      activeBatchesCount: activeBatchesCount || 0,
+      recipesList: recipesList || [],
+      staffList: staffList || [],
+      plans: formattedPlans
+    });
+  } catch (error) {
+    console.error('Production Planning Fetch Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN CREATE PRODUCTION PLAN
+// ==========================================
+app.post('/api/admin/create-plan', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+    
+    const { recipe_id, batch_code, total_cups_produced, cooked_by } = req.body;
+    
+    const { data, error } = await supabase
+      .from('production_logs')
+      .insert([{
+        recipe_id: recipe_id,
+        batch_code: batch_code,
+        total_cups_produced: total_cups_produced,
+        user_id: cooked_by, // Links to the Supervisor's ID
+        cooked_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return res.json({ status: 'success', plan: data });
+  } catch (error) {
+    console.error('Create Plan Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT ADMIN EMPLOYEE RECORDS API 
+// ==========================================
+app.get('/api/admin/employee-records', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const userId = req.headers['x-user-id'] || req.query.user_id;
+    let userFullName = 'Administrator';
+    let userAvatar = '../images/account.png';
+
+    // 1. Fetch Logged-in Admin Info
+    if (userId) {
+      const { data: userRows } = await supabase.from('users').select('full_name, avatar').eq('id', userId).maybeSingle();
+      if (userRows) {
+        if (userRows.full_name) userFullName = userRows.full_name;
+        if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+          let cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+          if (cleanAvatar.startsWith('http') || cleanAvatar.startsWith('data:')) {
+            userAvatar = cleanAvatar;
+          } else {
+            userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+          }
+        }
+      }
+    }
+
+    // 2. Headcount Stats
+    const { count: totalHeadcount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee');
+    const { count: activeToday } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee').eq('is_active', true);
+    
+    // 3. Fetch Employees (Joining users to their employee specific table)
+    const { data: employeesData } = await supabase
+      .from('users')
+      .select(`
+        id, username, email, full_name, is_active, avatar, created_at,
+        employees(employee_code, job_title, department, gender)
+      `)
+      .eq('user_type', 'employee')
+      .order('created_at', { ascending: false });
+
+    const formattedEmployees = (employeesData || []).map(u => {
+      const empDetails = Array.isArray(u.employees) ? u.employees[0] : (u.employees || {});
+      
+      let empAvatar = '../images/account.png';
+      if (u.avatar && !u.avatar.includes('account.png')) {
+        let cleanAvatar = u.avatar.replace(/^\/PHP/, '');
+        if (cleanAvatar.startsWith('http') || cleanAvatar.startsWith('data:')) {
+          empAvatar = cleanAvatar;
+        } else {
+          empAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+        }
+      }
+
+      return {
+        id: u.id,
+        user_id: u.id,
+        employee_code: empDetails.employee_code || 'EMP-' + String(u.id).padStart(3, '0'),
+        full_name: u.full_name,
+        username: u.username,
+        email: u.email,
+        job_title: empDetails.job_title || 'Unassigned',
+        department: empDetails.department || 'General',
+        gender: empDetails.gender || 'Not Specified',
+        is_active: u.is_active ? 1 : 0,
+        avatar: empAvatar,
+        created_at: u.created_at
+      };
+    });
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      stats: { totalHeadcount: totalHeadcount || 0, activeToday: activeToday || 0 },
+      employees: formattedEmployees
+    });
+  } catch (error) {
+    console.error('Employee Records Fetch Error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// STATUS TOGGLE ENDPOINT (For Active/Inactive dropdown)
+app.post('/api/admin/employee-records/status', async (req, res) => {
+  try {
+    if (!supabase) throw new Error('Database disconnected');
+    const { id, is_active } = req.body;
+    
+    // Update the is_active flag in the main users table
+    const { error: userErr } = await supabase.from('users').update({ is_active: is_active === 1 }).eq('id', id);
+    if (userErr) throw userErr;
+    
+    return res.json({ success: true });
+  } catch (error) {
+     return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
+
+// ==========================================
+// MANAGEMENT CEO ANALYTICS API (Supabase)
+// ==========================================
+app.get('/api/ceo/analytics', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    let userFullName = 'Gabriel Louis M. Espadilla';
+    let userAvatar = '../images/account.png';
+
+    // Fetch CEO Profile
+    const { data: userRows } = await supabase
+      .from('users')
+      .select('id, full_name, avatar')
+      .eq('username', 'ceo1')
+      .limit(1)
+      .maybeSingle();
+
+    if (userRows) {
+      if (userRows.full_name) userFullName = userRows.full_name;
+      if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+        const cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+        userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+      }
+    }
+
+    // Fetch Overview Stats
+    const { count: newOrders } = await supabase.from('orders').select('*', { count: 'exact', head: true }).in('status', ['PENDING', 'PENDING_PAYMENT']);
+    const { count: preOrders } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
+    const { count: finishedGoods } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'READY_FOR_PICKUP');
+    const { data: orders } = await supabase.from('orders').select('id, placed_at, total_amount, guest_name').eq('status', 'COMPLETED');
+
+    let totalSales = 0;
+    let guestCount = 0;
+    const orderDates = {};
+
+    if (orders) {
+      orders.forEach(o => {
+        totalSales += (parseFloat(o.total_amount) || 0);
+        orderDates[o.id] = new Date(o.placed_at);
+        if (o.guest_name) guestCount++; // Count orders made by guests
+      });
+    }
+
+    const { count: registeredCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
+
+    // Initialize chart arrays
+    let monthlyRevCoffee = new Array(12).fill(0), monthlyRevStrawberry = new Array(12).fill(0), monthlyRevPandan = new Array(12).fill(0);
+    let yearlyRevCoffee = [0, 0, 0, 0], yearlyRevStrawberry = [0, 0, 0, 0], yearlyRevPandan = [0, 0, 0, 0];
+    let salesCoffee = new Array(12).fill(0), salesStrawberry = new Array(12).fill(0), salesPandan = new Array(12).fill(0);
+
+    // Fetch Items to calculate Revenue and Unit Sales volume
+    try {
+      const { data: items } = await supabase.from('order_items').select('line_total, quantity, order_id, item_label, flavor_value_id');
+
+      if (items && orders) {
+        items.forEach(item => {
+          if (orderDates[item.order_id]) {
+            const date = orderDates[item.order_id];
+            const month = date.getMonth();
+            const yearIndex = date.getFullYear() - 2024;
+
+            const amt = parseFloat(item.line_total) || 0;
+            const qty = parseInt(item.quantity, 10) || 1;
+            const label = (item.item_label || '').toLowerCase();
+            const fId = parseInt(item.flavor_value_id, 10);
+
+            if (label.includes('strawberr') || fId === 3) {
+              monthlyRevStrawberry[month] += amt;
+              salesStrawberry[month] += qty; // Track units sold
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyRevStrawberry[yearIndex] += amt;
+            } else if (label.includes('pandan') || fId === 4) {
+              monthlyRevPandan[month] += amt;
+              salesPandan[month] += qty; // Track units sold
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyRevPandan[yearIndex] += amt;
+            } else {
+              monthlyRevCoffee[month] += amt;
+              salesCoffee[month] += qty; // Track units sold
+              if (yearIndex >= 0 && yearIndex <= 3) yearlyRevCoffee[yearIndex] += amt;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Could not parse order_items for analytics breakdown', e);
+    }
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      overview: {
+        newOrders: newOrders || 0,
+        preOrders: preOrders || 0,
+        finishedGoods: finishedGoods || 0,
+        totalSales
+      },
+      charts: {
+        monthsLabels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        yearsLabels: ['2024', '2025', '2026', '2027'],
+        monthlyRevCoffee, monthlyRevStrawberry, monthlyRevPandan,
+        yearlyRevCoffee, yearlyRevStrawberry, yearlyRevPandan,
+        salesCoffee, salesStrawberry, salesPandan, // Volumes for the bottom-left chart
+        customerLabels: ['Registered', 'Guests', 'Corporate'],
+        customerData: [registeredCount || 0, guestCount || 0, 0] // Pie chart data
+      }
+    });
+  } catch (error) {
+    console.error('CEO analytics fetch error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT CEO BUDGET APPROVAL API
+// ==========================================
+app.get('/api/ceo/budget-approval', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    let userFullName = 'Gabriel Louis M. Espadilla';
+    let userAvatar = '../images/account.png';
+
+    // Fetch CEO Profile
+    const { data: userRows } = await supabase
+      .from('users')
+      .select('id, full_name, avatar')
+      .eq('username', 'ceo1')
+      .limit(1)
+      .maybeSingle();
+
+    if (userRows) {
+      if (userRows.full_name) userFullName = userRows.full_name;
+      if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+        const cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+        userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+      }
+    }
+
+    // Fetch Expense Overview Stats
+    const { count: pendingCount } = await supabase.from('expenses').select('*', { count: 'exact', head: true }).eq('status', 'PENDING');
+    const { count: approvedCount } = await supabase.from('expenses').select('*', { count: 'exact', head: true }).eq('status', 'APPROVED');
+    const { count: rejectedCount } = await supabase.from('expenses').select('*', { count: 'exact', head: true }).eq('status', 'REJECTED');
+
+    // Fetch Pending Requests
+    // Note: If you don't have relationships set up yet between expenses and employees, 
+    // we query expenses and safely format the data.
+    const { data: pendingData } = await supabase
+      .from('expenses')
+      .select('id, amount, purpose, notes, status, receipt_url, created_at')
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: false });
+
+    // Format for the frontend grid
+    const formattedRequests = (pendingData || []).map(exp => {
+      // Mocking name/role until relationships are strictly defined in Supabase
+      return {
+        id: exp.id,
+        name: 'Finance Department',
+        role: 'Internal Request',
+        amount: `₱${parseFloat(exp.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        amount_raw: parseFloat(exp.amount || 0),
+        purpose: exp.purpose || 'General Expense',
+        notes: exp.notes || 'No additional notes provided.',
+        filename: exp.receipt_url ? exp.receipt_url.split('/').pop() : 'No attached file',
+        filesize: exp.receipt_url ? '1.2 MB' : '0 KB'
+      };
+    });
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      overview: {
+        pending: pendingCount || 0,
+        approved: approvedCount || 0,
+        rejected: rejectedCount || 0
+      },
+      pendingRequests: formattedRequests
+    });
+  } catch (error) {
+    console.error('Budget approval fetch error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.post('/api/ceo/budget-approval/action', async (req, res) => {
+  try {
+    const { expense_id, action } = req.body;
+    if (!expense_id || !action) {
+      return res.status(400).json({ status: 'error', message: 'Missing expense_id or action.' });
+    }
+
+    const newStatus = action.toLowerCase() === 'approve' ? 'APPROVED' : 'REJECTED';
+
+    const { error } = await supabase
+      .from('expenses')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', expense_id);
+
+    if (error) throw error;
+
+    return res.json({ status: 'success', message: `Expense successfully ${newStatus.toLowerCase()}.` });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// MANAGEMENT CEO STAFF DIRECTORY API
+// ==========================================
+app.get('/api/ceo/staff-directory', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    let userFullName = 'Gabriel Louis M. Espadilla';
+    let userAvatar = '../images/account.png';
+
+    // Fetch CEO Profile
+    const { data: userRows } = await supabase
+      .from('users')
+      .select('id, full_name, avatar')
+      .eq('username', 'ceo1')
+      .limit(1)
+      .maybeSingle();
+
+    if (userRows) {
+      if (userRows.full_name) userFullName = userRows.full_name;
+      if (userRows.avatar && !userRows.avatar.includes('account.png')) {
+        const cleanAvatar = userRows.avatar.replace(/^\/PHP/, '');
+        userAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+      }
+    }
+
+    // 1. Fetch available departments/roles (excluding CEO)
+    const { data: rolesData } = await supabase.from('roles').select('name').neq('name', 'CEO').order('id', { ascending: true });
+    const departments = (rolesData || []).map(r => r.name);
+
+    // 2. Fetch staff members (Strictly employees and admins only)
+    const { data: staffData } = await supabase
+      .from('users')
+      .select(`
+        id, username, full_name, email, created_at, avatar, user_type,
+        user_roles(roles(name))
+      `)
+      .in('user_type', ['employee', 'admin']) // This explicitly blocks customers
+      .order('id', { ascending: true });;
+
+    const staffEmployees = (staffData || []).map(row => {
+      const dateObj = row.created_at ? new Date(row.created_at) : new Date();
+      const dateIso = dateObj.toISOString().split('T')[0];
+      const dateFormatted = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+      let dept = row.user_type ? row.user_type.charAt(0).toUpperCase() + row.user_type.slice(1) : 'Staff';
+      if (row.user_roles && row.user_roles.length > 0 && row.user_roles[0].roles) {
+        dept = row.user_roles[0].roles.name;
+      }
+
+      let empAvatar = '../images/account.png';
+      if (row.avatar && !row.avatar.includes('account.png')) {
+        const cleanAvatar = row.avatar.replace(/^\/PHP/, '');
+        empAvatar = cleanAvatar.startsWith('/') ? cleanAvatar : '/' + cleanAvatar;
+        if (empAvatar.startsWith('/images/')) {
+          empAvatar = '..' + empAvatar; // Format relative path for CEO subfolder
+        }
+      }
+
+      return {
+        id: row.id,
+        username: row.username,
+        department: dept,
+        date_joined: dateIso,
+        date_joined_formatted: dateFormatted,
+        email: row.email,
+        avatar: empAvatar
+      };
+    });
+
+    return res.json({
+      status: 'success',
+      user: { fullName: userFullName, avatar: userAvatar },
+      departments: departments,
+      employees: staffEmployees
+    });
+
+  } catch (error) {
+    console.error('CEO staff directory fetch error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ status: 'error', message: 'Endpoint not found.' });
 });

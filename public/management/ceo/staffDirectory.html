@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="only light">
+    <title>Staff Directory - Milky Marble</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Sniglet:wght@400;800&family=Urbanist:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/staffDirectory.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand-section">
+            <div class="brand-logo-wrap">
+                <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img">
+            </div>
+            <h1 class="brand-title">Milky Marble</h1>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-link">
+                <i class="fa-solid fa-chart-line nav-icon"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="analytics.html" class="nav-link">
+                <i class="fa-solid fa-chart-pie nav-icon"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="budgetApproval.html" class="nav-link">
+                <i class="fa-solid fa-file-invoice-dollar nav-icon"></i>
+                <span>Budget Approval</span>
+            </a>
+            <a href="staffDirectory.html" class="nav-link active">
+                <i class="fa-solid fa-users nav-icon"></i>
+                <span>Staff Directory</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="../managementlogin.html" class="nav-link logout-btn">
+                <i class="fa-solid fa-right-from-bracket nav-icon"></i>
+                <span>Log out</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="search-box">
+                <input type="text" id="employeeSearchInput" placeholder="Search for anything...">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="user-profile">
+                    <img id="userAvatarImg" src="../images/account.png" class="user-avatar" style="object-fit: cover; border: none;" alt="User">
+                    <span id="userFullNameDisplay">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <section>
+            <div class="section-header">
+                <h1 class="page-title">Employees</h1>
+                
+                <div class="directory-controls">
+                    <!-- Date Joined Sort Button with Tooltip -->
+                    <div class="sort-btn-wrapper" data-tooltip="Sort: Newest to Oldest">
+                        <button class="btn-sort-icon" id="dateSortBtn" onclick="toggleDateSort()">
+                            <i class="fa-solid fa-arrow-down-wide-short" id="dateSortIcon"></i>
+                        </button>
+                    </div>
+
+                    <!-- Custom Dropdown Menu -->
+                    <div class="custom-dropdown" id="deptDropdown">
+                        <button class="custom-dropdown-btn" onclick="toggleDeptMenu(event)">
+                            <i class="fa-solid fa-filter"></i>
+                            <span id="selectedDeptText">All Departments</span>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </button>
+                        
+                        <div class="custom-dropdown-menu" id="deptMenu">
+                            <div class="dropdown-item active" onclick="selectDept('all', 'All Departments')">
+                                <i class="fa-solid fa-layer-group"></i> All Departments
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="employee-table-container" id="employeeContainer">
+                <div class="table-row-header">
+                    <div>Username</div>
+                    <div>Department</div>
+                    <div>Date Joined</div>
+                    <div>Email</div>
+                </div>
+                
+                <div id="tableRowsWrapper">
+                    <div style="padding: 30px; text-align: center; color: #7a6564; font-weight: 500;">
+                        Loading staff records...
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/staffDirectory.js"></script>
+</body>
+</html>
