@@ -28,7 +28,8 @@ const supabase = require('../config/supabase');
 async function getEmployeeProfile(req) {
   const userId = req.headers['x-user-id'] || req.query.user_id || req.body?.user_id;
   let fullName = 'Employee';
-  let avatarUrl = '/images/account.png';
+  const DEFAULT_AVATAR = '/employee/images/account.png';
+  let avatarUrl = DEFAULT_AVATAR;
 
   if (userId && supabase) {
     const { data: user } = await supabase
@@ -44,9 +45,15 @@ async function getEmployeeProfile(req) {
       fullName = cleanFull || (user.username || '').trim() || fullName;
       const rawAvatar = user.avatar;
       if (rawAvatar && rawAvatar !== 'account.png') {
-        avatarUrl = rawAvatar.startsWith('/') || rawAvatar.startsWith('http')
-          ? rawAvatar
-          : '/images/' + rawAvatar;
+        if (rawAvatar.startsWith('http') || rawAvatar.startsWith('data:image') || rawAvatar.startsWith('/')) {
+          avatarUrl = rawAvatar;
+        } else if (rawAvatar.startsWith('images/') || rawAvatar.startsWith('uploads/')) {
+          avatarUrl = '/' + rawAvatar;
+        } else {
+          avatarUrl = '/images/' + rawAvatar;
+        }
+        // '/images/account.png' doesn't exist on the server - use the real default.
+        if (avatarUrl === '/images/account.png') avatarUrl = DEFAULT_AVATAR;
       }
     }
   }
