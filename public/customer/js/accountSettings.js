@@ -139,10 +139,14 @@ function togglePassVisibility(inputId, button) { //[cite: 4]
 // Live preference toggling via PATCH[cite: 4]
 async function updateAccountPreference(prefKey, isChecked, label) { //[cite: 4]
     try { //[cite: 4]
+        const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
+        const customerId = localUser.customer_id || (currentCustomerData && currentCustomerData.id) || 11;
+
         const res = await fetch('/api/customer/preferences', { //[cite: 4]
             method: 'PATCH', //[cite: 4]
             headers: { 'Content-Type': 'application/json' }, //[cite: 4]
             body: JSON.stringify({ //[cite: 4]
+                customer_id: customerId,
                 key: prefKey, //[cite: 4]
                 value: isChecked //[cite: 4]
             }) //[cite: 4]
@@ -233,10 +237,13 @@ async function clearPaymentPreference() {
 
 async function savePaymentPreference(method, successMessage) {
     try {
+        const localUser = JSON.parse(localStorage.getItem('mm_user') || '{}');
+        const customerId = localUser.customer_id || (currentCustomerData && currentCustomerData.id) || 11;
+
         const res = await fetch('/api/customer/preferences', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'payment_preference', value: method })
+            body: JSON.stringify({ customer_id: customerId, key: 'payment_preference', value: method })
         });
         const data = await res.json();
 
