@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./src/routes/authRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const paymentRoutes = require('./src/routes/paymentRoutes');
+const employeeRoutes = require('./src/routes/employeeRoutes');
 
 let customerRoutes = null;
 try {
@@ -1265,6 +1266,9 @@ app.use('/api/payments', paymentRoutes);
 if (customerRoutes) {
   app.use(['/api/customers', '/api/customer'], customerRoutes);
 }
+// Employee dashboards (Sales/Finance/Procurement/Production) — Supabase-backed.
+// See src/routes/employeeRoutes.js and supabase_employee_dashboards.sql.
+app.use('/api', employeeRoutes);
 
 app.post(['/api/auth/logout', '/auth/logout', '/logout'], (req, res) => {
   res.clearCookie('user_id');
