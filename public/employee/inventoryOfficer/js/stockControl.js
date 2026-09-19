@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchStockControlData() {
     try {
-        const response = await fetch('/api/procurement-officer/stock-control');
+        const response = await employeeFetch('/api/procurement-officer/stock-control');
         if (!response.ok) throw new Error('Failed to load stock control data');
 
         const data = await response.json();

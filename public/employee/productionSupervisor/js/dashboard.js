@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchProductionDashboardData() {
     try {
-        const response = await fetch('/api/production-supervisor/dashboard');
+        const response = await employeeFetch('/api/production-supervisor/dashboard');
         if (!response.ok) throw new Error('Failed to load production dashboard data');
 
         const data = await response.json();

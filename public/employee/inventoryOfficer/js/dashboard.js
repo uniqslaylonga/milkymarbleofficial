@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchProcurementDashboardData() {
     try {
-        const response = await fetch('/api/procurement-officer/dashboard');
+        const response = await employeeFetch('/api/procurement-officer/dashboard');
         if (!response.ok) throw new Error('Failed to load dashboard data');
 
         const data = await response.json();
@@ -134,7 +134,7 @@ async function handleAddRequest(e) {
     }
 
     try {
-        const response = await fetch('/api/procurement-officer/add-request', {
+        const response = await employeeFetch('/api/procurement-officer/add-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ item_name: itemName, store_name: storeName, amount: amount })

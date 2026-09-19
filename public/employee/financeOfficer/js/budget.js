@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchBudgetRecords() {
     try {
-        const response = await fetch('/api/finance-officer/budget');
+        const response = await employeeFetch('/api/finance-officer/budget');
         if (!response.ok) throw new Error('Failed to load budget data');
 
         const data = await response.json();
