@@ -228,11 +228,16 @@ window.renderOrderSummaryModal = async function(items = []) {
 
   // Auto-select the customer's saved payment preference. If they never set
   // one in Account Settings, fall back to whichever method they used last.
+  console.log('[DEBUG payment-pref] activeCustomer:', activeCustomer);
   if (activeCustomer) {
     const preferredMethod = activeCustomer.payment_preference || activeCustomer.last_payment_method || '';
+    console.log('[DEBUG payment-pref] preferredMethod:', JSON.stringify(preferredMethod));
     if (preferredMethod) {
+      const pillTexts = Array.from(document.querySelectorAll('.payment-method-pill')).map(btn => (btn.getAttribute('data-method') || btn.innerText).trim());
+      console.log('[DEBUG payment-pref] available pill labels:', JSON.stringify(pillTexts));
       const matchingPill = Array.from(document.querySelectorAll('.payment-method-pill'))
         .find(btn => (btn.getAttribute('data-method') || btn.innerText).trim() === preferredMethod);
+      console.log('[DEBUG payment-pref] matchingPill found:', !!matchingPill);
       if (matchingPill) {
         window.selectPaymentMethod(matchingPill);
       }
