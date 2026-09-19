@@ -1204,11 +1204,24 @@ app.patch('/api/customer/preferences', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Invalid preference key.' });
     }
 
-    if (supabase) {
-      await supabase
-        .from('customers')
-        .update(updatePayload)
-        .eq('id', customerId);
+    if (!supabase) {
+      return res.status(503).json({ status: 'error', message: 'Database not connected.' });
+    }
+
+    const { data: updatedRows, error: prefUpdateErr } = await supabase
+      .from('customers')
+      .update(updatePayload)
+      .eq('id', customerId)
+      .select('id');
+
+    if (prefUpdateErr) {
+      console.error('[preferences] Update failed for customer', customerId, ':', prefUpdateErr.message);
+      return res.status(500).json({ status: 'error', message: 'Could not save your preference. Please try again.' });
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      console.error('[preferences] Update matched 0 rows for customer', customerId, '- check SUPABASE_SERVICE_ROLE_KEY / RLS policies.');
+      return res.status(500).json({ status: 'error', message: 'Could not save your preference — please contact support.' });
     }
 
     return res.json({ status: 'success', message: 'Preference updated successfully!' });
