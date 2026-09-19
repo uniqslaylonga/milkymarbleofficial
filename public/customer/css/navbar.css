@@ -843,6 +843,14 @@ body {
    correctly styled Swal dialogs for guest-restricted /
    logout confirmations, not just home.html and login.html)
    =================================================== */
+/* Catch-all: ANY SweetAlert2 popup or toast (regardless of custom
+   class) must render above the fixed navbar (z-index: 10000), or it
+   ends up invisible underneath it. */
+.swal2-container,
+div.swal2-container {
+  z-index: 999999 !important;
+}
+
 .swal2-container.mm-swal-container-top,
 div.swal2-container.mm-swal-container-top {
   position: fixed !important;
