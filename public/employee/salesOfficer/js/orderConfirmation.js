@@ -287,19 +287,28 @@ function renderPagerButtons(totalPages, activePage) {
 }
 
 // Action: Confirm Order (Ipapasa sa Kusina)
+// Moves the order to PREPARING - the real, validated endpoint for changing an
+// order's status lives in orderRoutes.js at /api/orders/:id/status (it also
+// sends the customer their status-update email). There is no separate
+// /api/sales-officer/orders/:id/status route - calling that 404s silently.
 async function confirmOrder(orderId) {
     if (!confirm(`Are you sure you want to confirm Order #${orderId}? It will be queued to production.`)) return;
 
     try {
-        const response = await fetch(`/api/sales-officer/orders/${orderId}/status`, {
+        const response = await fetch(`/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'CONFIRMED' })
+            body: JSON.stringify({ status: 'PREPARING' })
         });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to confirm order.');
+        }
 
         // Alisin sa listahan ng pending
         allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
-        
+
         // I-update ang counters
         const pendingEl = document.getElementById('pendingCount');
         const confirmedEl = document.getElementById('confirmedCount');
@@ -309,9 +318,7 @@ async function confirmOrder(orderId) {
         applyOrderFilters();
     } catch (err) {
         console.error('Error confirming order:', err);
-        // Local removal fallback kung simulation mode
-        allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
-        applyOrderFilters();
+        alert(err.message || 'Could not confirm this order. Please try again.');
     }
 }
 
@@ -321,14 +328,19 @@ async function rejectOrder(orderId) {
     if (reason === null) return; // kinansela ng user ang prompt
 
     try {
-        const response = await fetch(`/api/sales-officer/orders/${orderId}/status`, {
+        const response = await fetch(`/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'CANCELLED', reason })
         });
 
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to reject order.');
+        }
+
         allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
-        
+
         const pendingEl = document.getElementById('pendingCount');
         const rejectedEl = document.getElementById('rejectedCount');
         if (pendingEl) pendingEl.textContent = allPendingOrders.length;
@@ -337,8 +349,7 @@ async function rejectOrder(orderId) {
         applyOrderFilters();
     } catch (err) {
         console.error('Error rejecting order:', err);
-        allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
-        applyOrderFilters();
+        alert(err.message || 'Could not reject this order. Please try again.');
     }
 }
 

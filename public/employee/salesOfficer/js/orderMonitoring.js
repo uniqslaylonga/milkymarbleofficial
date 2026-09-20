@@ -88,7 +88,7 @@ async function fetchOrderMonitoringData() {
 
             if (preparingEl) preparingEl.textContent = Number(data.metrics.preparingCount || 0).toLocaleString();
             if (transitEl) transitEl.textContent = Number(data.metrics.transitCount || 0).toLocaleString();
-            if (cancelledEl) cancelledEl.textContent = Number(data.metrics.claimedToday || 0).toLocaleString();
+            if (cancelledEl) cancelledEl.textContent = Number(data.metrics.cancelledCount || 0).toLocaleString();
         }
 
         allActiveOrders = data.activeOrders || [];

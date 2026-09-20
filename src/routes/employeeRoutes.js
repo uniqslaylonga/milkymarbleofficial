@@ -81,12 +81,31 @@ function cleanItemLabel(rawLabel, fallback) {
 // SALES OFFICER
 // ============================================================================
 
+// Orders that have been placed and are payment-settled (Cash-on-Pickup orders
+// land straight on CONFIRMED; e-wallet orders move to PAID_VERIFIED once the
+// PayMongo webhook fires) but haven't been queued into production yet. This is
+// the Sales Officer's "needs my attention" queue, used both for the pending
+// count on the dashboard and for the Order Confirmation desk below.
+const ORDER_REVIEW_STATUSES = ['CONFIRMED', 'PAID_VERIFIED'];
+
+function startOfDaysAgo(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+}
+function monthsAgo(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d;
+}
+
 async function buildSalesDashboard(req, res) {
   try {
     if (!supabase) return noDb(res);
 
     const userProfile = await getEmployeeProfile(req);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
 
     const { data: todayOrdersData } = await supabase
       .from('orders')
@@ -97,7 +116,7 @@ async function buildSalesDashboard(req, res) {
     const { count: pendingCount } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['PENDING', 'PENDING_PAYMENT']);
+      .in('status', ORDER_REVIEW_STATUSES);
 
     const todayOrders = todayOrdersData ? todayOrdersData.length : 0;
     const todaySales = todayOrdersData
@@ -106,7 +125,7 @@ async function buildSalesDashboard(req, res) {
 
     const { data: recentOrders } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at, guest_name, customers(users(full_name))')
+      .select('id, order_number, status, total_amount, placed_at, guest_name, customer_id, customers(users(full_name))')
       .order('placed_at', { ascending: false })
       .limit(5);
 
@@ -116,14 +135,52 @@ async function buildSalesDashboard(req, res) {
       status: o.status,
       total_amount: parseFloat(o.total_amount || 0),
       placed_at: o.placed_at,
+      customer_id: o.customer_id,
       customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest'
     }));
+
+    // --- Customer acquisition (New Accounts mini-chart) ---
+    const { data: customersForAcq } = await supabase.from('customers').select('created_at');
+    const acqDates = (customersForAcq || [])
+      .map(c => new Date(c.created_at))
+      .filter(d => !isNaN(d));
+    const weekAgo = startOfDaysAgo(7);
+    const monthAgo = monthsAgo(1);
+    const threeMoAgo = monthsAgo(3);
+    const sixMoAgo = monthsAgo(6);
+    const newAccounts = {
+      today: acqDates.filter(d => d.toISOString().split('T')[0] === todayStr).length,
+      week: acqDates.filter(d => d >= weekAgo).length,
+      month: acqDates.filter(d => d >= monthAgo).length,
+      last3Months: acqDates.filter(d => d >= threeMoAgo).length,
+      last6Months: acqDates.filter(d => d >= sixMoAgo).length
+    };
+
+    // --- Revenue split: registered members vs guest checkouts (completed orders) ---
+    const { data: completedOrders } = await supabase
+      .from('orders')
+      .select('total_amount, customer_id')
+      .eq('status', 'COMPLETED');
+    let registeredRevenue = 0, guestRevenue = 0;
+    (completedOrders || []).forEach(o => {
+      const amt = parseFloat(o.total_amount) || 0;
+      if (o.customer_id) registeredRevenue += amt; else guestRevenue += amt;
+    });
+    const totalRev = registeredRevenue + guestRevenue;
+    const revenueSplit = {
+      registeredRevenue,
+      guestRevenue,
+      registeredPercent: totalRev ? (registeredRevenue / totalRev) * 100 : 0,
+      guestPercent: totalRev ? (guestRevenue / totalRev) * 100 : 0
+    };
 
     return res.json({
       status: 'success',
       user: userProfile,
       metrics: { todayOrders, todaySales, pendingOrders: pendingCount || 0 },
-      recentOrders: formattedRecent
+      recentOrders: formattedRecent,
+      newAccounts,
+      revenueSplit
     });
   } catch (error) {
     console.error('[sales-officer/dashboard] error:', error.message);
@@ -132,8 +189,78 @@ async function buildSalesDashboard(req, res) {
 }
 
 router.get('/sales-officer/dashboard', buildSalesDashboard);
-// order-confirmation reuses the same summary data as the dashboard.
-router.get('/sales-officer/order-confirmation', buildSalesDashboard);
+
+// Order Confirmation desk: orders that are placed/paid but not yet queued to
+// production. Separate handler from buildSalesDashboard because the frontend
+// (orderConfirmation.js) needs the actual list of orders to confirm/reject,
+// plus its own counters (pendingCount/confirmedToday/rejectedCount) - the
+// dashboard's aggregate today's-sales numbers don't cover that.
+router.get('/sales-officer/order-confirmation', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const userProfile = await getEmployeeProfile(req);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const { data: pendingRows, error: pendingErr } = await supabase
+      .from('orders')
+      .select(`
+        id, order_number, status, total_amount, payment_method, placed_at,
+        guest_name, customer_id,
+        customers(users(full_name)),
+        order_items(item_label, quantity)
+      `)
+      .in('status', ORDER_REVIEW_STATUSES)
+      .order('placed_at', { ascending: false });
+
+    if (pendingErr) throw pendingErr;
+
+    const pendingOrders = (pendingRows || []).map(o => {
+      const itemLines = (o.order_items || []).map(
+        it => `${it.quantity || 1}x ${cleanItemLabel(it.item_label, 'Item')}`
+      );
+      return {
+        id: o.id,
+        order_number: o.order_number,
+        customer_id: o.customer_id,
+        guest_name: o.guest_name,
+        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || null,
+        items_summary: itemLines.length ? itemLines.join(', ') : 'Custom drink order',
+        payment_method: o.payment_method || 'N/A',
+        total_amount: parseFloat(o.total_amount || 0),
+        placed_at: o.placed_at
+      };
+    });
+
+    // Orders don't have a dedicated confirmed_at/rejected_at timestamp, so these
+    // two counters approximate "today" using placed_at for orders placed today
+    // that have since moved past the review queue.
+    const { count: confirmedToday } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['PREPARING', 'READY_FOR_PICKUP', 'COMPLETED'])
+      .gte('placed_at', `${todayStr}T00:00:00`);
+
+    const { count: rejectedCount } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'CANCELLED')
+      .gte('placed_at', `${todayStr}T00:00:00`);
+
+    return res.json({
+      status: 'success',
+      user: userProfile,
+      metrics: {
+        pendingCount: pendingOrders.length,
+        confirmedToday: confirmedToday || 0,
+        rejectedCount: rejectedCount || 0
+      },
+      pendingOrders
+    });
+  } catch (error) {
+    console.error('[sales-officer/order-confirmation] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
 
 router.get('/sales-officer/order-monitoring', async (req, res) => {
   try {
@@ -198,13 +325,14 @@ router.get('/sales-officer/customer-records', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const { data: customers, error } = await supabase
       .from('customers')
       .select(`
-        id, phone, address, preferred_payment,
+        id, phone, address, preferred_payment, created_at,
         users(full_name, email, avatar),
-        orders(id, total_amount, status)
+        orders(id, total_amount, status, placed_at)
       `);
 
     if (error) throw error;
@@ -230,9 +358,55 @@ router.get('/sales-officer/customer-records', async (req, res) => {
         address: c.address || 'No default address specified.',
         preferred_payment: c.preferred_payment || 'GCash',
         total_orders: validOrders.length,
-        total_spent: totalSpent
+        total_spent: totalSpent,
+        created_at: c.created_at,
+        hasOrderToday: validOrders.some(o => (o.placed_at || '').startsWith(todayStr))
       };
     });
+
+    // --- Acquisition breakdown (used by the "New Accounts" timeframe filter) ---
+    const weekAgo = startOfDaysAgo(7);
+    const monthAgo = monthsAgo(1);
+    const threeMoAgo = monthsAgo(3);
+    const sixMoAgo = monthsAgo(6);
+    const createdDates = formattedCustomers.map(c => new Date(c.created_at)).filter(d => !isNaN(d));
+    const acquisition = {
+      today: createdDates.filter(d => d.toISOString().split('T')[0] === todayStr).length,
+      week: createdDates.filter(d => d >= weekAgo).length,
+      month: createdDates.filter(d => d >= monthAgo).length,
+      last3Months: createdDates.filter(d => d >= threeMoAgo).length,
+      last6Months: createdDates.filter(d => d >= sixMoAgo).length
+    };
+    const activeToday = formattedCustomers.filter(c => c.hasOrderToday).length;
+
+    // --- Guest vs Member segmentation (guests have no `customers` row) ---
+    let memberRevenue = 0, memberCompletedCount = 0;
+    (customers || []).forEach(c => {
+      (c.orders || []).forEach(o => {
+        if (o.status === 'COMPLETED') {
+          memberRevenue += parseFloat(o.total_amount) || 0;
+          memberCompletedCount++;
+        }
+      });
+    });
+
+    const { data: guestOrders } = await supabase
+      .from('orders')
+      .select('total_amount, status')
+      .is('customer_id', null);
+    const guestOrdersAll = guestOrders || [];
+    const guestCompleted = guestOrdersAll.filter(o => o.status === 'COMPLETED');
+    const guestRevenue = guestCompleted.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    const segTotalRevenue = memberRevenue + guestRevenue;
+
+    const segmentation = {
+      memberCount: formattedCustomers.length,
+      guestCount: guestOrdersAll.filter(o => o.status !== 'CANCELLED').length,
+      memberRevenuePercent: segTotalRevenue ? (memberRevenue / segTotalRevenue) * 100 : 0,
+      guestRevenuePercent: segTotalRevenue ? (guestRevenue / segTotalRevenue) * 100 : 0,
+      memberOrders: memberCompletedCount,
+      guestOrders: guestCompleted.length
+    };
 
     return res.json({
       status: 'success',
@@ -240,13 +414,15 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       metrics: {
         totalRegistered: formattedCustomers.length,
         registeredGrowth: '',
-        newSignups: formattedCustomers.length,
-        signupsGrowth: '',
+        todaySignups: acquisition.today,
+        activeToday,
         repeatRate: formattedCustomers.length
           ? `${Math.round((formattedCustomers.filter(c => c.total_orders > 1).length / formattedCustomers.length) * 1000) / 10}%`
-          : '0%'
+          : '0%',
+        acquisition
       },
-      customers: formattedCustomers
+      segmentation,
+      customers: formattedCustomers.map(({ hasOrderToday, ...rest }) => rest)
     });
   } catch (error) {
     console.error('[sales-officer/customer-records] error:', error.message);
