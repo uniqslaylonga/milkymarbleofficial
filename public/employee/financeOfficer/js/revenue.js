@@ -259,8 +259,37 @@ function initChannelDonutChart(customData) {
     });
 }
 
-function triggerReconciliationAudit() {
-    alert("Reconciliation auditing isn't wired up to real drawer-count data yet, so there's nothing to report here honestly. This needs a real backend endpoint before it can show an actual variance.");
+async function triggerReconciliationAudit() {
+    const countedInput = window.prompt('Enter the amount physically counted in the cash drawer (₱):');
+    if (countedInput === null) return; // cancelled
+
+    const counted_amount = parseFloat(countedInput);
+    if (isNaN(counted_amount) || counted_amount < 0) {
+        alert('Enter a valid non-negative number.');
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const response = await fetch('/api/finance-officer/reconciliation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(userId ? { 'x-user-id': userId } : {})
+            },
+            body: JSON.stringify({ counted_amount })
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Could not save the drawer count.');
+        }
+
+        const r = data.record;
+        alert(`Reconciliation saved.\nExpected (system): ₱${formatAmount(r.expected_amount)}\nCounted (physical): ₱${formatAmount(r.counted_amount)}\nVariance: ₱${formatAmount(r.variance)}`);
+    } catch (error) {
+        alert(error.message || 'Could not save the drawer count.');
+    }
 }
 
 function formatAmount(val) {
