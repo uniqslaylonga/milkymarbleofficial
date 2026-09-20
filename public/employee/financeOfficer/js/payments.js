@@ -93,13 +93,13 @@ function applyPaymentsFilter() {
 
     // Update KPI Card Calculations
     const totalPayments = allPaymentsData.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const ewalletSum = allPaymentsData.filter(i => i.channel === 'gcash' || i.channel === 'maya').reduce((sum, item) => sum + (item.amount || 0), 0);
+    const ewalletSum = allPaymentsData.filter(i => i.channel === 'ewallet').reduce((sum, item) => sum + (item.amount || 0), 0);
     const cashSum = allPaymentsData.filter(i => i.channel === 'cash').reduce((sum, item) => sum + (item.amount || 0), 0);
 
     document.getElementById('kpiTotalPayments').textContent = '₱' + formatAmount(totalPayments);
     document.getElementById('kpiEwallet').textContent = '₱' + formatAmount(ewalletSum);
     document.getElementById('kpiCashDrawer').textContent = '₱' + formatAmount(cashSum);
-    document.getElementById('kpiUnreconciled').textContent = '₱0.00';
+    document.getElementById('kpiUnreconciled').textContent = '—';
 
     currentPaymentPage = 1;
     renderPaymentsTable();
@@ -138,9 +138,7 @@ function renderPaymentsTable() {
 
     tbody.innerHTML = pageItems.map(row => {
         const amount = formatAmount(row.amount);
-        let channelClass = 'channel-gcash';
-        if (row.channel === 'maya') channelClass = 'channel-maya';
-        if (row.channel === 'cash') channelClass = 'channel-cash';
+        const channelClass = row.channel === 'cash' ? 'channel-cash' : 'channel-gcash';
 
         return `
             <tr>
@@ -202,37 +200,13 @@ function viewTransactionAudit(id) {
 function handleAddPaymentRecord(e) {
     e.preventDefault();
 
-    const customerName = document.getElementById('payCustomerName').value.trim();
-    const orderNum = document.getElementById('payOrderNum').value.trim();
-    const channel = document.getElementById('payChannel').value;
-    const refNum = document.getElementById('payRefNum').value.trim();
-    const amount = parseFloat(document.getElementById('payAmount').value || 0);
-    const dateInput = document.getElementById('payDate').value || new Date().toISOString();
-
-    let channelLabel = 'GCash';
-    if (channel === 'maya') channelLabel = 'Maya';
-    if (channel === 'cash') channelLabel = 'Cash Drawer';
-    if (channel === 'bank') channelLabel = 'Bank Transfer';
-
-    const newRecord = {
-        id: Date.now(),
-        date: new Date(dateInput).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-        customer_name: customerName,
-        order_number: orderNum,
-        channel,
-        channel_label: channelLabel,
-        ref_id: refNum,
-        amount,
-        status: 'VERIFIED',
-        status_label: '✓ Reconciled & Logged'
-    };
-
-    allPaymentsData.unshift(newRecord);
-    applyPaymentsFilter();
+    // NOTE: There is currently no backend endpoint to persist a manually
+    // logged payment record - it would previously vanish on refresh while
+    // claiming to be "reconciled and posted." Rather than fake a save,
+    // we say so honestly until a real /api/finance-officer/payments POST
+    // endpoint exists.
+    alert('Manual payment logging isn\'t connected to the database yet, so nothing was saved. This needs a real backend endpoint before it can record anything.');
     closePaymentModal();
-    e.target.reset();
-
-    alert(`Payment record for "${customerName}" (₱${amount.toFixed(2)}) reconciled and posted to sales ledger!`);
 }
 
 function openPaymentModal() {

@@ -81,6 +81,13 @@ function applyBudgetFilters() {
         document.getElementById('kpiRawMaterials').textContent = '₱' + formatAmount(activeCycle.raw_material);
         document.getElementById('kpiPettyCash').textContent = '₱' + formatAmount(activeCycle.petty_cash_fund || 800);
         document.getElementById('kpiEmergency').textContent = '₱' + formatAmount(activeCycle.emergency_funds);
+    } else {
+        // No real budget-cycle data exists - say so honestly instead of
+        // leaving whatever placeholder number was in the HTML.
+        ['kpiCapital', 'kpiRawMaterials', 'kpiPettyCash', 'kpiEmergency'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '—';
+        });
     }
 
     currentBudgetPage = 1;
@@ -184,33 +191,12 @@ function viewCycleBreakdown(id) {
 function handleAddBudgetCycle(e) {
     e.preventDefault();
 
-    const desc = document.getElementById('cycleName').value.trim();
-    const dateVal = document.getElementById('budgetDate').value;
-    const capital = parseFloat(document.getElementById('capitalAmount').value || 0);
-    const rawMaterial = parseFloat(document.getElementById('rawMaterialAmount').value || 0);
-    const pettyCash = parseFloat(document.getElementById('pettyCashAmount').value || 0);
-    const emergency = parseFloat(document.getElementById('emergencyAmount').value || 0);
-    const manpower = parseFloat(document.getElementById('manpowerAmount').value || 0);
-
-    const newRecord = {
-        id: Date.now(),
-        date: `${desc} (${dateVal})`,
-        month_group: 'september',
-        capital,
-        raw_material: rawMaterial,
-        petty_cash_fund: pettyCash,
-        emergency_funds: emergency,
-        manpower_cost: manpower,
-        status: 'ACTIVE'
-    };
-
-    allBudgetRecords.forEach(b => { if (b.status === 'ACTIVE') b.status = 'CLOSED'; });
-    allBudgetRecords.unshift(newRecord);
-    applyBudgetFilters();
+    // NOTE: There is no backend endpoint to persist a budget cycle - it
+    // would previously vanish on refresh while claiming to be
+    // "authorized." Rather than fake a save, we say so honestly until a
+    // real /api/finance-officer/budget POST endpoint and schema exist.
+    alert('Budget cycle allocation isn\'t connected to the database yet, so nothing was saved. This needs real budget-cycle tracking in the schema before it can record anything.');
     closeBudgetModal();
-    e.target.reset();
-
-    alert(`Operating budget cycle authorized!\nRevolving petty cash of ₱${pettyCash.toFixed(2)} allocated for Procurement direct buys.`);
 }
 
 function openBudgetModal() {

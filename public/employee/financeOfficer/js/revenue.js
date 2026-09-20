@@ -54,11 +54,12 @@ async function fetchRevenueData() {
 
         // Metrics setup
         if (data.metrics) {
-            document.getElementById('totalRevenue').textContent = '₱' + formatAmount(data.metrics.totalRevenue || 14850);
-            document.getElementById('preordersInflow').textContent = '₱' + formatAmount(data.metrics.preordersInflow || 8600);
-            document.getElementById('presetsInflow').textContent = '₱' + formatAmount(data.metrics.presetsInflow || 6250);
-            document.getElementById('avgCupMargin').textContent = '₱' + formatAmount(data.metrics.avgCupMargin || 48.50);
+            document.getElementById('totalRevenue').textContent = '₱' + formatAmount(data.metrics.totalRevenue);
+            document.getElementById('preordersInflow').textContent = '₱' + formatAmount(data.metrics.preordersInflow);
+            document.getElementById('presetsInflow').textContent = '₱' + formatAmount(data.metrics.presetsInflow);
         }
+        const avgCupMarginEl = document.getElementById('avgCupMargin');
+        if (avgCupMarginEl) avgCupMarginEl.textContent = '—'; // no real per-cup cost data exists yet
 
         allRevenueItems = data.flavorContributions || [];
         applyRevenueFilters();
@@ -178,9 +179,9 @@ function initWeeklyReleaseChart(customData) {
 
     if (weeklyChartInstance) weeklyChartInstance.destroy();
 
-    const labels = ['Cycle 1', 'Cycle 2', 'Cycle 3', 'Cycle 4'];
-    const tuesdayData = (customData && customData.tuesday) || [7200, 7600, 8100, 8300];
-    const thursdayData = (customData && customData.thursday) || [6100, 6400, 6550, 6550];
+    const labels = ['Week -3', 'Week -2', 'Week -1', 'This Week'];
+    const tuesdayData = (customData && customData.tuesday) || [0, 0, 0, 0];
+    const thursdayData = (customData && customData.thursday) || [0, 0, 0, 0];
 
     weeklyChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -231,7 +232,13 @@ function initChannelDonutChart(customData) {
 
     if (channelDonutInstance) channelDonutInstance.destroy();
 
-    const dataPoints = customData || [8600, 6250];
+    const dataPoints = customData || [0, 0];
+    const total = dataPoints[0] + dataPoints[1];
+    const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0;
+    const preordersLegendEl = document.getElementById('preordersLegendVal');
+    const presetsLegendEl = document.getElementById('presetsLegendVal');
+    if (preordersLegendEl) preordersLegendEl.textContent = `₱${formatAmount(dataPoints[0])} (${pct(dataPoints[0])}%)`;
+    if (presetsLegendEl) presetsLegendEl.textContent = `₱${formatAmount(dataPoints[1])} (${pct(dataPoints[1])}%)`;
 
     channelDonutInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -253,7 +260,7 @@ function initChannelDonutChart(customData) {
 }
 
 function triggerReconciliationAudit() {
-    alert("Reconciliation Audit Triggered:\nAll Tuesday & Thursday counter cashier logs (10:00 AM – 3:00 PM) have been reconciled with confirmed pre-orders. Total variances: ₱0.00 (Balanced).");
+    alert("Reconciliation auditing isn't wired up to real drawer-count data yet, so there's nothing to report here honestly. This needs a real backend endpoint before it can show an actual variance.");
 }
 
 function formatAmount(val) {

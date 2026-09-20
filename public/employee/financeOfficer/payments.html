@@ -55,7 +55,7 @@
             <!-- TOPBAR -->
             <header class="topbar">
                 <div class="search-box">
-                    <input type="text" id="paymentsSearchInput" placeholder="Search customer, order #, GCash ref, or transaction ID...">
+                    <input type="text" id="paymentsSearchInput" placeholder="Search customer or order #...">
                     <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 </div>
 
@@ -79,7 +79,7 @@
                             <span class="shift-subtag">Tuesday &amp; Thursday Collections (10:00 AM – 3:00 PM)</span>
                         </div>
                         <h1 class="welcome-title">Customer Payments &amp; Settlement Audit</h1>
-                        <p class="welcome-sub">Verify online pre-order gateway transfers (GCash/Maya) and reconcile cashier drawer cash from walk-in preset sales.</p>
+                        <p class="welcome-sub">Verify online e-wallet payments and reconcile cashier drawer cash from walk-in preset sales.</p>
                     </div>
                     <div class="banner-action-col">
                         <button type="button" class="btn-primary" onclick="openPaymentModal()">
@@ -98,17 +98,17 @@
                             <span class="stat-title">Total Payments Inflow</span>
                             <i class="fa-solid fa-circle-dollar-to-slot stat-icon"></i>
                         </div>
-                        <div class="stat-body"><span id="kpiTotalPayments" class="stat-value">₱14,850.00</span></div>
+                        <div class="stat-body"><span id="kpiTotalPayments" class="stat-value">₱0.00</span></div>
                         <div class="stat-footer">Reconciled Cycle Collections</div>
                     </div>
 
-                    <!-- 2. E-Wallet Inflow (GCash / Maya) -->
+                    <!-- 2. E-Wallet Inflow -->
                     <div class="stat-card">
                         <div class="stat-header">
-                            <span class="stat-title">E-Wallet (GCash / Maya)</span>
+                            <span class="stat-title">E-Wallet</span>
                             <i class="fa-solid fa-mobile-screen-button stat-icon" style="color: #68B0AB;"></i>
                         </div>
-                        <div class="stat-body"><span id="kpiEwallet" class="stat-value">₱8,600.00</span></div>
+                        <div class="stat-body"><span id="kpiEwallet" class="stat-value">₱0.00</span></div>
                         <div class="stat-footer">Pre-orders Digital Transfer</div>
                     </div>
 
@@ -118,7 +118,7 @@
                             <span class="stat-title">Counter Cash Collected</span>
                             <i class="fa-solid fa-money-bill-wave stat-icon" style="color: #2E7D32;"></i>
                         </div>
-                        <div class="stat-body"><span id="kpiCashDrawer" class="stat-value">₱6,250.00</span></div>
+                        <div class="stat-body"><span id="kpiCashDrawer" class="stat-value">₱0.00</span></div>
                         <div class="stat-footer">Walk-in Presets Cash Drawer</div>
                     </div>
 
@@ -128,8 +128,8 @@
                             <span class="stat-title">Unreconciled Variance</span>
                             <i class="fa-solid fa-scale-balanced stat-icon" style="color: #EAA342;"></i>
                         </div>
-                        <div class="stat-body"><span id="kpiUnreconciled" class="stat-value">₱0.00</span></div>
-                        <div class="stat-footer">100% Drawer Balanced</div>
+                        <div class="stat-body"><span id="kpiUnreconciled" class="stat-value">—</span></div>
+                        <div class="stat-footer">Not tracked yet (no physical cash-count entry exists)</div>
                     </div>
                 </div>
             </section>
@@ -142,11 +142,10 @@
                         <p class="section-sub-text">Official settlement records from customer orders and cashier drawer turn-overs.</p>
                     </div>
 
-                    <!-- Filter Tabs by Channel: All, GCash, Maya, Cash on Pickup -->
+                    <!-- Filter Tabs by Channel: only the two methods we actually record -->
                     <div class="order-filter-tabs">
                         <button type="button" class="tab-btn active" data-filter="all" onclick="filterPaymentsByChannel('all', this)">All Transactions</button>
-                        <button type="button" class="tab-btn" data-filter="gcash" onclick="filterPaymentsByChannel('gcash', this)">GCash</button>
-                        <button type="button" class="tab-btn" data-filter="maya" onclick="filterPaymentsByChannel('maya', this)">Maya</button>
+                        <button type="button" class="tab-btn" data-filter="ewallet" onclick="filterPaymentsByChannel('ewallet', this)">E-Wallet</button>
                         <button type="button" class="tab-btn" data-filter="cash" onclick="filterPaymentsByChannel('cash', this)">Cash on Counter</button>
                     </div>
                 </div>
@@ -217,8 +216,7 @@
                     <div class="form-group">
                         <label for="payChannel">Payment Channel *</label>
                         <select id="payChannel" required>
-                            <option value="gcash" selected>GCash (QR / Direct)</option>
-                            <option value="maya">Maya (E-Wallet)</option>
+                            <option value="ewallet" selected>E-Wallet</option>
                             <option value="cash">Cash on Counter</option>
                             <option value="bank">Bank Transfer</option>
                         </select>

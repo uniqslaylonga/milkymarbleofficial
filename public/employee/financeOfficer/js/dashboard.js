@@ -61,8 +61,11 @@ async function fetchFinanceDashboardData() {
 
         // Metrics
         if (data.metrics) {
-            document.getElementById('totalRevenue').textContent = '₱' + formatAmount(data.metrics.totalRevenue || 12850);
-            document.getElementById('netMarginVal').textContent = (data.metrics.netMargin || 38.5) + '%';
+            document.getElementById('totalRevenue').textContent = '₱' + formatAmount(data.metrics.totalRevenue);
+            const netMargin = (data.metrics.totalRevenue > 0)
+                ? (((data.metrics.totalRevenue - data.metrics.totalExpenses) / data.metrics.totalRevenue) * 100).toFixed(1)
+                : null;
+            document.getElementById('netMarginVal').textContent = netMargin !== null ? netMargin + '%' : '—';
         }
 
         allPreApprovals = data.preApprovals || [];
@@ -267,8 +270,8 @@ function initReleaseDayChart(customData) {
     if (releaseDayChartInstance) releaseDayChartInstance.destroy();
 
     const labels = ['Tue (10 AM - 3 PM)', 'Thu (10 AM - 3 PM)'];
-    const revenueData = (customData && customData.revenue) || [6800, 6050];
-    const outflowData = (customData && customData.outflow) || [2400, 2100];
+    const revenueData = (customData && customData.revenue) || [0, 0];
+    const outflowData = (customData && customData.outflow) || [0, 0];
 
     releaseDayChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -308,11 +311,29 @@ function initReleaseDayChart(customData) {
 // Chart 2: COGS Donut
 function initCogsDonutChart(customData) {
     const ctx = document.getElementById('cogsDonutChart')?.getContext('2d');
+    const canvas = document.getElementById('cogsDonutChart');
     if (!ctx) return;
 
     if (cogsChartInstance) cogsChartInstance.destroy();
 
-    const dataPoints = customData || [42, 33, 25];
+    // There is no real per-ingredient cost tracking in the database
+    // (no tea/milk/cups cost breakdown exists anywhere), so we don't
+    // fabricate one. Show an honest "no data" state instead.
+    if (!customData || !Array.isArray(customData) || customData.length === 0) {
+        if (canvas) {
+            const wrapper = canvas.parentElement;
+            if (wrapper && !wrapper.querySelector('.cogs-empty-note')) {
+                const note = document.createElement('div');
+                note.className = 'cogs-empty-note';
+                note.style.cssText = 'text-align:center; font-size:12px; color: var(--text-muted); padding: 20px 10px;';
+                note.textContent = 'No ingredient cost-breakdown data available yet.';
+                wrapper.appendChild(note);
+            }
+        }
+        return;
+    }
+
+    const dataPoints = customData;
 
     cogsChartInstance = new Chart(ctx, {
         type: 'doughnut',

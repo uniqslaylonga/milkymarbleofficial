@@ -200,49 +200,13 @@ function viewExpenseReceipt(id) {
 function handleAddDisbursement(e) {
     e.preventDefault();
 
-    const particulars = document.getElementById('expParticulars').value.trim();
-    const category = document.getElementById('expCategory').value;
-    const dateVal = document.getElementById('expDate').value;
-    const vendor = document.getElementById('expVendor').value.trim();
-    const orNum = document.getElementById('expOrNum').value.trim();
-    const amount = parseFloat(document.getElementById('expAmount').value || 0);
-
-    let categoryLabel = 'COGS - Raw Materials';
-    let doaTier = 'procure';
-    let doaText = '🟢 Direct Buy Liquidated';
-
-    if (category === 'direct') categoryLabel = 'Direct Buy Liquidation';
-    if (category === 'marketing') categoryLabel = 'Marketing & Promotional';
-    if (category === 'admin') categoryLabel = 'Admin, Ice & Utilities';
-
-    if (amount > 500) {
-        doaTier = 'ceo';
-        doaText = '🔴 CEO Cleared';
-    } else if (amount > 300) {
-        doaTier = 'finance';
-        doaText = '🟠 Finance Endorsed';
-    }
-
-    const newExpense = {
-        id: Date.now(),
-        voucher_num: `DV-2026-${String(allExpenseRecords.length + 80).padStart(3, '0')}`,
-        particulars,
-        category,
-        category_label: categoryLabel,
-        cycle_date: dateVal,
-        vendor_name: vendor,
-        or_number: orNum,
-        amount,
-        doa_tier: doaTier,
-        doa_badge_text: doaText
-    };
-
-    allExpenseRecords.unshift(newExpense);
-    applyExpenseFilters();
+    // NOTE: There is no finance-officer endpoint to persist a disbursement
+    // record - it would previously vanish on refresh while claiming to be
+    // "recorded to official ledger." Rather than fake a save, we say so
+    // honestly until a real POST endpoint exists for this.
+    alert('Disbursement logging isn\'t connected to the database yet, so nothing was saved. This needs a real backend endpoint before it can record anything.');
     closeExpenseModal();
-    e.target.reset();
-
-    alert(`Disbursement voucher for "${particulars}" (₱${amount.toFixed(2)}) recorded to official ledger!`);
+}
 }
 
 function openExpenseModal() {

@@ -913,9 +913,42 @@ router.get('/finance-officer/revenue', async (req, res) => {
     const userProfile = await getEmployeeProfile(req);
     const thisYear = new Date().getFullYear();
 
-    const { data: paidOrders } = await supabase.from('orders').select('total_amount, placed_at').in('status', ['PAID_VERIFIED', 'COMPLETED']);
+    const { data: paidOrders } = await supabase
+      .from('orders')
+      .select('total_amount, placed_at, order_type')
+      .in('status', ['PAID_VERIFIED', 'COMPLETED']);
     const totalRevenue = (paidOrders || []).reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
     const totalPayments = totalRevenue;
+
+    // Real split by what the order actually was, not a guess.
+    let preordersInflow = 0, presetsInflow = 0;
+    (paidOrders || []).forEach(o => {
+      const amt = parseFloat(o.total_amount) || 0;
+      if (o.order_type === 'custom_build') preordersInflow += amt;
+      else presetsInflow += amt;
+    });
+
+    // Real Tuesday/Thursday totals for the last 4 occurrences of each,
+    // in place of the fixed dummy "Cycle 1-4" bar chart numbers.
+    const tuesdays = [];
+    const thursdays = [];
+    (paidOrders || []).forEach(o => {
+      const d = new Date(o.placed_at);
+      const amt = parseFloat(o.total_amount) || 0;
+      const dayKey = d.toISOString().slice(0, 10);
+      const dow = d.getDay();
+      if (dow === 2) tuesdays.push({ dayKey, amt });
+      if (dow === 4) thursdays.push({ dayKey, amt });
+    });
+    const sumByDay = (arr) => {
+      const map = {};
+      arr.forEach(({ dayKey, amt }) => { map[dayKey] = (map[dayKey] || 0) + amt; });
+      return Object.keys(map).sort().map(k => map[k]);
+    };
+    const tuesdayTotals = sumByDay(tuesdays).slice(-4);
+    const thursdayTotals = sumByDay(thursdays).slice(-4);
+    while (tuesdayTotals.length < 4) tuesdayTotals.unshift(0);
+    while (thursdayTotals.length < 4) thursdayTotals.unshift(0);
 
     const { data: expenseRows } = await supabase.from('expenses').select('amount, status, expense_date');
     const totalExpenses = (expenseRows || [])
@@ -945,14 +978,16 @@ router.get('/finance-officer/revenue', async (req, res) => {
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { totalBudget, totalRevenue, totalExpenses, totalPayments },
+      metrics: { totalBudget, totalRevenue, totalExpenses, totalPayments, preordersInflow, presetsInflow },
       percentages: {
         budget: totalBudget > 0 ? 100 : 0,
         revenue: totalRevenue > 0 ? 100 : 0,
         expenses: totalExpenses > 0 ? 100 : 0,
         payments: totalPayments > 0 ? 100 : 0
       },
-      monthly: { budget: budgetMonthly, revenue: revenueMonthly, expenses: expensesMonthly, payments: paymentsMonthly }
+      monthly: { budget: budgetMonthly, revenue: revenueMonthly, expenses: expensesMonthly, payments: paymentsMonthly },
+      weeklyComparison: { tuesday: tuesdayTotals, thursday: thursdayTotals },
+      channelShares: [preordersInflow, presetsInflow]
     });
   } catch (error) {
     console.error('[finance-officer/revenue] error:', error.message);
@@ -965,25 +1000,13 @@ router.get('/finance-officer/budget', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    const { data: expenseRows, error } = await supabase
-      .from('expenses')
-      .select('amount, expense_date')
-      .order('expense_date', { ascending: false });
-    if (error) throw error;
-
-    const records = (expenseRows || []).map(e => {
-      const amount = parseFloat(e.amount) || 0;
-      const d = new Date(e.expense_date);
-      return {
-        date: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
-        capital: amount,
-        raw_material: amount * 0.50,
-        emergency_funds: amount * 0.15,
-        manpower_cost: amount * 0.35
-      };
-    });
-
-    return res.json({ status: 'success', user: userProfile, records });
+    // NOTE: There is no real "budget cycle / capital pool" data anywhere in
+    // the schema - the old version of this route fabricated a raw
+    // material / emergency fund / manpower split by multiplying the total
+    // expense amount by fixed made-up percentages. That was fake, not a
+    // real breakdown, so we no longer invent one. This returns nothing
+    // until real budget-cycle tracking exists in the database.
+    return res.json({ status: 'success', user: userProfile, records: [] });
   } catch (error) {
     console.error('[finance-officer/budget] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
@@ -995,24 +1018,13 @@ router.get('/finance-officer/expenses', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    const { data: expenseRows, error } = await supabase
-      .from('expenses')
-      .select('amount, expense_date')
-      .order('expense_date', { ascending: false });
-    if (error) throw error;
-
-    const records = (expenseRows || []).map(e => {
-      const amount = parseFloat(e.amount) || 0;
-      const d = new Date(e.expense_date);
-      return {
-        date: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
-        marketing: amount * 0.20,
-        taxes: amount * 0.15,
-        cogs: amount * 0.65
-      };
-    });
-
-    return res.json({ status: 'success', user: userProfile, records });
+    // NOTE: There is no real marketing/taxes/COGS category tracking
+    // anywhere in the schema - the old version of this route fabricated
+    // that split by multiplying the total expense amount by fixed
+    // made-up percentages. That was fake, not a real breakdown, so we no
+    // longer invent one. This returns nothing until real expense
+    // categorization exists in the database.
+    return res.json({ status: 'success', user: userProfile, records: [] });
   } catch (error) {
     console.error('[finance-officer/expenses] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
@@ -1026,7 +1038,7 @@ router.get('/finance-officer/payments', async (req, res) => {
 
     const { data: paidOrders, error } = await supabase
       .from('orders')
-      .select('id, order_number, total_amount, placed_at, guest_name, customers(users(full_name, username))')
+      .select('id, order_number, total_amount, placed_at, payment_method, guest_name, customers(users(full_name, username))')
       .eq('status', 'PAID_VERIFIED')
       .order('placed_at', { ascending: false });
     if (error) throw error;
@@ -1045,13 +1057,25 @@ router.get('/finance-officer/payments', async (req, res) => {
       }
 
       const userObj = o.customers && o.customers.users;
+      // We only ever record "Cash on Pick-Up" or "E-Wallet" - there is no
+      // real data distinguishing GCash from Maya, so we don't fabricate one.
+      const isCash = o.payment_method === 'Cash on Pick-Up';
+      const channel = isCash ? 'cash' : 'ewallet';
+      const channelLabel = isCash ? 'Cash on Counter' : 'E-Wallet';
+
       return {
-        payment_id: o.id,
+        id: o.id,
         amount: amt,
-        transaction_id: o.order_number,
-        created_at: o.placed_at,
+        order_number: o.order_number,
+        date: d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
         customer_name: (userObj && userObj.full_name) || o.guest_name || 'Guest Customer',
-        user_identifier: (userObj && userObj.username) || 'N/A'
+        user_identifier: (userObj && userObj.username) || 'N/A',
+        channel,
+        channel_label: channelLabel,
+        // No payment-gateway reference ID is stored anywhere in the schema
+        // yet, so we say so honestly instead of making one up.
+        ref_id: 'N/A',
+        status_label: '✓ Verified'
       };
     });
 
