@@ -188,15 +188,49 @@ function viewCycleBreakdown(id) {
     alert(`Budget Envelope Audit:\n• Cycle: ${cycle.date}\n• Total Pool: ₱${formatAmount(cycle.capital)}\n• Raw Materials: ₱${formatAmount(cycle.raw_material)}\n• Direct Buy (&le; ₱300) Petty Cash: ₱${formatAmount(cycle.petty_cash_fund || 800)}\n• Emergency Contingency: ₱${formatAmount(cycle.emergency_funds)}\n• Manpower: ₱${formatAmount(cycle.manpower_cost)}`);
 }
 
-function handleAddBudgetCycle(e) {
+async function handleAddBudgetCycle(e) {
     e.preventDefault();
 
-    // NOTE: There is no backend endpoint to persist a budget cycle - it
-    // would previously vanish on refresh while claiming to be
-    // "authorized." Rather than fake a save, we say so honestly until a
-    // real /api/finance-officer/budget POST endpoint and schema exist.
-    alert('Budget cycle allocation isn\'t connected to the database yet, so nothing was saved. This needs real budget-cycle tracking in the schema before it can record anything.');
-    closeBudgetModal();
+    const cycle_name = document.getElementById('cycleName')?.value.trim();
+    const allocation_date = document.getElementById('budgetDate')?.value;
+    const capital = parseFloat(document.getElementById('capitalAmount')?.value);
+    const raw_material = parseFloat(document.getElementById('rawMaterialAmount')?.value);
+    const petty_cash_fund = parseFloat(document.getElementById('pettyCashAmount')?.value);
+    const emergency_funds = parseFloat(document.getElementById('emergencyAmount')?.value);
+    const manpower_cost = parseFloat(document.getElementById('manpowerAmount')?.value);
+
+    if (!cycle_name || !allocation_date || isNaN(capital) || isNaN(raw_material) || isNaN(petty_cash_fund)) {
+        alert('Please fill in all required fields with valid amounts.');
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const response = await fetch('/api/finance-officer/budget', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(userId ? { 'x-user-id': userId } : {})
+            },
+            body: JSON.stringify({
+                cycle_name, allocation_date, capital, raw_material, petty_cash_fund,
+                emergency_funds: isNaN(emergency_funds) ? 0 : emergency_funds,
+                manpower_cost: isNaN(manpower_cost) ? 0 : manpower_cost
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Could not save the budget cycle.');
+        }
+
+        closeBudgetModal();
+        document.getElementById('budgetAllocationForm')?.reset();
+        await fetchBudgetRecords();
+        alert('Budget cycle allocated and saved.');
+    } catch (error) {
+        alert(error.message || 'Could not save the budget cycle.');
+    }
 }
 
 function openBudgetModal() {

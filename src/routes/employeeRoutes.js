@@ -1000,15 +1000,83 @@ router.get('/finance-officer/budget', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    // NOTE: There is no real "budget cycle / capital pool" data anywhere in
-    // the schema - the old version of this route fabricated a raw
-    // material / emergency fund / manpower split by multiplying the total
-    // expense amount by fixed made-up percentages. That was fake, not a
-    // real breakdown, so we no longer invent one. This returns nothing
-    // until real budget-cycle tracking exists in the database.
-    return res.json({ status: 'success', user: userProfile, records: [] });
+    const { data: cycles, error } = await supabase
+      .from('budget_cycles')
+      .select('id, cycle_name, allocation_date, capital, raw_material, petty_cash_fund, emergency_funds, manpower_cost, status, created_at')
+      .order('allocation_date', { ascending: false });
+    if (error) throw error;
+
+    const records = (cycles || []).map(c => {
+      const d = new Date(c.allocation_date);
+      return {
+        id: c.id,
+        date: c.cycle_name || d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        // Used by the "September 2026" / "August 2026" cycle filter.
+        month_group: d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase(),
+        capital: parseFloat(c.capital) || 0,
+        raw_material: parseFloat(c.raw_material) || 0,
+        petty_cash_fund: parseFloat(c.petty_cash_fund) || 0,
+        emergency_funds: parseFloat(c.emergency_funds) || 0,
+        manpower_cost: parseFloat(c.manpower_cost) || 0,
+        status: c.status
+      };
+    });
+
+    return res.json({ status: 'success', user: userProfile, records });
   } catch (error) {
     console.error('[finance-officer/budget] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// POST /api/finance-officer/budget
+// Persists a new budget cycle allocation. Marks any currently ACTIVE cycle
+// as RECONCILED first, since only one cycle is meant to be "current" at a
+// time - a new allocation supersedes the previous one.
+// ==========================================
+router.post('/finance-officer/budget', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const userId = req.headers['x-user-id'] || req.query.user_id || req.body?.user_id || null;
+
+    const cycle_name = (req.body?.cycle_name || '').toString().trim();
+    const allocation_date = (req.body?.allocation_date || '').toString().trim();
+    const capital = parseFloat(req.body?.capital);
+    const raw_material = parseFloat(req.body?.raw_material);
+    const petty_cash_fund = parseFloat(req.body?.petty_cash_fund);
+    const emergency_funds = parseFloat(req.body?.emergency_funds);
+    const manpower_cost = parseFloat(req.body?.manpower_cost);
+
+    if (!cycle_name || !allocation_date) {
+      return res.status(400).json({ status: 'error', message: 'cycle_name and allocation_date are required.' });
+    }
+    if ([capital, raw_material, petty_cash_fund].some(v => isNaN(v) || v < 0)) {
+      return res.status(400).json({ status: 'error', message: 'capital, raw_material, and petty_cash_fund must be valid non-negative numbers.' });
+    }
+
+    await supabase.from('budget_cycles').update({ status: 'RECONCILED' }).eq('status', 'ACTIVE');
+
+    const { data: record, error: insertErr } = await supabase
+      .from('budget_cycles')
+      .insert({
+        cycle_name,
+        allocation_date,
+        capital,
+        raw_material,
+        petty_cash_fund,
+        emergency_funds: isNaN(emergency_funds) ? 0 : emergency_funds,
+        manpower_cost: isNaN(manpower_cost) ? 0 : manpower_cost,
+        status: 'ACTIVE',
+        created_by: userId
+      })
+      .select()
+      .single();
+    if (insertErr) throw insertErr;
+
+    return res.json({ status: 'success', record });
+  } catch (error) {
+    console.error('[finance-officer/budget POST] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 });
