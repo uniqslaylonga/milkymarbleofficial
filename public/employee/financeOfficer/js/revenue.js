@@ -59,7 +59,17 @@ async function fetchRevenueData() {
             document.getElementById('presetsInflow').textContent = '₱' + formatAmount(data.metrics.presetsInflow);
         }
         const avgCupMarginEl = document.getElementById('avgCupMargin');
-        if (avgCupMarginEl) avgCupMarginEl.textContent = '—'; // no real per-cup cost data exists yet
+        const avgCupMarginFooterEl = avgCupMarginEl?.closest('.stat-card')?.querySelector('.stat-footer');
+        if (data.metrics && data.metrics.avgCupMargin !== null && data.metrics.avgCupMargin !== undefined) {
+            if (avgCupMarginEl) avgCupMarginEl.textContent = '₱' + formatAmount(data.metrics.avgCupMargin);
+            if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = `Net Profit Margin: ${data.metrics.netProfitMarginPct}%`;
+        } else {
+            // Honest fallback: either no cups sold yet, or no COGS expenses
+            // have been recorded on the Expenses page yet to compute a real
+            // margin against.
+            if (avgCupMarginEl) avgCupMarginEl.textContent = '—';
+            if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = 'Needs recorded COGS expenses to calculate';
+        }
 
         allRevenueItems = data.flavorContributions || [];
         applyRevenueFilters();

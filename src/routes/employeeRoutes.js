@@ -1047,11 +1047,35 @@ router.get('/finance-officer/revenue', async (req, res) => {
     while (tuesdayTotals.length < 4) tuesdayTotals.unshift(0);
     while (thursdayTotals.length < 4) thursdayTotals.unshift(0);
 
-    const { data: expenseRows } = await supabase.from('expenses').select('amount, status, expense_date');
+    const { data: expenseRows } = await supabase.from('expenses').select('amount, status, expense_date, category');
     const totalExpenses = (expenseRows || [])
       .filter(e => ['APPROVED', 'PURCHASED'].includes(e.status))
       .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
     const totalBudget = (expenseRows || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+
+    // Real Avg. Margin per Cup: (revenue from cups sold - recorded COGS
+    // expenses) / cups sold. There is no per-product cost/recipe data in
+    // the schema, so we cannot break this down per flavor - only this
+    // single average, built entirely from order_items quantities and the
+    // same 'cogs' expense category the Expenses page already totals.
+    const { data: cupItems } = await supabase
+      .from('order_items')
+      .select('quantity, orders!inner(status)')
+      .in('orders.status', ['PAID_VERIFIED', 'COMPLETED']);
+    const totalCupsSold = (cupItems || []).reduce((s, it) => s + (parseInt(it.quantity, 10) || 0), 0);
+
+    const totalCogs = (expenseRows || [])
+      .filter(e => e.category === 'cogs' && ['APPROVED', 'PURCHASED'].includes(e.status))
+      .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+
+    let avgCupMargin = null;
+    let netProfitMarginPct = null;
+    if (totalCupsSold > 0 && totalCogs > 0) {
+      avgCupMargin = Math.round(((totalRevenue - totalCogs) / totalCupsSold) * 100) / 100;
+      netProfitMarginPct = totalRevenue > 0
+        ? Math.round(((totalRevenue - totalCogs) / totalRevenue) * 1000) / 10
+        : null;
+    }
 
     const revenueMonthly = Array(12).fill(0);
     const paymentsMonthly = Array(12).fill(0);
@@ -1075,7 +1099,7 @@ router.get('/finance-officer/revenue', async (req, res) => {
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { totalBudget, totalRevenue, totalExpenses, totalPayments, preordersInflow, presetsInflow },
+      metrics: { totalBudget, totalRevenue, totalExpenses, totalPayments, preordersInflow, presetsInflow, avgCupMargin, netProfitMarginPct, totalCupsSold, totalCogs },
       percentages: {
         budget: totalBudget > 0 ? 100 : 0,
         revenue: totalRevenue > 0 ? 100 : 0,
