@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.value === 'custom') {
                 txCustomDate.style.display = 'inline-block';
                 if (!txCustomDate.value) {
-                    txCustomDate.value = new Date().toISOString().split('T')[0];
+                    txCustomDate.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 txCustomDate.style.display = 'none';
@@ -142,7 +142,7 @@ async function loadPageData() {
         }
 
         const response = await fetch('/api/sales-officer/dashboard', { headers });
-        if (!response.ok) throw new Error('Failed to load dashboard data');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -250,33 +250,9 @@ async function loadPageData() {
         applyTransactionFilters();
 
     } catch (error) {
-        console.warn('Backend unavailable, showing fallback orders & persistent pager:', error);
-
-        // Fallback demo data kapag offline ang database
-        allFetchedOrders = [
-            {
-                id: 1,
-                order_number: 'MM-2026-001',
-                customer_id: null,
-                guest_name: 'Maria Santos',
-                payment_method: 'GCash',
-                total_amount: 235.00,
-                status: 'COMPLETED',
-                placed_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                order_number: 'MM-2026-002',
-                customer_id: 12,
-                customer_name: 'Juan Dela Cruz',
-                payment_method: 'Cash on Pick-Up',
-                total_amount: 280.00,
-                status: 'PENDING',
-                placed_at: new Date().toISOString()
-            }
-        ];
-
-        applyTransactionFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -286,7 +262,7 @@ function applyTransactionFilters() {
     const customDateVal = document.getElementById('txCustomDate')?.value;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
 
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
@@ -296,7 +272,7 @@ function applyTransactionFilters() {
     filteredOrders = allFetchedOrders.filter(ord => {
         if (!ord.placed_at) return false;
         const ordDate = new Date(ord.placed_at);
-        const ordDateStr = ord.placed_at.split('T')[0];
+        const ordDateStr = SalesCommon.localDate(ord.placed_at);
 
         if (filterType === 'today') {
             return ordDateStr === todayStr;

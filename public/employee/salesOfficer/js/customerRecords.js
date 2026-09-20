@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.value === 'custom') {
                 customDate.style.display = 'inline-block';
                 if (!customDate.value) {
-                    customDate.value = new Date().toISOString().split('T')[0];
+                    customDate.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDate.style.display = 'none';
@@ -104,7 +104,7 @@ async function fetchCustomerRecords() {
         const headers = userId ? { 'x-user-id': userId } : {};
         
         const response = await fetch('/api/sales-officer/customer-records', { headers });
-        if (!response.ok) throw new Error('Failed to fetch customer records');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -146,132 +146,9 @@ async function fetchCustomerRecords() {
         updateAcquisitionAnalyticsPanel();
 
     } catch (error) {
-        console.warn('Backend server unavailable, loading fallback demo customer data:', error);
-
-        // Fallback demo data para magamit agad
-        allCustomers = [
-            {
-                id: 1,
-                type: 'registered',
-                full_name: 'Maria Elena Santos',
-                email: 'maria.santos@gmail.com',
-                phone: '+63 917 123 4567',
-                total_orders: 8,
-                total_spent: 1240.00,
-                preferred_payment: 'GCash',
-                address: '123 Sampaguita St, North Caloocan',
-                last_order_at: new Date().toISOString(),
-                recent_orders: [
-                    { order_number: 'MM-2026-091', placed_at: new Date().toISOString(), total_amount: 160.00, item_count: 1 },
-                    { order_number: 'MM-2026-074', placed_at: '2026-09-12T14:20:00Z', total_amount: 310.00, item_count: 2 }
-                ]
-            },
-            {
-                id: 2,
-                type: 'guest',
-                full_name: 'Angelo Reyes (Guest)',
-                email: 'angeloreyes@yahoo.com',
-                phone: '+63 928 987 6543',
-                total_orders: 1,
-                total_spent: 145.00,
-                preferred_payment: 'Cash on Pick-Up',
-                address: 'Counter Pick-Up',
-                last_order_at: new Date().toISOString(),
-                recent_orders: [
-                    { order_number: 'MM-2026-090', placed_at: new Date().toISOString(), total_amount: 145.00, item_count: 1 }
-                ]
-            },
-            {
-                id: 3,
-                type: 'registered',
-                full_name: 'Juan Carlos Dela Cruz',
-                email: 'jdelacruz@gmail.com',
-                phone: '+63 995 444 8821',
-                total_orders: 14,
-                total_spent: 2450.00,
-                preferred_payment: 'GCash',
-                address: 'Block 5 Lot 12, Phase 2, Bagong Silang',
-                last_order_at: '2026-09-18T18:30:00Z',
-                recent_orders: [
-                    { order_number: 'MM-2026-085', placed_at: '2026-09-18T18:30:00Z', total_amount: 280.00, item_count: 2 }
-                ]
-            },
-            {
-                id: 4,
-                type: 'guest',
-                full_name: 'Patricia Gomez (Guest)',
-                email: 'patricia.g@gmail.com',
-                phone: '+63 908 333 1122',
-                total_orders: 2,
-                total_spent: 290.00,
-                preferred_payment: 'GCash',
-                address: 'Counter Pick-Up',
-                last_order_at: '2026-09-17T15:10:00Z',
-                recent_orders: [
-                    { order_number: 'MM-2026-079', placed_at: '2026-09-17T15:10:00Z', total_amount: 145.00, item_count: 1 }
-                ]
-            },
-            {
-                id: 5,
-                type: 'registered',
-                full_name: 'Kristine May Alcantara',
-                email: 'km.alcantara@gmail.com',
-                phone: '+63 919 555 7766',
-                total_orders: 5,
-                total_spent: 780.00,
-                preferred_payment: 'Maya',
-                address: 'Camarin, North Caloocan',
-                last_order_at: '2026-09-16T12:00:00Z',
-                recent_orders: [
-                    { order_number: 'MM-2026-068', placed_at: '2026-09-16T12:00:00Z', total_amount: 155.00, item_count: 1 }
-                ]
-            },
-            {
-                id: 6,
-                type: 'registered',
-                full_name: 'Daniel Joshua Mendoza',
-                email: 'djmendoza@outlook.com',
-                phone: '+63 927 888 9900',
-                total_orders: 3,
-                total_spent: 465.00,
-                preferred_payment: 'GCash',
-                address: 'Grace Park, Caloocan',
-                last_order_at: '2026-09-15T16:40:00Z',
-                recent_orders: [
-                    { order_number: 'MM-2026-062', placed_at: '2026-09-15T16:40:00Z', total_amount: 155.00, item_count: 1 }
-                ]
-            }
-        ];
-
-        acquisitionTimeframeData = {
-            today: 3,
-            week: 11,
-            month: 24,
-            last3Months: 68,
-            last6Months: 142
-        };
-
-        // Populate fallback UI
-        document.getElementById('totalRegistered').textContent = '4';
-        document.getElementById('totalRegisteredGrowth').textContent = '+18% vs last month';
-        document.getElementById('todayNewAccounts').textContent = '3';
-        document.getElementById('activeBuyersToday').textContent = '2';
-        document.getElementById('repeatRate').textContent = '75%';
-
-        updateSegmentationDisplay({
-            memberCount: 4,
-            guestCount: 2,
-            memberRevenue: 4935.00,
-            guestRevenue: 435.00,
-            memberRevenuePercent: 92,
-            guestRevenuePercent: 8,
-            memberOrders: 30,
-            guestOrders: 3
-        });
-
-        updateTabBadges();
-        applyDirectoryFilters();
-        updateAcquisitionAnalyticsPanel();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -369,7 +246,7 @@ function applyDirectoryFilters() {
     const customDateVal = document.getElementById('customerCustomDate')?.value;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -389,7 +266,7 @@ function applyDirectoryFilters() {
         // Date Filter (Based on last order or registration date)
         if (dateFilterVal !== 'all' && c.last_order_at) {
             const ordDate = new Date(c.last_order_at);
-            const ordDateStr = c.last_order_at.split('T')[0];
+            const ordDateStr = SalesCommon.localDate(c.last_order_at);
 
             if (dateFilterVal === 'today' && ordDateStr !== todayStr) return false;
             if (dateFilterVal === 'week' && ordDate < weekAgo) return false;

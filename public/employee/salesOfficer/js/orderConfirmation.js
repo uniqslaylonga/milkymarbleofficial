@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.value === 'custom') {
                 customDateInput.style.display = 'inline-block';
                 if (!customDateInput.value) {
-                    customDateInput.value = new Date().toISOString().split('T')[0];
+                    customDateInput.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDateInput.style.display = 'none';
@@ -65,7 +65,7 @@ async function loadOrderConfirmationData() {
         const headers = userId ? { 'x-user-id': userId } : {};
 
         const response = await fetch('/api/sales-officer/order-confirmation', { headers });
-        if (!response.ok) throw new Error('Failed to load data from server');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -92,38 +92,9 @@ async function loadOrderConfirmationData() {
         applyOrderFilters();
 
     } catch (error) {
-        console.warn('API unavailable, rendering fallback state:', error);
-        
-        // Fallback demo data kung sakaling offline pa ang API route
-        allPendingOrders = [
-            {
-                id: 101,
-                order_number: 'MM-2026-001',
-                customer_id: null,
-                guest_name: 'Maria Santos',
-                items_summary: '1x Classic Pearl Milk Tea (16oz), 1x Brown Sugar Latte (22oz)',
-                payment_method: 'GCash (Ref: 982312)',
-                total_amount: 235.00,
-                placed_at: new Date().toISOString()
-            },
-            {
-                id: 102,
-                order_number: 'MM-2026-002',
-                customer_id: 14,
-                guest_name: null,
-                customer_name: 'Juan Dela Cruz',
-                items_summary: '2x Matcha Cream Marble (22oz, Extra Pearls)',
-                payment_method: 'Cash on Pick-Up',
-                total_amount: 280.00,
-                placed_at: new Date().toISOString()
-            }
-        ];
-
-        document.getElementById('pendingCount').textContent = allPendingOrders.length;
-        document.getElementById('confirmedCount').textContent = '0';
-        document.getElementById('rejectedCount').textContent = '0';
-
-        applyOrderFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -134,7 +105,7 @@ function applyOrderFilters() {
     const searchVal = document.getElementById('orderSearchInput')?.value.trim().toLowerCase() || '';
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
 
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
@@ -146,7 +117,7 @@ function applyOrderFilters() {
         let passDate = true;
         if (ord.placed_at) {
             const ordDate = new Date(ord.placed_at);
-            const ordDateStr = ord.placed_at.split('T')[0];
+            const ordDateStr = SalesCommon.localDate(ord.placed_at);
 
             if (filterType === 'today') {
                 passDate = ordDateStr === todayStr;

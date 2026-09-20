@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.value === 'custom') {
                 customDateInput.style.display = 'inline-block';
                 if (!customDateInput.value) {
-                    customDateInput.value = new Date().toISOString().split('T')[0];
+                    customDateInput.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDateInput.style.display = 'none';
@@ -68,7 +68,7 @@ async function fetchOrderMonitoringData() {
         const headers = userId ? { 'x-user-id': userId } : {};
 
         const response = await fetch('/api/sales-officer/order-monitoring', { headers });
-        if (!response.ok) throw new Error('Failed to load order monitoring data');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -88,66 +88,17 @@ async function fetchOrderMonitoringData() {
 
             if (preparingEl) preparingEl.textContent = Number(data.metrics.preparingCount || 0).toLocaleString();
             if (transitEl) transitEl.textContent = Number(data.metrics.transitCount || 0).toLocaleString();
-            if (cancelledEl) cancelledEl.textContent = Number(data.metrics.cancelledCount || 0).toLocaleString();
+            if (cancelledEl) cancelledEl.textContent = Number(data.metrics.claimedToday || 0).toLocaleString();
         }
 
         allActiveOrders = data.activeOrders || [];
         applyMonitoringFilters();
 
     } catch (error) {
-        console.warn('API route unavailable, loading fallback active orders:', error);
-
-        // Fallback demo data para magamit agad kapag offline ang database
-        allActiveOrders = [
-            {
-                id: 201,
-                order_number: 'MM-2026-081',
-                customer_id: null,
-                guest_name: 'Kristine Alcantara',
-                items_summary: '1x Taro Milk Tea (16oz, Pearls, 50% Sugar)',
-                total_amount: 140.00,
-                status: 'READY_FOR_PICKUP',
-                placed_at: new Date().toISOString()
-            },
-            {
-                id: 202,
-                order_number: 'MM-2026-082',
-                customer_id: 18,
-                customer_name: 'Joshua Morales',
-                items_summary: '2x Classic Pearl Milk Tea (22oz, Coffee Jelly)',
-                total_amount: 270.00,
-                status: 'PREPARING',
-                placed_at: new Date().toISOString()
-            },
-            {
-                id: 203,
-                order_number: 'MM-2026-083',
-                customer_id: null,
-                guest_name: 'Grace Mendoza',
-                items_summary: '1x Matcha Cream Marble (16oz)',
-                total_amount: 155.00,
-                status: 'READY_FOR_PICKUP',
-                placed_at: new Date().toISOString()
-            }
-        ];
-
-        // Update fallback overview counters
-        updateFallbackCounters();
-        applyMonitoringFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
-}
-
-function updateFallbackCounters() {
-    const preparingCount = allActiveOrders.filter(o => o.status === 'PREPARING' || o.status === 'CONFIRMED').length;
-    const readyCount = allActiveOrders.filter(o => o.status === 'READY_FOR_PICKUP' || o.status === 'IN_TRANSIT').length;
-
-    const prepEl = document.getElementById('preparingCount');
-    const transitEl = document.getElementById('transitCount');
-    const claimEl = document.getElementById('cancelledCount');
-
-    if (prepEl) prepEl.textContent = preparingCount.toString();
-    if (transitEl) transitEl.textContent = readyCount.toString();
-    if (claimEl) claimEl.textContent = '0';
 }
 
 // Filter Logic (Status + Date + Search)
@@ -158,7 +109,7 @@ function applyMonitoringFilters() {
     const searchVal = document.getElementById('monitoringSearchInput')?.value.trim().toLowerCase() || '';
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -176,7 +127,7 @@ function applyMonitoringFilters() {
         let passDate = true;
         if (ord.placed_at) {
             const ordDate = new Date(ord.placed_at);
-            const ordDateStr = ord.placed_at.split('T')[0];
+            const ordDateStr = SalesCommon.localDate(ord.placed_at);
 
             if (dateVal === 'today') {
                 passDate = ordDateStr === todayStr;
@@ -320,29 +271,24 @@ function renderMonitoringPagerButtons(totalPages, activePage) {
 
 // Action: Customer Handover / Pickup Complete
 async function markOrderAsPickedUp(orderId) {
-    if (!confirm(`Confirm handover for Order #${orderId}? This will complete the order.`)) return;
+    if (!confirm(`Confirm handover for this order? This will complete the order.`)) return;
 
     try {
-        await fetch('/api/sales-officer/order-monitoring/update', {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const response = await fetch('/api/sales-officer/order-monitoring/update', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, userId ? { 'x-user-id': userId } : {}),
             body: JSON.stringify({ order_id: orderId, action: 'complete' })
         });
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
     } catch (err) {
-        console.warn('API handover update offline, proceeding with local update:', err);
+        console.error('Handover update failed:', err);
+        alert('Could not complete this order: ' + (err.message || 'unknown error') + '. Nothing was changed.');
+        return;
     }
 
-    // Alisin sa active list dahil COMPLETED na
-    allActiveOrders = allActiveOrders.filter(o => o.id !== orderId);
-
-    // Update claimed counter
-    const claimedEl = document.getElementById('cancelledCount');
-    if (claimedEl) {
-        claimedEl.textContent = (parseInt(claimedEl.textContent || '0', 10) + 1).toString();
-    }
-
-    updateFallbackCounters();
-    applyMonitoringFilters();
+    // Re-read from the database so the list and counters match what was saved.
+    await fetchOrderMonitoringData();
 }
 
 function escapeHtml(str) {

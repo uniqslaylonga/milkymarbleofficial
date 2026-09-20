@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.value === 'custom') {
                 customDate.style.display = 'inline-block';
                 if (!customDate.value) {
-                    customDate.value = new Date().toISOString().split('T')[0];
+                    customDate.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDate.style.display = 'none';
@@ -104,7 +104,7 @@ async function fetchPromotionsData() {
         const headers = userId ? { 'x-user-id': userId } : {};
 
         const response = await fetch('/api/sales-officer/promotions', { headers });
-        if (!response.ok) throw new Error('Failed to load campaigns');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -121,67 +121,9 @@ async function fetchPromotionsData() {
         applyPromoFilters();
 
     } catch (error) {
-        console.warn('Backend server unavailable, loading fallback campaign proposals:', error);
-
-        // Fallback demo data with CEO approval states
-        allCampaigns = [
-            {
-                id: 301,
-                code: 'MARBLE10',
-                discount_type: 'percent',
-                discount_value: 10,
-                target_segment: 'guest',
-                min_spend: 150,
-                usage_cap: 100,
-                usage_count: 34,
-                status: 'ACTIVE',
-                pitch_note: 'Converts walk-in guest checkouts into loyal members with a 10% first signup voucher.',
-                created_at: '2026-09-01T10:00:00Z'
-            },
-            {
-                id: 302,
-                code: 'LOYALTY25',
-                discount_type: 'fixed',
-                discount_value: 25,
-                target_segment: 'member',
-                min_spend: 300,
-                usage_cap: 50,
-                usage_count: 0,
-                status: 'PENDING_APPROVAL',
-                pitch_note: 'Proposed incentive for top-tier members to drive weekend bulk orders.',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 303,
-                code: 'SUMMERPEARL',
-                discount_type: 'percent',
-                discount_value: 15,
-                target_segment: 'all',
-                min_spend: null,
-                usage_cap: null,
-                usage_count: 92,
-                status: 'ACTIVE',
-                pitch_note: 'Storewide flash promo for seasonal drinks.',
-                created_at: '2026-08-15T09:30:00Z'
-            },
-            {
-                id: 304,
-                code: 'FLASH50',
-                discount_type: 'fixed',
-                discount_value: 50,
-                target_segment: 'all',
-                min_spend: 100,
-                usage_cap: 30,
-                usage_count: 0,
-                status: 'REJECTED',
-                rejection_reason: 'Margin impact is too steep for single cup orders. Please pitch with a minimum spend of ₱350.',
-                pitch_note: 'Flash counter promotion to clear afternoon stock.',
-                created_at: '2026-08-01T14:20:00Z'
-            }
-        ];
-
-        updateMetricsAndTabs();
-        applyPromoFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -226,7 +168,7 @@ function applyPromoFilters() {
             if (date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear()) return false;
         }
         if (dateFilterVal === 'custom' && c.created_at) {
-            const dateStr = c.created_at.split('T')[0];
+            const dateStr = SalesCommon.localDate(c.created_at);
             if (dateStr !== customDateVal) return false;
         }
 
@@ -360,37 +302,34 @@ async function handlePitchFormSubmit(e) {
     const usageCap = form.usage_cap.value ? parseInt(form.usage_cap.value, 10) : null;
     const pitchNote = form.pitch_note.value.trim();
 
-    const newPitch = {
-        id: Date.now(),
+    const payload = {
         code,
         target_segment: targetSegment,
         discount_type: discountType,
         discount_value: discountValue,
         min_spend: minSpend,
         usage_cap: usageCap,
-        usage_count: 0,
-        status: 'PENDING_APPROVAL',
-        pitch_note: pitchNote,
-        created_at: new Date().toISOString()
+        pitch_note: pitchNote
     };
 
     try {
-        await fetch('/api/sales-officer/promotions/pitch', {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const response = await fetch('/api/sales-officer/promotions/pitch', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newPitch)
+            headers: Object.assign({ 'Content-Type': 'application/json' }, userId ? { 'x-user-id': userId } : {}),
+            body: JSON.stringify(payload)
         });
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
     } catch (err) {
-        console.warn('Backend offline, registered proposal locally:', err);
+        console.error('Pitch failed:', err);
+        alert('Could not submit the promotion: ' + (err.message || 'unknown error') + '. It was NOT saved.');
+        return;
     }
 
-    allCampaigns.unshift(newPitch);
-    updateMetricsAndTabs();
-    applyPromoFilters();
     closePromoModal();
     form.reset();
-
-    alert(`Promotion proposal for "${code}" submitted successfully! It has been forwarded to the CEO for approval.`);
+    await fetchPromotionsData();
+    alert(`Promotion proposal for "${code}" submitted. It is now waiting for CEO approval.`);
 }
 
 function openPromoModal() {

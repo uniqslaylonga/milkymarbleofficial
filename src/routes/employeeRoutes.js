@@ -99,40 +99,101 @@ function monthsAgo(months) {
   return d;
 }
 
+// ---- Philippine-time + query helpers (Sales Officer) ----------------------
+// The server (Vercel) runs in UTC. Using UTC for "today" makes the day roll over
+// at 8:00 AM Manila time, so early-morning orders were counted as "yesterday".
+const phDateFmt = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit'
+});
+function phDate(v) {
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d) ? '' : phDateFmt.format(d);
+}
+// 'YYYY-MM-DD' (Manila) -> ISO instant of that day's 00:00 Manila time.
+function phDayStartISO(dateStr) {
+  return new Date(`${dateStr}T00:00:00+08:00`).toISOString();
+}
+function phAddDays(dateStr, n) {
+  const d = new Date(`${dateStr}T00:00:00+08:00`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return phDate(d);
+}
+// Unpaid / voided orders are not sales.
+const NOT_SALES = '(CANCELLED,PENDING_PAYMENT)';
+const isSaleStatus = st => st !== 'CANCELLED' && st !== 'PENDING_PAYMENT';
+
+// Supabase returns at most 1000 rows per request. Page through so totals are
+// never silently truncated. buildQuery must return a FRESH query each call.
+async function fetchAllRows(buildQuery, pageSize = 1000) {
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+// range = today | week | month | custom (+ date) | all  ->  { start, end } ISO
+function resolveRange(range, dateStr) {
+  const today = phDate(new Date());
+  if (range === 'today') return { start: phDayStartISO(today), end: null };
+  if (range === 'week') return { start: phDayStartISO(phAddDays(today, -7)), end: null };
+  if (range === 'month') return { start: phDayStartISO(today.slice(0, 8) + '01'), end: null };
+  if (range === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) {
+    return { start: phDayStartISO(dateStr), end: phDayStartISO(phAddDays(dateStr, 1)) };
+  }
+  return { start: null, end: null };
+}
+
+// Same avatar-path rules the rest of the app uses.
+function resolveAvatar(raw) {
+  const DEFAULT_AVATAR = '/employee/images/account.png';
+  if (!raw || raw === 'account.png') return DEFAULT_AVATAR;
+  if (raw.startsWith('http') || raw.startsWith('data:image') || raw.startsWith('/')) return raw;
+  if (raw.startsWith('images/') || raw.startsWith('uploads/')) return '/' + raw;
+  return '/images/' + raw;
+}
+
 async function buildSalesDashboard(req, res) {
   try {
     if (!supabase) return noDb(res);
 
     const userProfile = await getEmployeeProfile(req);
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = phDate(now);
+    const todayStart = phDayStartISO(todayStr);
 
-    const { data: todayOrdersData } = await supabase
+    const { data: todayOrdersData, error: todayErr } = await supabase
       .from('orders')
       .select('total_amount')
-      .gte('placed_at', `${todayStr}T00:00:00`)
-      .neq('status', 'CANCELLED');
+      .gte('placed_at', todayStart)
+      .not('status', 'in', NOT_SALES);
+    if (todayErr) throw todayErr;
 
-    const { count: pendingCount } = await supabase
+    const { count: pendingCount, error: pendingErr } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .in('status', ORDER_REVIEW_STATUSES);
+    if (pendingErr) throw pendingErr;
 
-    const todayOrders = todayOrdersData ? todayOrdersData.length : 0;
-    const todaySales = todayOrdersData
-      ? todayOrdersData.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0)
-      : 0;
+    const todayOrders = (todayOrdersData || []).length;
+    const todaySales = (todayOrdersData || [])
+      .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
 
-    const { data: recentOrders } = await supabase
+    const { data: recentOrders, error: recentErr } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at, guest_name, customer_id, customers(users(full_name))')
+      .select('id, order_number, status, total_amount, payment_method, placed_at, guest_name, customer_id, customers(users(full_name))')
       .order('placed_at', { ascending: false })
-      .limit(5);
+      .limit(200);
+    if (recentErr) throw recentErr;
 
     const formattedRecent = (recentOrders || []).map(o => ({
       id: o.id,
       order_number: o.order_number,
       status: o.status,
+      payment_method: o.payment_method || 'N/A',
       total_amount: parseFloat(o.total_amount || 0),
       placed_at: o.placed_at,
       customer_id: o.customer_id,
@@ -140,16 +201,15 @@ async function buildSalesDashboard(req, res) {
     }));
 
     // --- Customer acquisition (New Accounts mini-chart) ---
-    const { data: customersForAcq } = await supabase.from('customers').select('created_at');
-    const acqDates = (customersForAcq || [])
-      .map(c => new Date(c.created_at))
-      .filter(d => !isNaN(d));
+    const customersForAcq = await fetchAllRows(() =>
+      supabase.from('customers').select('id, created_at').order('id', { ascending: true }));
+    const acqDates = customersForAcq.map(c => new Date(c.created_at)).filter(d => !isNaN(d));
     const weekAgo = startOfDaysAgo(7);
     const monthAgo = monthsAgo(1);
     const threeMoAgo = monthsAgo(3);
     const sixMoAgo = monthsAgo(6);
     const newAccounts = {
-      today: acqDates.filter(d => d.toISOString().split('T')[0] === todayStr).length,
+      today: acqDates.filter(d => phDate(d) === todayStr).length,
       week: acqDates.filter(d => d >= weekAgo).length,
       month: acqDates.filter(d => d >= monthAgo).length,
       last3Months: acqDates.filter(d => d >= threeMoAgo).length,
@@ -157,12 +217,10 @@ async function buildSalesDashboard(req, res) {
     };
 
     // --- Revenue split: registered members vs guest checkouts (completed orders) ---
-    const { data: completedOrders } = await supabase
-      .from('orders')
-      .select('total_amount, customer_id')
-      .eq('status', 'COMPLETED');
+    const completedOrders = await fetchAllRows(() =>
+      supabase.from('orders').select('id, total_amount, customer_id').eq('status', 'COMPLETED').order('id', { ascending: true }));
     let registeredRevenue = 0, guestRevenue = 0;
-    (completedOrders || []).forEach(o => {
+    completedOrders.forEach(o => {
       const amt = parseFloat(o.total_amount) || 0;
       if (o.customer_id) registeredRevenue += amt; else guestRevenue += amt;
     });
@@ -199,7 +257,7 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStart = phDayStartISO(phDate(new Date()));
 
     const { data: pendingRows, error: pendingErr } = await supabase
       .from('orders')
@@ -238,13 +296,13 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .in('status', ['PREPARING', 'READY_FOR_PICKUP', 'COMPLETED'])
-      .gte('placed_at', `${todayStr}T00:00:00`);
+      .gte('placed_at', todayStart);
 
     const { count: rejectedCount } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'CANCELLED')
-      .gte('placed_at', `${todayStr}T00:00:00`);
+      .gte('placed_at', todayStart);
 
     return res.json({
       status: 'success',
@@ -266,33 +324,47 @@ router.get('/sales-officer/order-monitoring', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
+    const todayStart = phDayStartISO(phDate(new Date()));
 
-    const { count: preparingCount } = await supabase
+    const { count: preparingCount, error: e1 } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
-    const { count: transitCount } = await supabase
+    const { count: readyCount, error: e2 } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'READY_FOR_PICKUP');
-    const { count: cancelledCount } = await supabase
-      .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'CANCELLED');
+    // "Claimed Today" = handed over to the customer today.
+    const { count: claimedToday, error: e3 } = await supabase
+      .from('orders').select('*', { count: 'exact', head: true })
+      .eq('status', 'COMPLETED').gte('completed_at', todayStart);
+    if (e1 || e2 || e3) throw (e1 || e2 || e3);
 
-    const { data: activeOrders } = await supabase
+    // Only orders the kitchen already has. PAID_VERIFIED / CONFIRMED orders are
+    // still waiting for the Sales Officer on the Order Confirmation page.
+    const { data: activeOrders, error } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at, guest_name, customers(users(full_name)), order_items(id)')
-      .in('status', ['PAID_VERIFIED', 'PREPARING', 'READY_FOR_PICKUP'])
+      .select('id, order_number, status, total_amount, placed_at, guest_name, customer_id, customers(users(full_name)), order_items(item_label, quantity)')
+      .in('status', ['PREPARING', 'READY_FOR_PICKUP'])
       .order('placed_at', { ascending: false });
+    if (error) throw error;
 
-    const formattedActive = (activeOrders || []).map(o => ({
-      id: o.id,
-      order_number: o.order_number,
-      status: o.status,
-      total_amount: parseFloat(o.total_amount || 0),
-      item_count: o.order_items ? o.order_items.length : 1,
-      customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest'
-    }));
+    const formattedActive = (activeOrders || []).map(o => {
+      const lines = (o.order_items || []).map(it => `${it.quantity || 1}x ${cleanItemLabel(it.item_label, 'Item')}`);
+      return {
+        id: o.id,
+        order_number: o.order_number,
+        status: o.status,
+        total_amount: parseFloat(o.total_amount || 0),
+        placed_at: o.placed_at,
+        customer_id: o.customer_id,
+        guest_name: o.guest_name,
+        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest',
+        item_count: (o.order_items || []).length || 1,
+        items_summary: lines.length ? lines.join(', ') : 'Custom drink order'
+      };
+    });
 
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { preparingCount: preparingCount || 0, transitCount: transitCount || 0, cancelledCount: cancelledCount || 0 },
+      metrics: { preparingCount: preparingCount || 0, transitCount: readyCount || 0, claimedToday: claimedToday || 0 },
       activeOrders: formattedActive
     });
   } catch (error) {
@@ -325,104 +397,148 @@ router.get('/sales-officer/customer-records', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = phDate(new Date());
 
-    const { data: customers, error } = await supabase
+    const customers = await fetchAllRows(() => supabase
       .from('customers')
       .select(`
         id, phone, address, preferred_payment, created_at,
         users(full_name, email, avatar),
-        orders(id, total_amount, status, placed_at)
-      `);
+        orders(id, order_number, total_amount, status, placed_at, order_items(id))
+      `)
+      .order('id', { ascending: true }));
 
-    if (error) throw error;
+    const summarise = (orders) => {
+      const valid = (orders || []).filter(o => isSaleStatus(o.status));
+      valid.sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at));
+      return {
+        total_orders: valid.length,
+        total_spent: valid.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0),
+        last_order_at: valid.length ? valid[0].placed_at : null,
+        hasOrderToday: valid.some(o => phDate(o.placed_at) === todayStr),
+        recent_orders: valid.slice(0, 5).map(o => ({
+          order_number: o.order_number,
+          placed_at: o.placed_at,
+          total_amount: parseFloat(o.total_amount) || 0,
+          item_count: (o.order_items || []).length || 1
+        }))
+      };
+    };
 
-    const formattedCustomers = (customers || []).map(c => {
-      const validOrders = (c.orders || []).filter(o => o.status !== 'CANCELLED');
-      const totalSpent = validOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    // --- Registered members ---
+    const registered = customers.map(c => {
       const userObj = Array.isArray(c.users) ? c.users[0] : c.users;
-      let custAvatar = '/images/account.png';
-
-      if (userObj && userObj.avatar && userObj.avatar !== 'account.png') {
-        custAvatar = userObj.avatar.startsWith('/') || userObj.avatar.startsWith('http')
-          ? userObj.avatar
-          : '/images/' + userObj.avatar;
-      }
-
       return {
         id: c.id,
+        type: 'registered',
         full_name: (userObj && userObj.full_name) || 'Customer',
         email: (userObj && userObj.email) || '',
         phone: c.phone || 'N/A',
-        avatar: custAvatar,
+        avatar: resolveAvatar(userObj && userObj.avatar),
         address: c.address || 'No default address specified.',
         preferred_payment: c.preferred_payment || 'GCash',
-        total_orders: validOrders.length,
-        total_spent: totalSpent,
         created_at: c.created_at,
-        hasOrderToday: validOrders.some(o => (o.placed_at || '').startsWith(todayStr))
+        ...summarise(c.orders)
       };
     });
 
-    // --- Acquisition breakdown (used by the "New Accounts" timeframe filter) ---
+    // --- Guests: orders with no customer account, grouped by email (else name) ---
+    const guestOrders = await fetchAllRows(() => supabase
+      .from('orders')
+      .select('id, order_number, status, total_amount, payment_method, placed_at, guest_name, guest_email, order_items(id)')
+      .is('customer_id', null)
+      .order('id', { ascending: true }));
+
+    const guestMap = new Map();
+    guestOrders.forEach(o => {
+      const key = (o.guest_email || '').trim().toLowerCase() || (o.guest_name || '').trim().toLowerCase() || `order-${o.id}`;
+      if (!guestMap.has(key)) guestMap.set(key, { name: o.guest_name, email: o.guest_email, orders: [] });
+      const g = guestMap.get(key);
+      if (!g.name && o.guest_name) g.name = o.guest_name;
+      if (!g.email && o.guest_email) g.email = o.guest_email;
+      g.orders.push(o);
+    });
+
+    let guestIdx = 0;
+    const guests = [...guestMap.values()].map(g => {
+      const sum = summarise(g.orders);
+      const latest = [...g.orders].sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at))[0];
+      return {
+        id: `guest-${++guestIdx}`,
+        type: 'guest',
+        full_name: g.name || 'Guest',
+        email: g.email || '',
+        phone: 'N/A',
+        avatar: resolveAvatar(null),
+        address: 'Counter pick-up (guest checkout)',
+        preferred_payment: (latest && latest.payment_method) || 'N/A',
+        created_at: g.orders[0] ? g.orders[0].placed_at : null,
+        ...sum
+      };
+    }).filter(g => g.total_orders > 0);
+
+    // --- Acquisition breakdown (registered accounts only) ---
     const weekAgo = startOfDaysAgo(7);
     const monthAgo = monthsAgo(1);
     const threeMoAgo = monthsAgo(3);
     const sixMoAgo = monthsAgo(6);
-    const createdDates = formattedCustomers.map(c => new Date(c.created_at)).filter(d => !isNaN(d));
+    const createdDates = registered.map(c => new Date(c.created_at)).filter(d => !isNaN(d));
     const acquisition = {
-      today: createdDates.filter(d => d.toISOString().split('T')[0] === todayStr).length,
+      today: createdDates.filter(d => phDate(d) === todayStr).length,
       week: createdDates.filter(d => d >= weekAgo).length,
       month: createdDates.filter(d => d >= monthAgo).length,
       last3Months: createdDates.filter(d => d >= threeMoAgo).length,
       last6Months: createdDates.filter(d => d >= sixMoAgo).length
     };
-    const activeToday = formattedCustomers.filter(c => c.hasOrderToday).length;
 
-    // --- Guest vs Member segmentation (guests have no `customers` row) ---
-    let memberRevenue = 0, memberCompletedCount = 0;
-    (customers || []).forEach(c => {
-      (c.orders || []).forEach(o => {
-        if (o.status === 'COMPLETED') {
-          memberRevenue += parseFloat(o.total_amount) || 0;
-          memberCompletedCount++;
-        }
-      });
-    });
+    const baseLastMonth = createdDates.filter(d => d < monthAgo).length;
+    let registeredGrowth = '';
+    if (baseLastMonth > 0) {
+      const pct = ((registered.length - baseLastMonth) / baseLastMonth) * 100;
+      registeredGrowth = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs last month`;
+    } else if (acquisition.month > 0) {
+      registeredGrowth = `+${acquisition.month} new this month`;
+    }
 
-    const { data: guestOrders } = await supabase
-      .from('orders')
-      .select('total_amount, status')
-      .is('customer_id', null);
-    const guestOrdersAll = guestOrders || [];
-    const guestCompleted = guestOrdersAll.filter(o => o.status === 'COMPLETED');
-    const guestRevenue = guestCompleted.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-    const segTotalRevenue = memberRevenue + guestRevenue;
+    // --- Guest vs Member segmentation (completed orders only) ---
+    const sumCompleted = (orders) => {
+      const done = (orders || []).filter(o => o.status === 'COMPLETED');
+      return { count: done.length, revenue: done.reduce((t, o) => t + (parseFloat(o.total_amount) || 0), 0) };
+    };
+    let memberRevenue = 0, memberOrders = 0;
+    customers.forEach(c => { const r = sumCompleted(c.orders); memberRevenue += r.revenue; memberOrders += r.count; });
+    const guestDone = sumCompleted(guestOrders);
+    const segTotalRevenue = memberRevenue + guestDone.revenue;
 
     const segmentation = {
-      memberCount: formattedCustomers.length,
-      guestCount: guestOrdersAll.filter(o => o.status !== 'CANCELLED').length,
+      memberCount: registered.length,
+      guestCount: guests.length,
+      memberRevenue,
+      guestRevenue: guestDone.revenue,
       memberRevenuePercent: segTotalRevenue ? (memberRevenue / segTotalRevenue) * 100 : 0,
-      guestRevenuePercent: segTotalRevenue ? (guestRevenue / segTotalRevenue) * 100 : 0,
-      memberOrders: memberCompletedCount,
-      guestOrders: guestCompleted.length
+      guestRevenuePercent: segTotalRevenue ? (guestDone.revenue / segTotalRevenue) * 100 : 0,
+      memberOrders,
+      guestOrders: guestDone.count
     };
+
+    const everyone = [...registered, ...guests];
+    const activeToday = everyone.filter(c => c.hasOrderToday).length;
 
     return res.json({
       status: 'success',
       user: userProfile,
       metrics: {
-        totalRegistered: formattedCustomers.length,
-        registeredGrowth: '',
+        totalRegistered: registered.length,
+        registeredGrowth,
         todaySignups: acquisition.today,
         activeToday,
-        repeatRate: formattedCustomers.length
-          ? `${Math.round((formattedCustomers.filter(c => c.total_orders > 1).length / formattedCustomers.length) * 1000) / 10}%`
+        repeatRate: registered.length
+          ? `${Math.round((registered.filter(c => c.total_orders > 1).length / registered.length) * 1000) / 10}%`
           : '0%',
         acquisition
       },
       segmentation,
-      customers: formattedCustomers.map(({ hasOrderToday, ...rest }) => rest)
+      customers: everyone.map(({ hasOrderToday, ...rest }) => rest)
     });
   } catch (error) {
     console.error('[sales-officer/customer-records] error:', error.message);
@@ -553,27 +669,43 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
+    const { start, end } = resolveRange(req.query.range || 'month', req.query.date);
 
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('subtotal, total_amount, status')
-      .neq('status', 'CANCELLED');
+    const orders = await fetchAllRows(() => {
+      let q = supabase
+        .from('orders')
+        .select('id, subtotal, total_amount, status, placed_at, order_items(item_label, quantity, line_total)')
+        .not('status', 'in', NOT_SALES)
+        .order('id', { ascending: true });
+      if (start) q = q.gte('placed_at', start);
+      if (end) q = q.lt('placed_at', end);
+      return q;
+    });
 
-    const grossSales = (orders || []).reduce((sum, o) => sum + (parseFloat(o.subtotal) || parseFloat(o.total_amount) || 0), 0);
-    const netSales = (orders || []).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-    const validCount = (orders || []).length || 1;
-    const aov = netSales / validCount;
+    const grossSales = orders.reduce((sum, o) => sum + (parseFloat(o.subtotal) || parseFloat(o.total_amount) || 0), 0);
+    const netSales = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    const aov = orders.length ? netSales / orders.length : 0;
 
-    const { data: products } = await supabase
-      .from('products')
-      .select('id, sku, name, order_items(quantity, line_total)');
+    // order_items has no product_id, so rank by the (cleaned) item label and
+    // borrow the SKU from `products` when a product with that name exists.
+    const skuByName = new Map();
+    try {
+      const { data: products } = await supabase.from('products').select('sku, name');
+      (products || []).forEach(p => { if (p.name) skuByName.set(String(p.name).trim().toLowerCase(), p.sku); });
+    } catch (e) { /* SKU is optional */ }
 
-    const productsRank = (products || []).map(p => {
-      const items = p.order_items || [];
-      const units_sold = items.reduce((sum, i) => sum + (parseInt(i.quantity, 10) || 0), 0);
-      const revenue = items.reduce((sum, i) => sum + (parseFloat(i.line_total) || 0), 0);
-      return { sku: p.sku, name: p.name, units_sold, revenue };
-    }).sort((a, b) => b.units_sold - a.units_sold);
+    const rank = new Map();
+    orders.forEach(o => {
+      (o.order_items || []).forEach(it => {
+        const name = cleanItemLabel(it.item_label, 'Custom drink');
+        const key = name.toLowerCase();
+        if (!rank.has(key)) rank.set(key, { sku: skuByName.get(key) || null, name, units_sold: 0, revenue: 0 });
+        const r = rank.get(key);
+        r.units_sold += parseInt(it.quantity, 10) || 0;
+        r.revenue += parseFloat(it.line_total) || 0;
+      });
+    });
+    const productsRank = [...rank.values()].sort((a, b) => b.units_sold - a.units_sold || b.revenue - a.revenue);
 
     return res.json({
       status: 'success',
@@ -587,35 +719,120 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
   }
 });
 
+// Sales Target
+//  * targets come from the `sales_targets` table (falls back to 15,000 / 320,000)
+//  * "Pre-orders" = made-to-order drinks (orders.order_type = 'custom_build')
+//  * "Walk-in"    = preset drinks        (orders.order_type = 'preset')
+//  * batch sizes come from the `preset_batches` table (optional)
 router.get('/sales-officer/sales-target', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const todayStr = phDate(new Date());
+    const todayStart = phDayStartISO(todayStr);
+    const monthStart = phDayStartISO(todayStr.slice(0, 8) + '01');
+    const historyStartDate = phAddDays(todayStr, -90);
+    const historyStart = phDayStartISO(historyStartDate);
+    const sinceISO = new Date(Math.min(new Date(monthStart), new Date(historyStart))).toISOString();
 
-    const { data: todayOrders } = await supabase
-      .from('orders').select('total_amount').gte('placed_at', `${todayStr}T00:00:00`).neq('status', 'CANCELLED');
-    const { data: monthOrders } = await supabase
-      .from('orders').select('total_amount').gte('placed_at', firstDayOfMonth).neq('status', 'CANCELLED');
+    let dailyTarget = 15000, monthlyTarget = 320000;
+    try {
+      const { data: targets } = await supabase.from('sales_targets').select('period, target_amount');
+      (targets || []).forEach(t => {
+        if (t.period === 'daily') dailyTarget = parseFloat(t.target_amount) || dailyTarget;
+        if (t.period === 'monthly') monthlyTarget = parseFloat(t.target_amount) || monthlyTarget;
+      });
+    } catch (e) { /* table not created yet - use defaults */ }
 
-    const todaySales = (todayOrders || []).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-    const monthSales = (monthOrders || []).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    const orders = await fetchAllRows(() => supabase
+      .from('orders')
+      .select('id, total_amount, status, order_type, placed_at, order_items(item_label, quantity, line_total, size)')
+      .not('status', 'in', NOT_SALES)
+      .gte('placed_at', sinceISO)
+      .order('id', { ascending: true }));
 
-    const dailyTarget = 15000.00;
-    const monthlyTarget = 320000.00;
+    let todaySales = 0, monthSales = 0;
+    let dailyPre = 0, dailyWalk = 0, monthPre = 0, monthWalk = 0;
+    let preordersTotal = 0, preordersClaimed = 0;
+    const presetAgg = new Map(); // `${date}|${label}` -> row
 
-    const dailyPct = Math.min(100, Math.round((todaySales / dailyTarget) * 100));
-    const monthlyPct = Math.min(100, Math.round((monthSales / monthlyTarget) * 100));
+    orders.forEach(o => {
+      const amt = parseFloat(o.total_amount) || 0;
+      const placed = new Date(o.placed_at);
+      const isPre = o.order_type === 'custom_build';
+      if (placed >= new Date(monthStart)) {
+        monthSales += amt;
+        if (isPre) monthPre += amt; else monthWalk += amt;
+      }
+      if (placed >= new Date(todayStart)) {
+        todaySales += amt;
+        if (isPre) {
+          dailyPre += amt;
+          preordersTotal++;
+          if (o.status === 'COMPLETED') preordersClaimed++;
+        } else {
+          dailyWalk += amt;
+        }
+      }
+      if (!isPre) {
+        const day = phDate(placed);
+        (o.order_items || []).forEach(it => {
+          const name = cleanItemLabel(it.item_label, 'Preset drink');
+          const key = `${day}|${name.toLowerCase()}`;
+          if (!presetAgg.has(key)) presetAgg.set(key, { day, name, size: null, cups: 0, revenue: 0 });
+          const r = presetAgg.get(key);
+          r.cups += parseInt(it.quantity, 10) || 0;
+          r.revenue += parseFloat(it.line_total) || 0;
+          if (it.size) r.size = it.size;
+        });
+      }
+    });
+
+    // Batches the kitchen prepared (optional table).
+    const batchMap = new Map();
+    try {
+      const { data: batches } = await supabase
+        .from('preset_batches').select('batch_date, item_label, prepared_qty').gte('batch_date', historyStartDate);
+      (batches || []).forEach(b => {
+        const name = cleanItemLabel(b.item_label, 'Preset drink');
+        batchMap.set(`${b.batch_date}|${name.toLowerCase()}`, { day: b.batch_date, name, prepared: parseInt(b.prepared_qty, 10) || 0 });
+      });
+    } catch (e) { /* table not created yet - batch column shows a dash */ }
+
+    const keys = new Set([...presetAgg.keys(), ...batchMap.keys()]);
+    const presets = [...keys].map((key, i) => {
+      const a = presetAgg.get(key);
+      const b = batchMap.get(key);
+      const cups = a ? a.cups : 0;
+      return {
+        id: i + 1,
+        name: a ? a.name : b.name,
+        cup_size: a ? a.size : null,
+        sugar_level: null,
+        prepared_batch: b ? b.prepared : null,
+        cups_sold: cups,
+        unit_price: a && cups ? a.revenue / cups : 0,
+        target_date: phDayStartISO(a ? a.day : b.day)
+      };
+    }).sort((x, y) => (y.target_date.localeCompare(x.target_date)) || (y.cups_sold - x.cups_sold));
+
+    const pct = (v, t) => (t ? Math.round((v / t) * 100) : 0);
 
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { todaySales, dailyTarget, dailyPct, monthSales, monthlyTarget, monthlyPct }
+      metrics: {
+        todaySales, dailyTarget, dailyPct: pct(todaySales, dailyTarget),
+        dailyPreorderRev: dailyPre, dailyWalkinRev: dailyWalk,
+        monthSales, monthlyTarget, monthlyPct: pct(monthSales, monthlyTarget),
+        monthPreorderRev: monthPre, monthWalkinRev: monthWalk,
+        preordersClaimed, preordersTotal, fulfillmentPct: pct(preordersClaimed, preordersTotal)
+      },
+      presets
     });
   } catch (error) {
+    console.error('[sales-officer/sales-target] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 });

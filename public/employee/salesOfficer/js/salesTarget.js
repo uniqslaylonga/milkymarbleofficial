@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.value === 'custom') {
                 customDate.style.display = 'inline-block';
                 if (!customDate.value) {
-                    customDate.value = new Date().toISOString().split('T')[0];
+                    customDate.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDate.style.display = 'none';
@@ -58,7 +58,7 @@ async function fetchSalesTargetData() {
         const headers = userId ? { 'x-user-id': userId } : {};
 
         const response = await fetch('/api/sales-officer/sales-target', { headers });
-        if (!response.ok) throw new Error('Failed to load target metrics');
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -79,92 +79,9 @@ async function fetchSalesTargetData() {
         applyPresetFilters();
 
     } catch (error) {
-        console.warn('Backend unavailable, rendering pre-order & walk-in preset demo targets:', error);
-
-        // Fallback target data para sa inyong pre-order & preset business model
-        const fallbackMetrics = {
-            todaySales: 6840.00,
-            dailyTarget: 10000.00,
-            dailyPct: 68,
-            dailyPreorderRev: 4850.00,
-            dailyWalkinRev: 1990.00,
-
-            monthSales: 142600.00,
-            monthlyTarget: 220000.00,
-            monthlyPct: 65,
-            monthPreorderRev: 105400.00,
-            monthWalkinRev: 37200.00,
-
-            preordersClaimed: 18,
-            preordersTotal: 22,
-            fulfillmentPct: 82
-        };
-
-        allPresets = [
-            {
-                id: 1,
-                name: 'Classic Pearl Milk Tea (Preset)',
-                cup_size: '16oz Regular',
-                sugar_level: '50% Preset Sugar',
-                prepared_batch: 40,
-                cups_sold: 28,
-                unit_price: 110.00,
-                target_date: new Date().toISOString()
-            },
-            {
-                id: 2,
-                name: 'Brown Sugar Marble Latte (Preset)',
-                cup_size: '22oz Large',
-                sugar_level: '100% Fixed Syrup',
-                prepared_batch: 25,
-                cups_sold: 19,
-                unit_price: 140.00,
-                target_date: new Date().toISOString()
-            },
-            {
-                id: 3,
-                name: 'Matcha Cream Marble (Preset)',
-                cup_size: '16oz Regular',
-                sugar_level: '50% Preset Sugar',
-                prepared_batch: 20,
-                cups_sold: 11,
-                unit_price: 135.00,
-                target_date: new Date().toISOString()
-            },
-            {
-                id: 4,
-                name: 'Wintermelon Milk Tea (Preset)',
-                cup_size: '22oz Large',
-                sugar_level: '75% Preset Sugar',
-                prepared_batch: 30,
-                cups_sold: 22,
-                unit_price: 125.00,
-                target_date: new Date().toISOString()
-            },
-            {
-                id: 5,
-                name: 'Okinawa Roasted Milk Tea (Preset)',
-                cup_size: '16oz Regular',
-                sugar_level: '50% Preset Sugar',
-                prepared_batch: 20,
-                cups_sold: 8,
-                unit_price: 120.00,
-                target_date: new Date().toISOString()
-            },
-            {
-                id: 6,
-                name: 'Taro Cream Cheese (Preset)',
-                cup_size: '22oz Large',
-                sugar_level: '50% Preset Sugar',
-                prepared_batch: 15,
-                cups_sold: 6,
-                unit_price: 145.00,
-                target_date: new Date().toISOString()
-            }
-        ];
-
-        populateGauges(fallbackMetrics);
-        applyPresetFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -200,7 +117,7 @@ function applyPresetFilters() {
     const customDateVal = document.getElementById('presetCustomDate')?.value;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -208,7 +125,7 @@ function applyPresetFilters() {
     filteredPresets = allPresets.filter(p => {
         if (!p.target_date) return true;
         const pDate = new Date(p.target_date);
-        const pDateStr = p.target_date.split('T')[0];
+        const pDateStr = SalesCommon.localDate(p.target_date);
 
         if (filterType === 'today') return pDateStr === todayStr;
         if (filterType === 'week') return pDate >= weekAgo;
@@ -266,16 +183,16 @@ function renderPresetsTable() {
                     <div class="preset-name-bold">${escapeHtml(p.name)}</div>
                 </td>
                 <td>
-                    <div class="preset-spec-sub">${escapeHtml(p.cup_size)} • ${escapeHtml(p.sugar_level)}</div>
+                    <div class="preset-spec-sub">${escapeHtml([p.cup_size, p.sugar_level].filter(Boolean).join(' • ') || '—')}</div>
                 </td>
-                <td><strong>${p.prepared_batch} cups</strong></td>
+                <td><strong>${p.prepared_batch != null ? p.prepared_batch + ' cups' : '—'}</strong></td>
                 <td><strong style="color: var(--brown-soft);">${p.cups_sold} sold</strong></td>
                 <td>
                     <div class="preset-progress-wrap">
                         <div class="progress-track-sm">
                             <div class="progress-fill-sm" style="width: ${Math.min(pctSold, 100)}%;"></div>
                         </div>
-                        <span class="progress-pct-label">${pctSold}%</span>
+                        <span class="progress-pct-label">${p.prepared_batch ? pctSold + '%' : '—'}</span>
                     </div>
                 </td>
                 <td>

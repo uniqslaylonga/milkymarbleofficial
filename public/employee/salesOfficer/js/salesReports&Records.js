@@ -14,17 +14,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.value === 'custom') {
                 customDateInput.style.display = 'inline-block';
                 if (!customDateInput.value) {
-                    customDateInput.value = new Date().toISOString().split('T')[0];
+                    customDateInput.value = SalesCommon.localDate(new Date());
                 }
             } else {
                 customDateInput.style.display = 'none';
             }
-            applyReportFilters();
+            fetchSalesReportsData();
         });
     }
 
     if (customDateInput) {
-        customDateInput.addEventListener('change', applyReportFilters);
+        customDateInput.addEventListener('change', fetchSalesReportsData);
     }
 
     if (searchInput) {
@@ -62,8 +62,11 @@ async function fetchSalesReportsData() {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = userId ? { 'x-user-id': userId } : {};
 
-        const response = await fetch('/api/sales-officer/sales-reports', { headers });
-        if (!response.ok) throw new Error('Failed to load sales reports data');
+        const response = await fetch('/api/sales-officer/sales-reports?' + new URLSearchParams({
+            range: document.getElementById('reportDateFilter')?.value || 'month',
+            date: document.getElementById('reportCustomDate')?.value || ''
+        }), { headers });
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
 
@@ -103,23 +106,9 @@ async function fetchSalesReportsData() {
         applyReportFilters();
 
     } catch (error) {
-        console.warn('Backend unavailable, loading fallback product ranking records:', error);
-
-        // Fallback demo data para sa SKU Rankings
-        allProductsRank = [
-            { id: 1, name: 'Classic Pearl Milk Tea (16oz)', sku: 'MM-SKU-101', units_sold: 142, revenue: 15620.00, sold_date: new Date().toISOString() },
-            { id: 2, name: 'Brown Sugar Marble Latte (22oz)', sku: 'MM-SKU-102', units_sold: 98, revenue: 13720.00, sold_date: new Date().toISOString() },
-            { id: 3, name: 'Matcha Cream Marble (16oz)', sku: 'MM-SKU-103', units_sold: 76, revenue: 10488.00, sold_date: new Date().toISOString() },
-            { id: 4, name: 'Wintermelon Milk Tea (22oz)', sku: 'MM-SKU-104', units_sold: 64, revenue: 8000.00, sold_date: new Date().toISOString() },
-            { id: 5, name: 'Okinawa Roasted Milk Tea (16oz)', sku: 'MM-SKU-105', units_sold: 52, revenue: 6240.00, sold_date: new Date().toISOString() },
-            { id: 6, name: 'Taro Cream Cheese (22oz)', sku: 'MM-SKU-106', units_sold: 41, revenue: 5945.00, sold_date: new Date().toISOString() }
-        ];
-
-        document.getElementById('grossSales').textContent = '₱59,973.00';
-        document.getElementById('netSales').textContent = '₱54,200.00';
-        document.getElementById('aov').textContent = '₱245.50';
-
-        applyReportFilters();
+        console.error('Could not load live data from the server:', error);
+        SalesCommon.showError(error);
+        SalesCommon.failTables();
     }
 }
 
@@ -130,7 +119,7 @@ function applyReportFilters() {
     const searchVal = document.getElementById('reportSearchInput')?.value.trim().toLowerCase() || '';
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = SalesCommon.localDate(now);
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -140,7 +129,7 @@ function applyReportFilters() {
         let passDate = true;
         if (p.sold_date) {
             const pDate = new Date(p.sold_date);
-            const pDateStr = p.sold_date.split('T')[0];
+            const pDateStr = SalesCommon.localDate(p.sold_date);
 
             if (filterType === 'today') {
                 passDate = pDateStr === todayStr;
