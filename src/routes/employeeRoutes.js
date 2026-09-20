@@ -1600,8 +1600,36 @@ router.get('/production-supervisor/dashboard', async (req, res) => {
     const { count: inProduction } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
 
-    const { data: invRows } = await supabase.from('inventory_items').select('on_hand');
-    const reservedStocks = (invRows || []).reduce((s, i) => s + (parseFloat(i.on_hand) || 0), 0);
+    // "Pre-orders Claimed" = orders placed today that are done (Completed /
+    // Ready for Pickup) vs. all non-cancelled orders placed today. Both
+    // numbers are real counts, not a made-up ratio.
+    const { count: claimedTodayCount } = await supabase
+      .from('orders').select('*', { count: 'exact', head: true })
+      .in('status', ['COMPLETED', 'READY_FOR_PICKUP']).gte('placed_at', `${todayStr}T00:00:00`);
+    const { count: totalTodayCount } = await supabase
+      .from('orders').select('*', { count: 'exact', head: true })
+      .neq('status', 'CANCELLED').gte('placed_at', `${todayStr}T00:00:00`);
+
+    // Restock pitches raised by this supervisor are real "expenses" rows
+    // (the same table the Procurement Officer's DOA routing uses) — not a
+    // locally-faked list that vanishes on refresh.
+    const { data: pitchRows } = await supabase
+      .from('expenses')
+      .select('id, item_name, amount, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const restockPitches = (pitchRows || []).map(e => {
+      const route = routeForAmount(e.amount);
+      const routeText = route === 'ceo' ? '🔴 Escalated to CEO' : (route === 'finance' ? '🟠 Requires Finance Approval' : '🟢 Direct Buy: Procurement');
+      return {
+        id: e.id,
+        item_name: e.item_name,
+        total_cost: parseFloat(e.amount) || 0,
+        status: e.status,
+        route, route_text: routeText
+      };
+    });
+    const pendingRestocks = restockPitches.filter(p => !['PURCHASED', 'REJECTED'].includes(p.status)).length;
 
     const { data: rawOrders } = await supabase
       .from('orders')
@@ -1672,8 +1700,15 @@ router.get('/production-supervisor/dashboard', async (req, res) => {
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { completedToday: finalCompleted, pendingOrders: pendingOrders || 0, inProduction: inProduction || 0, reservedStocks },
+      metrics: {
+        completedToday: finalCompleted,
+        pendingOrders: pendingOrders || 0,
+        inProduction: inProduction || 0,
+        preordersClaimedStr: `${claimedTodayCount || 0} / ${totalTodayCount || 0}`,
+        pendingRestocks
+      },
       recentOrders,
+      restockPitches,
       scheduleList
     });
   } catch (error) {
@@ -1691,19 +1726,23 @@ router.get('/production-supervisor/order-list', async (req, res) => {
       .from('orders').select('*', { count: 'exact', head: true }).in('status', ['PENDING_PAYMENT', 'PAID_VERIFIED']);
     const { count: inProgressCount } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
+    const { count: readyCount } = await supabase
+      .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'READY_FOR_PICKUP');
     const { count: completedCount } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED');
 
     const { data: rawOrders } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at, guest_name, customers(users(full_name)), order_items(item_label, quantity)')
+      .select('id, order_number, status, total_amount, placed_at, guest_name, customers(users(full_name)), order_items(item_label, quantity, size, toppings, is_custom)')
       .neq('status', 'CANCELLED')
       .order('placed_at', { ascending: false });
 
     const ordersList = (rawOrders || []).map(ord => {
       const firstItem = (ord.order_items && ord.order_items[0]) || {};
       const cleanTitle = cleanItemLabel(firstItem.item_label, 'Milky Marble Cup');
-      const size = String(firstItem.item_label || '').toLowerCase().includes('8oz') ? '8oz' : '12oz';
+      const size = firstItem.size || (String(firstItem.item_label || '').toLowerCase().includes('8oz') ? '8oz' : '12oz');
+      const specs = firstItem.toppings ? `Toppings: ${firstItem.toppings}` : '';
+      const type = firstItem.is_custom ? 'preorder' : 'preset';
 
       const rawStatus = String(ord.status || '').toUpperCase();
       let statusClass = 'pending', statusLabel = 'Pending';
@@ -1722,21 +1761,30 @@ router.get('/production-supervisor/order-list', async (req, res) => {
         item_label: firstItem.item_label || 'Custom Marble Cup',
         quantity: firstItem.quantity || 1,
         customer_name: (ord.customers && ord.customers.users && ord.customers.users.full_name) || ord.guest_name || 'Customer',
-        cleanTitle, size, statusClass, statusLabel
+        cleanTitle, size, specs, type, statusClass, statusLabel,
+        // No claim-slot or shelf-tag columns exist in the schema yet, so we
+        // don't invent them - the UI leaves these blank rather than showing
+        // made-up values.
+        claim_slot: '', shelf_tag: ''
       };
     });
 
-    const presetCards = [
-      { name: 'Chocolatey Coffee Noodly Jelly', flavor: 'Coffee', cut: 'Spaghetti', toppings: ['Nuts', 'Chocolate Chips'], card_class: '' },
-      { name: 'Cheesy Pandan Cubes', flavor: 'Pandan', cut: 'Cubes', toppings: ['Cheese', 'Tapioca Pearls'], card_class: 'green-card' },
-      { name: 'Bubbly Coffee Jelly', flavor: 'Coffee', cut: 'Cubes', toppings: ['Marshmallows', 'Tapioca Pearls'], card_class: '' },
-      { name: 'Strawberry String Party', flavor: 'Strawberry', cut: 'Spaghetti', toppings: ['Marshmallows', 'Sprinkles (Assorted)'], card_class: 'pink-card' }
-    ];
+    // There is no presets/batches table in the schema - the old version of
+    // this route returned 4 hand-written fake flavor cards ("Chocolatey
+    // Coffee Noodly Jelly", etc.) regardless of what was actually being
+    // made. That was fabricated, so this now returns an empty list until
+    // real preset-batch tracking exists.
+    const presetCards = [];
 
     return res.json({
       status: 'success',
       user: userProfile,
-      kpis: { pendingCount: pendingCount || 0, inProgressCount: inProgressCount || 0, completedCount: completedCount || 0 },
+      kpis: {
+        pendingCount: pendingCount || 0,
+        inProgressCount: inProgressCount || 0,
+        readyCount: readyCount || 0,
+        completedCount: completedCount || 0
+      },
       ordersList,
       presetCards
     });
@@ -1767,7 +1815,7 @@ router.get('/production-supervisor/order-production', async (req, res) => {
     if (requestedOrderId > 0) {
       const { data: order } = await supabase
         .from('orders')
-        .select('id, order_number, status, guest_name, customers(users(full_name)), order_items(item_label, quantity)')
+        .select('id, order_number, status, pickup_instructions, guest_name, customers(users(full_name)), order_items(item_label, quantity, size, toppings, is_custom)')
         .eq('id', requestedOrderId)
         .maybeSingle();
 
@@ -1775,20 +1823,27 @@ router.get('/production-supervisor/order-production', async (req, res) => {
         const firstItem = (order.order_items && order.order_items[0]) || {};
         const itemLabel = firstItem.item_label || 'Milky Marble Cup';
 
-        let flavorTag = 'Coffee';
-        if (itemLabel.toLowerCase().includes('strawberry')) flavorTag = 'Strawberry';
-        else if (itemLabel.toLowerCase().includes('pandan')) flavorTag = 'Pandan';
-
-        let variationTag = 'Spaghetti';
-        if (itemLabel.toLowerCase().includes('cube')) variationTag = 'Cubes';
-        else if (itemLabel.toLowerCase().includes('whole')) variationTag = 'Whole';
+        // Claim slot comes straight from the order's own pickup_instructions
+        // (same field/format the dashboard already parses), not a guess.
+        let claimSlot = '';
+        const pickupMatch = order.pickup_instructions ? order.pickup_instructions.match(/Pick-up:\s*([^|]+)/i) : null;
+        if (pickupMatch) claimSlot = pickupMatch[1].trim();
 
         orderData = {
           id: order.id,
           orderCode: order.order_number || `MM-${order.id}`,
           orderClient: (order.customers && order.customers.users && order.customers.users.full_name) || order.guest_name || 'Customer',
           orderStatus: (order.status || '').toUpperCase(),
-          itemLabel, flavorTag, variationTag
+          orderType: firstItem.is_custom ? 'Pre-Order' : 'Walk-in Preset',
+          itemLabel,
+          quantity: firstItem.quantity || 1,
+          // cupSize and toppings are real order_items columns. There is no
+          // sugar-level, ice-level, or shelf-assignment column anywhere in
+          // the schema, so those are left out entirely instead of showing
+          // invented values ("25% Sugar", "Less Ice", "Shelf A-04", etc).
+          cupSize: firstItem.size || '',
+          toppings: firstItem.toppings ? firstItem.toppings.split(',').map(t => t.trim()).filter(Boolean) : [],
+          claimSlot
         };
       }
     }
@@ -1850,17 +1905,11 @@ router.get('/production-supervisor/production-planning', async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    // Seed a few starter plans the first time this table is empty, so the
-    // page isn't blank on day one (mirrors the previous behavior).
-    const { count: existingCount } = await supabase.from('production_orders').select('*', { count: 'exact', head: true });
-    if (!existingCount) {
-      await supabase.from('production_orders').insert([
-        { order_code: 'MM-24081', operation: 'Coffee Jelly Classic Batch', target_liters: 18, due_date: todayStr, schedule_time: '08:00', status: 'IN PROGRESS' },
-        { order_code: 'MM-24082', operation: 'Strawberry Delight Pick-up', target_liters: 12, due_date: todayStr, schedule_time: '13:30', status: 'PENDING' },
-        { order_code: 'MM-24083', operation: 'Buko Pandan Supreme Batch', target_liters: 20, due_date: tomorrowStr, schedule_time: '08:00', status: 'PENDING' },
-        { order_code: 'MM-24084', operation: 'Coffee Jelly Spaghetti Production', target_liters: 16, due_date: tomorrowStr, schedule_time: '14:00', status: 'PENDING' }
-      ]);
-    }
+    // NOTE: this used to auto-insert 4 made-up batch plans into
+    // production_orders the first time the table was empty ("Coffee Jelly
+    // Classic Batch", "Buko Pandan Supreme Batch", etc). That was fake data
+    // being written into the real database, not just displayed - removed.
+    // An empty table now just returns an empty list.
 
     // recipes is optional — degrade gracefully if it doesn't exist yet.
     let recipesList = [];
@@ -1901,16 +1950,20 @@ router.get('/production-supervisor/production-planning', async (req, res) => {
 router.post('/production-supervisor/add-plan', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
-    const { operation, due_date, schedule_time, status } = req.body;
+    const { operation, due_date, schedule_time, status, target_liters } = req.body;
     if (!operation || !due_date || !schedule_time) {
       return res.status(400).json({ status: 'error', message: 'Operation name, due date, and schedule time are required.' });
     }
 
     const { count: totalCount } = await supabase.from('production_orders').select('*', { count: 'exact', head: true });
     const nextCode = 'MM-' + (24080 + (totalCount || 0) + 1);
+    // target_liters used to be hardcoded to 10 for every new plan
+    // regardless of what was actually requested - now it's whatever the
+    // supervisor entered, or null if they left it blank.
+    const numTargetLiters = target_liters !== undefined && target_liters !== '' ? parseFloat(target_liters) : null;
 
     const { error } = await supabase.from('production_orders').insert([{
-      order_code: nextCode, operation, target_liters: 10, due_date, schedule_time, status: status || 'PENDING'
+      order_code: nextCode, operation, target_liters: numTargetLiters, due_date, schedule_time, status: status || 'PENDING'
     }]);
     if (error) throw error;
 

@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Kunin ang order_id mula sa URL parameter (e.g. orderProduction.html?order_id=101)
+    // No fake fallback ID here - if none is given, the server itself falls
+    // back to the most recent active order.
     const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('order_id') || urlParams.get('id') || 'MM-PRE-081';
+    const orderId = urlParams.get('order_id') || urlParams.get('id') || '';
 
     // 2. I-load ang mga detalye ng order at ingredient deduction check
     fetchOrderProductionDetails(orderId);
@@ -19,12 +21,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Complete button listener
+    // 4. Complete button listener - uses the actual loaded order's ID, not
+    // just whatever (possibly empty) value was in the URL.
     const completeBtn = document.getElementById('completeOrderBtn') || document.querySelector('.complete-btn') || document.querySelector('button.btn-primary');
     if (completeBtn) {
-        completeBtn.addEventListener('click', () => handleCompleteOrder(orderId));
+        completeBtn.addEventListener('click', () => handleCompleteOrder(loadedOrderId || orderId));
     }
 });
+
+let loadedOrderId = null;
 
 async function fetchOrderProductionDetails(orderId) {
     try {
@@ -49,6 +54,7 @@ async function fetchOrderProductionDetails(orderId) {
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
+        loadedOrderId = data.order ? data.order.id : null;
         renderOrderDetails(data.order);
         renderMaterialInventoryCheck(data.materials);
 
@@ -61,45 +67,63 @@ async function fetchOrderProductionDetails(orderId) {
 function renderOrderDetails(order) {
     if (!order) return;
 
-    // Order Title at Number
-    const orderTitleEl = document.querySelector('.welcome-copy h1') || document.querySelector('.panel-header h2') || document.getElementById('orderTitleDisplay');
-    const orderNumberSmallEl = document.getElementById('orderNumberTag') || document.querySelector('.order-name-block small');
-    const customerNameEl = document.getElementById('customerNameTag');
+    setText('orderCode', order.orderCode);
+    setText('orderClient', order.orderClient ? `Customer: ${order.orderClient}` : '');
+    setText('itemLabel', order.itemLabel);
 
-    if (orderTitleEl) orderTitleEl.textContent = `${order.flavor_name} (${order.cup_size})`;
-    if (orderNumberSmallEl) orderNumberSmallEl.textContent = `${order.order_number} • ${order.type}`;
-    if (customerNameEl) customerNameEl.textContent = `Customer: ${order.customer_name} • Slot: ${order.claim_window}`;
-
-    // Specification Pills (Pinalitan ang lumang Coffee / Spaghetti)
-    const specsContainer = document.getElementById('orderSpecsPills') || document.querySelector('.order-specs-row');
-    if (specsContainer) {
-        const toppingsHtml = (order.toppings || []).map(top => `<span class="spec-pill topping">${escapeHtml(top)}</span>`).join('');
-        specsContainer.innerHTML = `
-            <span class="spec-pill size">${escapeHtml(order.cup_size)}</span>
-            <span class="spec-pill sugar">${escapeHtml(order.sugar_level)}</span>
-            <span class="spec-pill ice">${escapeHtml(order.ice_level)}</span>
-            ${toppingsHtml}
-            <span class="spec-pill shelf">📍 Assign to: ${escapeHtml(order.shelf_location)}</span>
-        `;
+    const typeBadge = document.getElementById('orderTypeBadge');
+    if (typeBadge) {
+        typeBadge.textContent = order.orderType || '';
+        typeBadge.className = 'type-pill ' + (order.orderType === 'Pre-Order' ? 'type-preorder' : 'type-preset');
     }
+
+    // Specification tags. Only real order_items columns are shown - there is
+    // no sugar-level, ice-level, or shelf-assignment column in the schema,
+    // so those tags are simply omitted rather than showing invented values.
+    const tagRow = document.getElementById('tagRow');
+    if (tagRow) {
+        let tagsHtml = '';
+        if (order.cupSize) {
+            tagsHtml += `<span class="spec-tag"><i class="fa-solid fa-wine-glass"></i> ${escapeHtml(order.cupSize)}</span>`;
+        }
+        (order.toppings || []).forEach(top => {
+            tagsHtml += `<span class="spec-tag"><i class="fa-solid fa-circle-dot"></i> ${escapeHtml(top)}</span>`;
+        });
+        if (order.claimSlot) {
+            tagsHtml += `<span class="spec-tag highlight"><i class="fa-regular fa-clock"></i> ${escapeHtml(order.claimSlot)}</span>`;
+        }
+        tagRow.innerHTML = tagsHtml || '<span class="spec-tag">No customization recorded</span>';
+    }
+
+    // There is no per-order recipe/instructions table, so this note stays
+    // generic instead of showing a fixed, made-up recipe for every order.
+    const notesEl = document.getElementById('recipeInstructions');
+    if (notesEl) notesEl.textContent = 'Prepare according to standard recipe for this item, then seal and mark ready.';
+
+    const shelfEl = document.getElementById('shelfIndicatorTag');
+    if (shelfEl) shelfEl.textContent = '';
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || '';
 }
 
 function renderMaterialInventoryCheck(materials) {
-    const tbody = document.getElementById('materialsTableBody') || document.querySelector('.cust-table tbody');
-    if (!tbody) return;
+    const container = document.getElementById('materialsList');
+    if (!container) return;
 
     if (!materials || materials.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#888;">No recipe inventory recorded for this item.</td></tr>';
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">No inventory materials recorded.</div>';
         return;
     }
 
-    tbody.innerHTML = materials.map(mat => `
-        <tr>
-            <td><strong>${escapeHtml(mat.item_name)}</strong></td>
-            <td><span class="portion-badge">${escapeHtml(mat.required_qty)}</span></td>
-            <td>${escapeHtml(mat.stock_on_hand)}</td>
-            <td><span class="status-badge-prep ready">✓ In Stock</span></td>
-        </tr>
+    container.innerHTML = materials.map(mat => `
+        <div class="materials-row">
+            <span class="col-name">${escapeHtml(mat.name)}</span>
+            <span class="col-amount">${escapeHtml(mat.amount)}</span>
+            <span class="col-unit">${escapeHtml(mat.unit)}</span>
+        </div>
     `).join('');
 }
 

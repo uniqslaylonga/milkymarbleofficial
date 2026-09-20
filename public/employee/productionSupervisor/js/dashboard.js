@@ -75,13 +75,13 @@ async function fetchProductionDashboardData() {
         if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Supervisor';
         if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // KPI Metrics
-        if (data.metrics) {
-            document.getElementById('completedToday').textContent = String(data.metrics.completedToday || 95).padStart(2, '0');
-            document.getElementById('inProduction').textContent = String(data.metrics.inProduction || 38).padStart(2, '0');
-            document.getElementById('pendingOrders').textContent = data.metrics.preordersClaimedStr || '14 / 57';
-            document.getElementById('reservedStocks').textContent = String(data.metrics.pendingRestocks || 2).padStart(2, '0');
-        }
+        // KPI Metrics - straight from the server; 0 stays 0, nothing is
+        // backfilled with a fake placeholder number.
+        const m = data.metrics || {};
+        document.getElementById('completedToday').textContent = String(m.completedToday || 0).padStart(2, '0');
+        document.getElementById('inProduction').textContent = String(m.inProduction || 0).padStart(2, '0');
+        document.getElementById('pendingOrders').textContent = m.preordersClaimedStr || '0 / 0';
+        document.getElementById('reservedStocks').textContent = String(m.pendingRestocks || 0).padStart(2, '0');
 
         allQueueOrders = data.recentOrders || [];
         allRestockPitches = data.restockPitches || [];
@@ -256,18 +256,7 @@ function renderScheduleList(schedules) {
     if (!container) return;
 
     if (!schedules || schedules.length === 0) {
-        container.innerHTML = `
-            <div class="schedule-item">
-                <div class="schedule-day">Tuesday</div>
-                <div class="schedule-time">10:00 AM – 3:00 PM</div>
-                <div class="schedule-label">Active Release</div>
-            </div>
-            <div class="schedule-item">
-                <div class="schedule-day">Thursday</div>
-                <div class="schedule-time">10:00 AM – 3:00 PM</div>
-                <div class="schedule-label">Next Release</div>
-            </div>
-        `;
+        container.innerHTML = '<div class="schedule-item"><div class="schedule-day">No scheduled pickups yet.</div></div>';
         return;
     }
 
@@ -297,6 +286,11 @@ function closeRestockModal() {
     }
 }
 
+// Posts to the same real endpoint the Procurement Officer's "Add Request"
+// modal uses - creates a genuine `expenses` row with real DOA routing,
+// instead of the old behavior of faking a local-only object that vanished
+// on refresh (it used to POST to /api/production/restock-pitch, which
+// was never a real route).
 async function handleRestockPitchSubmit(e) {
     e.preventDefault();
 
@@ -304,51 +298,41 @@ async function handleRestockPitchSubmit(e) {
     const qty = parseFloat(document.getElementById('inputQuantity').value || 1);
     const unitPrice = parseFloat(document.getElementById('inputUnitPrice').value || 0);
     const totalCost = qty * unitPrice;
-    const justification = document.getElementById('inputJustification').value.trim();
 
-    let targetRoute = 'procure';
-    let routeText = '🟢 Direct Buy: Procurement';
-    let targetStatus = 'PROCUREMENT_PENDING';
-
-    if (totalCost > 500) {
-        targetRoute = 'ceo';
-        routeText = '🔴 Escalated to CEO';
-        targetStatus = 'PENDING_CEO';
-    } else if (totalCost > 300) {
-        targetRoute = 'finance';
-        routeText = '🟠 Requires Finance Approval';
-        targetStatus = 'PENDING_FINANCE';
+    if (!itemName || !(totalCost > 0)) {
+        alert('Please enter an ingredient name, a quantity and a unit price.');
+        return;
     }
 
-    const newPitch = {
-        id: Date.now(),
-        item_name: itemName,
-        quantity: qty,
-        unit_price: unitPrice,
-        total_cost: totalCost,
-        status: targetStatus,
-        route: targetRoute,
-        route_text: routeText,
-        justification
-    };
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
-        await fetch('/api/production/restock-pitch', {
+        const res = await employeeFetch('/api/procurement-officer/add-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newPitch)
+            body: JSON.stringify({
+                item_name: qty > 1 ? `${itemName} (${qty}x)` : itemName,
+                store_name: '',
+                amount: totalCost
+            })
         });
-    } catch (err) {
-        console.warn('Offline mode: Saved restock pitch locally.', err);
+        const result = await res.json();
+        if (!res.ok || result.status === 'error') throw new Error(result.message || 'Server error');
+
+        closeRestockModal();
+        e.target.reset();
+        calculateRestockThreshold();
+        await fetchProductionDashboardData();
+
+        const route = result.request && result.request.route;
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
+        alert(`Requisition for "${itemName}" (₱${totalCost.toFixed(2)}) pitched successfully.\nRouting: ${routeText}`);
+    } catch (error) {
+        alert('Could not save the requisition: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
-
-    allRestockPitches.unshift(newPitch);
-    renderRestockPitches();
-    closeRestockModal();
-    e.target.reset();
-    calculateRestockThreshold();
-
-    alert(`Requisition for "${itemName}" (₱${totalCost.toFixed(2)}) pitched successfully! Routed to: ${routeText}`);
 }
 
 function escapeHtml(str) {

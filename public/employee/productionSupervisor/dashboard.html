@@ -70,12 +70,8 @@
         <section class="welcome-banner">
             <div class="welcome-banner-content">
                 <div class="welcome-text-col">
-                    <div class="banner-badge-row">
-                        <span class="release-window-pill">Release Day: Tue &amp; Thu (10:00 AM – 3:00 PM)</span>
-                        <span class="shift-subtag">Morning Brewing Window</span>
-                    </div>
                     <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">Supervisor</span>!</h1>
-                    <p class="welcome-sub">Prepare pre-orders and walk-in preset batches before 10:00 AM counter release.</p>
+                    <p class="welcome-sub">Prepare pre-orders and walk-in preset batches, and manage ingredient restock requisitions.</p>
                 </div>
                 <div class="banner-action-col">
                     <button type="button" class="btn-pitch-restock" onclick="openRestockModal()">
@@ -91,20 +87,20 @@
             <div class="overview-grid four-col-grid">
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Morning Target</span>
+                        <span class="stat-title">Completed Today</span>
                         <i class="fa-solid fa-clipboard-check stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="completedToday" class="stat-value">95</span></div>
-                    <div class="stat-footer">Must seal before 10:00 AM</div>
+                    <div class="stat-body"><span id="completedToday" class="stat-value">—</span></div>
+                    <div class="stat-footer">Orders marked Completed</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Walk-in Presets</span>
+                        <span class="stat-title">In Production</span>
                         <i class="fa-solid fa-box-open stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="inProduction" class="stat-value">38</span></div>
-                    <div class="stat-footer">Ready in display chiller</div>
+                    <div class="stat-body"><span id="inProduction" class="stat-value">—</span></div>
+                    <div class="stat-footer">Currently preparing</div>
                 </div>
 
                 <div class="stat-card">
@@ -112,8 +108,8 @@
                         <span class="stat-title">Pre-orders Claimed</span>
                         <i class="fa-solid fa-clipboard-list stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="pendingOrders" class="stat-value">14 / 57</span></div>
-                    <div class="stat-footer">10:00 AM – 3:00 PM window</div>
+                    <div class="stat-body"><span id="pendingOrders" class="stat-value">0 / 0</span></div>
+                    <div class="stat-footer">Completed / total, today</div>
                 </div>
 
                 <div class="stat-card">
@@ -121,77 +117,16 @@
                         <span class="stat-title">Restock Pitches</span>
                         <i class="fa-solid fa-warehouse stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="reservedStocks" class="stat-value">02</span></div>
-                    <div class="stat-footer">In DOA approval routing</div>
+                    <div class="stat-body"><span id="reservedStocks" class="stat-value">—</span></div>
+                    <div class="stat-footer">Awaiting purchase / approval</div>
                 </div>
             </div>
         </section>
 
-        <!-- SECTION 2: SPLIT VIEW (MORNING PREP & RESTOCK ROUTING) -->
+        <!-- SECTION 2: RESTOCK ROUTING -->
         <div class="split-dashboard-layout">
-            <!-- KALIWA: MORNING BATCH PREP & 5-HOUR FRESHNESS -->
-            <div class="analytics-column">
-                <div class="stat-card compact-panel">
-                    <div class="card-head-row">
-                        <span class="stat-title">Morning Batch Prep (10:00 AM Target)</span>
-                        <span class="section-badge-pink">Live Prep Velocity</span>
-                    </div>
-
-                    <div class="prep-progress-box">
-                        <div class="prep-header-flex">
-                            <span>Prep Progress: <strong id="prepPercentLabel">82% Completed</strong></span>
-                            <span class="prep-time-sub">Goal: 100% by 09:45 AM</span>
-                        </div>
-                        <div class="ratio-track-sm">
-                            <div class="ratio-fill-reg" id="prepProgressBar" style="width: 82%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="preset-yield-mini-list">
-                        <div class="preset-yield-row">
-                            <span>Classic Pearl (Preset)</span>
-                            <strong>32 / 40 Cups Ready</strong>
-                        </div>
-                        <div class="preset-yield-row">
-                            <span>Brown Sugar Marble (Preset)</span>
-                            <strong>20 / 25 Cups Ready</strong>
-                        </div>
-                        <div class="preset-yield-row">
-                            <span>Matcha Cream Marble (Preset)</span>
-                            <strong>18 / 20 Cups Ready</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- FRESHNESS & 2:00 PM ALERT -->
-                <div class="stat-card compact-panel">
-                    <div class="card-head-row">
-                        <span class="stat-title">5-Hour Freshness &amp; Holding Window</span>
-                        <span class="section-badge-pink">10:00 AM – 3:00 PM</span>
-                    </div>
-
-                    <div class="freshness-timer-row">
-                        <div class="freshness-indicator-circle">
-                            <span class="timer-display">3h 40m</span>
-                            <span class="timer-sub">Holding Safe</span>
-                        </div>
-                        <div class="freshness-notes">
-                            <strong class="freshness-bold">Tapioca Pearls Freshness Guard:</strong>
-                            <p class="freshness-desc">Freshly cooked pearls remain tender for 5 hours. Release window closes at 3:00 PM without requiring a midday cook.</p>
-                        </div>
-                    </div>
-
-                    <div class="insight-box-sm warning-style">
-                        <span class="insight-icon">⚠️</span>
-                        <p class="insight-text">
-                            <strong>2:00 PM Clearance Protocol:</strong> At 2:00 PM, all unsold walk-in presets will be flagged to Sales for counter takeaway discounts. Unclaimed pre-orders receive automated SMS reminders.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             <!-- KANAN: RESTOCK HIERARCHY TRACKER (DOA MATRIX) -->
-            <div class="transactions-column">
+            <div class="transactions-column" style="grid-column: 1 / -1;">
                 <div class="stat-card transactions-card">
                     <div class="card-head-row">
                         <div class="head-titles">
@@ -265,8 +200,8 @@
             <aside class="schedule-card">
                 <div class="panel-header schedule-header">
                     <div>
-                        <h2 class="section-title" style="margin-bottom: 2px;">Release Schedule</h2>
-                        <p class="section-sub-text">Tue &amp; Thu (10 AM – 3 PM)</p>
+                        <h2 class="section-title" style="margin-bottom: 2px;">Upcoming Pickups</h2>
+                        <p class="section-sub-text">From scheduled order pickups</p>
                     </div>
                     <button class="schedule-toggle" type="button" onclick="window.location.href='productionPlanning.html'"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>

@@ -70,16 +70,15 @@ async function fetchOrderListData() {
         if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Production Supervisor';
         if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // KPI Counts
-        if (data.kpis) {
-            document.getElementById('preordersTargetCount').textContent = String(data.kpis.preordersTarget || 57);
-            document.getElementById('presetsQuotaCount').textContent = String(data.kpis.presetsQuota || 38);
-            document.getElementById('sealedReadyCount').textContent = String(data.kpis.sealedReady || 72);
-            document.getElementById('inQueueCount').textContent = String(data.kpis.inQueue || 23);
-        }
+        // KPI Counts - real order-status counts from the server, 0 if none.
+        const k = data.kpis || {};
+        document.getElementById('preordersTargetCount').textContent = String(k.pendingCount || 0);
+        document.getElementById('presetsQuotaCount').textContent = String(k.inProgressCount || 0);
+        document.getElementById('sealedReadyCount').textContent = String(k.readyCount || 0);
+        document.getElementById('inQueueCount').textContent = String(k.completedCount || 0);
 
         allOrders = data.ordersList || [];
-        allPresets = data.presetBatches || [];
+        allPresets = data.presetCards || [];
         applyOrderFilters();
         renderPresetBatchAllocator();
 
@@ -214,7 +213,7 @@ function renderPresetBatchAllocator() {
     if (!container) return;
 
     if (allPresets.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); padding: 10px;">No preset flavors configured for this batch.</div>';
+        container.innerHTML = '<div style="color: var(--text-muted); padding: 10px;">Preset batch tracking isn\'t set up yet.</div>';
         return;
     }
 

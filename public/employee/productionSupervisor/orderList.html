@@ -72,7 +72,7 @@
             <div class="header-row">
                 <div>
                     <h1 class="page-title">Keep the shelves organized</h1>
-                    <p class="header-sub">Manage micro-customized pre-orders and macro walk-in preset batches for release days (Tue/Thu).</p>
+                    <p class="header-sub">Manage pre-orders and walk-in preset batches.</p>
                 </div>
                 <a href="productionPlanning.html" class="btn-primary" style="text-decoration: none;">
                     <i class="fa-solid fa-calendar-plus"></i> Batch Planning
@@ -85,38 +85,38 @@
             <div class="overview-grid four-col-grid">
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Pre-orders Target</span>
+                        <span class="stat-title">Pending Orders</span>
                         <i class="fa-solid fa-clipboard-list stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="preordersTargetCount" class="stat-value">57</span></div>
-                    <div class="stat-footer">Scheduled for 10 AM – 3 PM</div>
+                    <div class="stat-body"><span id="preordersTargetCount" class="stat-value">0</span></div>
+                    <div class="stat-footer">Awaiting preparation</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Walk-in Presets Quota</span>
+                        <span class="stat-title">In Progress</span>
                         <i class="fa-solid fa-store stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="presetsQuotaCount" class="stat-value">38</span></div>
-                    <div class="stat-footer">Prepared for counter shelf</div>
+                    <div class="stat-body"><span id="presetsQuotaCount" class="stat-value">0</span></div>
+                    <div class="stat-footer">Currently preparing</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Sealed &amp; Shelf-Ready</span>
+                        <span class="stat-title">Ready for Pickup</span>
                         <i class="fa-solid fa-warehouse stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="sealedReadyCount" class="stat-value">72</span></div>
-                    <div class="stat-footer">Stored in holding racks</div>
+                    <div class="stat-body"><span id="sealedReadyCount" class="stat-value">0</span></div>
+                    <div class="stat-footer">Ready for customer pickup</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">In Prep Queue</span>
+                        <span class="stat-title">Completed</span>
                         <i class="fa-solid fa-hourglass-half stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="inQueueCount" class="stat-value">23</span></div>
-                    <div class="stat-footer">Cups pending assembly</div>
+                    <div class="stat-body"><span id="inQueueCount" class="stat-value">0</span></div>
+                    <div class="stat-footer">Picked up / fulfilled</div>
                 </div>
             </div>
         </section>
@@ -145,7 +145,7 @@
                                 <th>Order # &amp; Customer</th>
                                 <th>Item &amp; Custom Specs (Sugar / Ice / Topping)</th>
                                 <th>Qty</th>
-                                <th>Claim Slot (Tue/Thu)</th>
+                                <th>Claim Slot</th>
                                 <th>Shelf Tag</th>
                                 <th>Status</th>
                                 <th>Action</th>
@@ -185,7 +185,7 @@
                         <h2 class="section-title">Walk-in Preset Batch Allocator</h2>
                         <span class="section-badge-pink">Macro Production Status</span>
                     </div>
-                    <p class="section-sub-text">Standardized fixed recipes prepared in bulk for Tuesday/Thursday counter chiller display.</p>
+                    <p class="section-sub-text">Standardized recipes prepared in bulk for the counter chiller display.</p>
                 </div>
 
                 <div id="presetGrid" class="preset-grid">

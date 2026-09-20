@@ -2,6 +2,8 @@ let allPlans = [];
 let filteredPlans = [];
 let currentPlanPage = 1;
 const PLANS_PAGE_SIZE = 5;
+let todayPlansCount = 0;
+let tomorrowPlansCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchProductionPlanningData();
@@ -19,21 +21,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnBoard) btnBoard.addEventListener('click', () => switchPlanView('board'));
     if (btnList) btnList.addEventListener('click', () => switchPlanView('list'));
 
-    // Recipe selection auto-fill handler
+    // Recipe selection auto-fill handler - fills the operation name from the
+    // chosen preset. Yield is left for the supervisor to enter; it used to
+    // be auto-filled with invented per-recipe numbers ("2.5 kg (50 cups
+    // yield)") that weren't backed by any real yield data.
     const recipeSelect = document.getElementById('recipeSelect');
     if (recipeSelect) {
         recipeSelect.addEventListener('change', function() {
             if (this.value) {
                 document.getElementById('addOpInput').value = this.value;
-                if (this.value.includes('Tapioca Pearls')) {
-                    document.getElementById('addYieldInput').value = '2.5 kg (50 cups yield)';
-                } else if (this.value.includes('Assam Black Tea')) {
-                    document.getElementById('addYieldInput').value = '6.0 Liters (~30 cups)';
-                } else if (this.value.includes('Jasmine Green Tea')) {
-                    document.getElementById('addYieldInput').value = '5.0 Liters (~25 cups)';
-                } else if (this.value.includes('Gulaman')) {
-                    document.getElementById('addYieldInput').value = '2 Trays molded';
-                }
             }
         });
     }
@@ -95,6 +91,11 @@ async function fetchProductionPlanningData() {
 
         allPlans = data.allPlans || [];
         filteredPlans = [...allPlans];
+        todayPlansCount = (data.todayPlans || []).length;
+        tomorrowPlansCount = (data.tomorrowPlans || []).length;
+
+        const dateRangeEl = document.getElementById('dateRangeText');
+        if (dateRangeEl && data.dateRangeText) dateRangeEl.textContent = data.dateRangeText;
 
         renderAllViews();
 
@@ -252,15 +253,43 @@ function renderPlanPagerButtons(totalPages, activePage) {
 }
 
 function updateKpiBadges() {
-    document.getElementById('totalRunsCount').textContent = `${allPlans.length} Runs`;
+    const totalEl = document.getElementById('totalRunsCount');
+    if (totalEl) totalEl.textContent = `${allPlans.length} Runs`;
+    const todayEl = document.getElementById('todayRunsCount');
+    if (todayEl) todayEl.textContent = `${todayPlansCount} Runs`;
+    const tomorrowEl = document.getElementById('tomorrowRunsCount');
+    if (tomorrowEl) tomorrowEl.textContent = `${tomorrowPlansCount} Runs`;
+    const inProgEl = document.getElementById('inProgressCountKpi');
+    if (inProgEl) inProgEl.textContent = allPlans.filter(p => p.status === 'IN PROGRESS').length;
 }
 
-function advanceBatchStage(planId, newStatus) {
+// Persists the stage change to the real production_orders row instead of
+// only updating the in-memory copy (which used to be lost on refresh).
+async function advanceBatchStage(planId, newStatus) {
     const plan = allPlans.find(p => p.id === planId);
-    if (plan) {
+    if (!plan) return;
+
+    try {
+        await apiPost('/api/production-supervisor/edit-plan', {
+            plan_id: plan.id, operation: plan.operation, due_date: plan.due_date,
+            schedule_time: plan.schedule_time, status: newStatus
+        });
         plan.status = newStatus;
         renderAllViews();
+    } catch (error) {
+        alert('Could not update the batch stage: ' + error.message);
     }
+}
+
+async function apiPost(url, body) {
+    const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    const res = (typeof employeeFetch === 'function') ? await employeeFetch(url, opts) : await fetch(url, opts);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || ('Server responded with status ' + res.status));
+    }
+    return data;
 }
 
 function switchPlanView(view) {
@@ -295,12 +324,16 @@ function filterPlans() {
     renderAllViews();
 }
 
+// Filters by the plan's own scheduled weekday (due_date), not a guess based
+// on keywords in the operation name (the old version matched "Tapioca" /
+// "Assam" as "Tuesday" and "Jasmine" / "Gulaman" as "Thursday" by name,
+// which mislabeled any plan that didn't happen to use those exact words).
 function filterByTimeRange() {
     const filter = document.getElementById('timeRangeFilter')?.value;
     if (filter === 'tue_run') {
-        filteredPlans = allPlans.filter(p => (p.operation || '').includes('Tapioca') || (p.operation || '').includes('Assam'));
+        filteredPlans = allPlans.filter(p => p.due_date && new Date(p.due_date).getDay() === 2);
     } else if (filter === 'thu_run') {
-        filteredPlans = allPlans.filter(p => (p.operation || '').includes('Jasmine') || (p.operation || '').includes('Gulaman'));
+        filteredPlans = allPlans.filter(p => p.due_date && new Date(p.due_date).getDay() === 4);
     } else {
         filteredPlans = [...allPlans];
     }
@@ -312,29 +345,36 @@ async function handleAddPlan(e) {
     e.preventDefault();
 
     const operation = document.getElementById('addOpInput').value.trim();
-    const yield_volume = document.getElementById('addYieldInput').value.trim();
+    const yieldText = document.getElementById('addYieldInput').value.trim();
     const due_date = document.getElementById('addDueDate').value;
     const schedule_time = document.getElementById('addScheduleTime').value;
     const status = document.getElementById('addStatus').value;
 
-    const newPlan = {
-        id: Date.now(),
-        order_code: `BATCH-B0${allPlans.length + 1}`,
-        operation,
-        yield_volume,
-        due_date,
-        schedule_time,
-        status,
-        holding_note: 'Assigned to morning cook'
-    };
+    if (!operation || !due_date || !schedule_time) {
+        alert('Please fill out the operation name, date and start time.');
+        return;
+    }
 
-    allPlans.push(newPlan);
-    filteredPlans = [...allPlans];
-    renderAllViews();
-    closeModal('addPlanModal');
-    e.target.reset();
+    // production_orders only has a numeric target_liters column, not a
+    // free-text yield/volume field, so the yield description is folded
+    // into the operation name rather than silently dropped or force-parsed
+    // into a number that could misrepresent the unit.
+    const fullOperation = yieldText ? `${operation} (${yieldText})` : operation;
 
-    alert(`Batch cooking plan for "${operation}" scheduled successfully!`);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        await apiPost('/api/production-supervisor/add-plan', { operation: fullOperation, due_date, schedule_time, status });
+        closeModal('addPlanModal');
+        e.target.reset();
+        await fetchProductionPlanningData();
+        alert(`Batch cooking plan for "${operation}" scheduled successfully.`);
+    } catch (error) {
+        alert('Could not save the batch plan: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function openEditPlanByData(planId) {

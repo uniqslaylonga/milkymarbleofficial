@@ -73,7 +73,7 @@
             <div class="header-row">
                 <div>
                     <h1 class="page-title">Make the next move visible.</h1>
-                    <p class="header-sub">Pre-boil tapioca pearls, steep tea bases, and set gulaman jellies before 10:00 AM counter release (Tue/Thu).</p>
+                    <p class="header-sub">Schedule and track batch cooking runs - pre-boils, tea steeps, and jelly sets.</p>
                 </div>
                 <button type="button" class="btn-primary" onclick="openModal('addPlanModal')">
                     <i class="fa-solid fa-plus"></i> Schedule Cooking Run
@@ -86,38 +86,38 @@
             <div class="overview-grid four-col-grid">
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Tapioca Pearls (Cooked)</span>
-                        <i class="fa-solid fa-circle-dot stat-icon"></i>
+                        <span class="stat-title">Scheduled Today</span>
+                        <i class="fa-solid fa-calendar-day stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="pearlsBatchCount" class="stat-value">5.0 kg</span></div>
-                    <div class="stat-footer">2 Large Pots (Yield: ~100 cups)</div>
+                    <div class="stat-body"><span id="todayRunsCount" class="stat-value">0 Runs</span></div>
+                    <div class="stat-footer">Batch runs due today</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Tea Bases Brewed</span>
-                        <i class="fa-solid fa-mug-hot stat-icon"></i>
+                        <span class="stat-title">Scheduled Tomorrow</span>
+                        <i class="fa-solid fa-calendar-plus stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="teaLitersCount" class="stat-value">14.5 L</span></div>
-                    <div class="stat-footer">Assam Black &amp; Jasmine Green</div>
+                    <div class="stat-body"><span id="tomorrowRunsCount" class="stat-value">0 Runs</span></div>
+                    <div class="stat-footer">Batch runs due tomorrow</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Gulaman / Jellies</span>
-                        <i class="fa-solid fa-cubes-stacked stat-icon"></i>
+                        <span class="stat-title">In Progress</span>
+                        <i class="fa-solid fa-fire-burner stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="jelliesTrayCount" class="stat-value">3 Trays</span></div>
-                    <div class="stat-footer">Grass Jelly &amp; Egg Pudding set</div>
+                    <div class="stat-body"><span id="inProgressCountKpi" class="stat-value">0</span></div>
+                    <div class="stat-footer">Currently boiling / steeping</div>
                 </div>
 
                 <div class="stat-card">
                     <div class="stat-header">
                         <span class="stat-title">Planned Batch Runs</span>
-                        <i class="fa-solid fa-fire-burner stat-icon"></i>
+                        <i class="fa-solid fa-clipboard-list stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="totalRunsCount" class="stat-value">6 Runs</span></div>
-                    <div class="stat-footer">Morning Cooking Schedule</div>
+                    <div class="stat-body"><span id="totalRunsCount" class="stat-value">0 Runs</span></div>
+                    <div class="stat-footer">All scheduled runs</div>
                 </div>
             </div>
         </section>
@@ -128,12 +128,12 @@
                 <div class="custom-select-wrap">
                     <i class="fa-regular fa-calendar filter-icon"></i>
                     <select id="timeRangeFilter">
-                        <option value="this_week" selected>This Week (Tue &amp; Thu Release)</option>
+                        <option value="this_week" selected>All Scheduled Runs</option>
                         <option value="tue_run">Tuesday Release Run (10 AM – 3 PM)</option>
                         <option value="thu_run">Thursday Release Run (10 AM – 3 PM)</option>
                     </select>
                 </div>
-                <span id="dateRangeText" class="date-range-text">Sep 22 &amp; Sep 24, 2026</span>
+                <span id="dateRangeText" class="date-range-text">Loading...</span>
             </div>
 
             <div class="view-switch-group">
@@ -240,14 +240,14 @@
                     <label>Ingredient / Batch Recipe Preset *</label>
                     <select id="recipeSelect" required>
                         <option value="">-- Choose Macro Recipe Preset --</option>
-                        <option value="Tapioca Pearls (Batch 1 - Full Pot)">Tapioca Pearls (Full Pot - 2.5 kg | Yield: ~50 cups)</option>
-                        <option value="Tapioca Pearls (Batch 2 - Full Pot)">Tapioca Pearls (Full Pot - 2.5 kg | Yield: ~50 cups)</option>
-                        <option value="Assam Black Tea Base (Urn 1)">Assam Black Tea Base (Urn 1 - 6 Liters)</option>
-                        <option value="Jasmine Green Tea Base (Urn 2)">Jasmine Green Tea Base (Urn 2 - 5 Liters)</option>
-                        <option value="Roasted Oolong Tea Base (Urn 3)">Roasted Oolong Tea Base (Urn 3 - 3.5 Liters)</option>
-                        <option value="Grass Jelly / Gulaman Tray">Grass Jelly / Gulaman Tray (2 Trays setting)</option>
-                        <option value="Egg Pudding Custard Mold">Egg Pudding Custard Mold (1.5 Liters)</option>
-                        <option value="Brown Sugar Syrup Melting">Brown Sugar Syrup Melting (3 Liters)</option>
+                        <option value="Tapioca Pearls (Batch 1)">Tapioca Pearls (Batch 1)</option>
+                        <option value="Tapioca Pearls (Batch 2)">Tapioca Pearls (Batch 2)</option>
+                        <option value="Assam Black Tea Base (Urn 1)">Assam Black Tea Base (Urn 1)</option>
+                        <option value="Jasmine Green Tea Base (Urn 2)">Jasmine Green Tea Base (Urn 2)</option>
+                        <option value="Roasted Oolong Tea Base (Urn 3)">Roasted Oolong Tea Base (Urn 3)</option>
+                        <option value="Grass Jelly / Gulaman Tray">Grass Jelly / Gulaman Tray</option>
+                        <option value="Egg Pudding Custard Mold">Egg Pudding Custard Mold</option>
+                        <option value="Brown Sugar Syrup Melting">Brown Sugar Syrup Melting</option>
                     </select>
                 </div>
 
@@ -259,15 +259,6 @@
                 <div class="form-group">
                     <label>Target Yield / Volume *</label>
                     <input type="text" id="addYieldInput" placeholder="e.g. 2.5 kg (50 cups)" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Release Target Day *</label>
-                    <select id="addDaySelect">
-                        <option value="Tuesday">Tuesday Morning Run</option>
-                        <option value="Thursday">Thursday Morning Run</option>
-                        <option value="Mon/Wed Prep">Mon/Wed Pre-Prep (Jellies/Syrups)</option>
-                    </select>
                 </div>
 
                 <div class="form-group">
@@ -285,7 +276,7 @@
                     <select id="addStatus">
                         <option value="PLANNED">Scheduled (To Boil/Brew)</option>
                         <option value="IN PROGRESS">Active Boiling &amp; Steeping</option>
-                        <option value="COMPLETED">Ready in Warmer (10 AM - 3 PM)</option>
+                        <option value="COMPLETED">Ready in Warmer</option>
                     </select>
                 </div>
             </div>
