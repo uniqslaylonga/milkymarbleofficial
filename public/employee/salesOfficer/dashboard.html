@@ -122,25 +122,33 @@
         </div>
       </header>
 
-      <!-- REGISTER STATUS BANNER -->
+      <!-- REGISTER STATUS STRIP -->
       <div id="registerStatusBanner" class="register-status-strip open">
         <span class="status-pulse-dot"></span>
-        <span id="registerStatusText">Register Open • Tuesday/Thursday Release Window Active (10:00 AM – 3:00 PM)</span>
+        <span id="registerStatusText">Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)</span>
       </div>
 
-      <!-- WELCOME BANNER WITH Z-READING & X-READING BUTTONS -->
+      <!-- WELCOME BANNER WITH AUDIT ACTION BUTTONS -->
       <section class="welcome-banner">
         <div class="welcome-banner-flex">
           <div>
             <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">...</span>!</h1>
-            <p class="welcome-sub">Monitor walk-in counter sales, pre-order claims, and execute end-of-shift Z-Reading.</p>
+            <p class="welcome-sub">Monitor walk-in counter sales, pre-order claims, and generate audit reports.</p>
           </div>
           <div class="shift-action-buttons">
-            <button type="button" class="btn-x-reading" onclick="openXReadingSnapshot()" title="Preview current shift collections without locking the register">
-              X-Reading (Preview)
+            <button type="button" class="btn-x-reading" onclick="openXReadingModal()" title="View interim shift snapshot without locking register">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>X-Reading (Snapshot)</span>
             </button>
             <button type="button" id="btnEndShiftTrigger" class="btn-z-reading" onclick="openZReadingModal()">
-              🔒 End Shift &amp; Z-Reading
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span>End Shift &amp; Z-Reading</span>
             </button>
           </div>
         </div>
@@ -249,14 +257,16 @@
 
             <!-- Decision Support Note -->
             <div class="insight-box-sm">
-              <span class="insight-icon">💡</span>
+              <svg class="insight-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+              </svg>
               <p class="insight-text" id="insightMessage">Analyzing revenue trends to formulate promotional strategy...</p>
             </div>
           </div>
 
         </div>
 
-        <!-- RIGHT COLUMN (RECENT TRANSACTIONS CARD WITH DATE FILTER & PERMANENT PAGER) -->
+        <!-- RIGHT COLUMN (RECENT TRANSACTIONS CARD) -->
         <div class="transactions-column">
           <div class="stat-card transactions-card">
             <div class="card-head-row tx-head-row">
@@ -305,85 +315,189 @@
     </main>
   </div>
 
-  <!-- MODAL: END SHIFT & Z-READING CUT-OFF -->
-  <div class="modal-overlay" id="zReadingModal">
-    <div class="z-modal-card" onclick="event.stopPropagation()">
-      <div class="z-modal-header">
+  <!-- MODAL 1: X-READING INTERIM SNAPSHOT (MATCHING THEME STYLES) -->
+  <div class="modal-overlay" id="xReadingModal">
+    <div class="audit-modal-card" onclick="event.stopPropagation()">
+      <div class="audit-modal-header">
         <div>
-          <span class="z-badge-report">OFFICIAL AUDIT REPORT</span>
-          <h2 class="z-modal-title">End of Shift — Z-Reading Cut-off</h2>
-          <p class="z-modal-sub" id="zModalSubDate">Tuesday/Thursday Release Window Closing (3:00 PM)</p>
+          <span class="audit-badge x-badge">INTERIM AUDIT SNAPSHOT</span>
+          <h2 class="audit-modal-title">Shift X-Reading Report</h2>
+          <p class="audit-modal-sub" id="xModalSubDate">Tuesday &amp; Thursday Operational Snapshot</p>
         </div>
-        <button type="button" class="modal-close" onclick="closeZReadingModal()">✕</button>
+        <button type="button" class="modal-close-btn" onclick="closeXReadingModal()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
-      <div class="z-modal-body">
-        <!-- 1. PRE-ORDERS AUDIT SUMMARY -->
-        <div class="z-audit-section">
-          <div class="z-sec-title">
-            <span>1. Pre-Orders Audit (Gateway &amp; Claim Status)</span>
-            <span class="z-sec-badge" id="zPreOrdersCount">57 Orders</span>
+      <div class="audit-modal-body">
+        <!-- Status Notification Strip -->
+        <div class="audit-status-notice">
+          <svg class="notice-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span>Interim audit only. Register remains <strong>Open &amp; Active</strong> for transactions.</span>
+        </div>
+
+        <!-- Section 1: Pre-Orders Settlement Inflow -->
+        <div class="audit-block">
+          <div class="audit-block-head">
+            <span>Pre-Orders Digital Inflow</span>
+            <span class="audit-block-tag" id="xPreOrdersCount">0 Claims</span>
           </div>
-          <div class="z-metric-grid">
-            <div class="z-sub-metric">
+          <div class="audit-metrics-row">
+            <div class="metric-cell">
+              <small>GCash E-Wallet</small>
+              <strong id="xGcashAmount">₱0.00</strong>
+            </div>
+            <div class="metric-cell">
+              <small>Maya E-Wallet</small>
+              <strong id="xMayaAmount">₱0.00</strong>
+            </div>
+            <div class="metric-cell">
+              <small>Digital Subtotal</small>
+              <strong id="xDigitalSubtotal">₱0.00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Walk-in Presets Cash Drawer Position -->
+        <div class="audit-block">
+          <div class="audit-block-head">
+            <span>Cash Drawer Inflow &amp; Float</span>
+            <span class="audit-block-tag" id="xPresetsCount">0 Presets Sold</span>
+          </div>
+          <div class="audit-metrics-row">
+            <div class="metric-cell">
+              <small>Walk-in Cash Sales</small>
+              <strong id="xWalkinCash">₱0.00</strong>
+            </div>
+            <div class="metric-cell">
+              <small>Opening Float</small>
+              <strong>₱1,000.00</strong>
+            </div>
+            <div class="metric-cell highlight-cell">
+              <small>Expected in Drawer</small>
+              <strong id="xExpectedDrawer">₱1,000.00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Shift Gross Inflow Summary -->
+        <div class="audit-total-bar">
+          <div>
+            <span class="total-bar-label">Total Inflow Collected So Far</span>
+            <small class="total-bar-sub">Digital pre-orders + Walk-in counter cash</small>
+          </div>
+          <strong id="xGrossTotal" class="total-bar-amount">₱0.00</strong>
+        </div>
+      </div>
+
+      <div class="audit-modal-footer">
+        <button type="button" class="btn-secondary-audit" onclick="closeXReadingModal()">Close</button>
+        <button type="button" class="btn-primary-audit" onclick="window.print()">
+          <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          <span>Print Snapshot Slip</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: END SHIFT & Z-READING CUT-OFF -->
+  <div class="modal-overlay" id="zReadingModal">
+    <div class="audit-modal-card" onclick="event.stopPropagation()">
+      <div class="audit-modal-header">
+        <div>
+          <span class="audit-badge z-badge">OFFICIAL AUDIT REPORT</span>
+          <h2 class="audit-modal-title">End of Shift — Z-Reading Cut-off</h2>
+          <p class="audit-modal-sub" id="zModalSubDate">Tuesday &amp; Thursday Release Window Closing (3:00 PM)</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeZReadingModal()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="audit-modal-body">
+        <!-- Section 1: Pre-Orders Audit Summary -->
+        <div class="audit-block">
+          <div class="audit-block-head">
+            <span>1. Pre-Orders Settlement &amp; Claims</span>
+            <span class="audit-block-tag" id="zPreOrdersCount">57 Orders</span>
+          </div>
+          <div class="audit-metrics-grid-4">
+            <div class="metric-cell">
               <small>Claimed &amp; Picked Up</small>
               <strong id="zClaimedAmount">₱7,850.00</strong>
             </div>
-            <div class="z-sub-metric">
-              <small>GCash E-Wallet Inflow</small>
+            <div class="metric-cell">
+              <small>GCash E-Wallet</small>
               <strong id="zGcashAmount">₱5,400.00</strong>
             </div>
-            <div class="z-sub-metric">
-              <small>Maya E-Wallet Inflow</small>
+            <div class="metric-cell">
+              <small>Maya E-Wallet</small>
               <strong id="zMayaAmount">₱2,450.00</strong>
             </div>
-            <div class="z-sub-metric warning-text">
+            <div class="metric-cell warning-cell">
               <small>Unclaimed / No-Show</small>
-              <strong id="zUnclaimedAmount">₱280.00 (2 cups)</strong>
+              <strong id="zUnclaimedAmount">₱280.00</strong>
             </div>
           </div>
         </div>
 
-        <!-- 2. WALK-IN PRESETS AUDIT & CASH DRAWER COUNT -->
-        <div class="z-audit-section">
-          <div class="z-sec-title">
-            <span>2. Walk-in Presets &amp; Counter Cash Drawer</span>
-            <span class="z-sec-badge" id="zPresetsCount">38 Cups Sold</span>
+        <!-- Section 2: Walk-in Presets & Cash Drawer Count -->
+        <div class="audit-block">
+          <div class="audit-block-head">
+            <span>2. Counter Cash Drawer &amp; Reconciliation</span>
+            <span class="audit-block-tag" id="zPresetsCount">38 Cups Sold</span>
           </div>
 
-          <div class="z-cash-reconcile-card">
-            <div class="z-cash-row">
+          <div class="cash-reconcile-wrap">
+            <div class="cash-line-row">
               <span>Expected System Cash (Presets + Counter COD):</span>
-              <strong id="zExpectedCash" class="z-expected-num">₱4,560.00</strong>
+              <strong id="zExpectedCash" class="cash-num-highlight">₱4,560.00</strong>
             </div>
 
-            <!-- BLIND CASH COUNT INPUT -->
-            <div class="z-input-block">
+            <!-- Blind Cash Count Input -->
+            <div class="cash-input-group">
               <label for="zActualCashInput">Actual Physical Cash Counted in Drawer (₱) *</label>
-              <input type="number" step="0.5" id="zActualCashInput" class="z-cash-input" placeholder="Enter total physical bills and coins in drawer..." required />
+              <input type="number" step="0.5" id="zActualCashInput" class="custom-cash-input" placeholder="Enter total physical bills and coins counted..." required />
             </div>
 
-            <!-- VARIANCE CALCULATION BOX -->
-            <div class="z-variance-box" id="zVarianceBox">
-              <span class="z-var-label">Variance (Over / Short):</span>
-              <strong id="zVarianceValue" class="z-var-num">₱0.00</strong>
-              <span id="zVarianceStatus" class="z-var-pill exact">Awaiting Count</span>
+            <!-- Variance Box -->
+            <div class="variance-display-box" id="zVarianceBox">
+              <span class="var-label">Variance (Over / Short):</span>
+              <strong id="zVarianceValue" class="var-value">₱0.00</strong>
+              <span id="zVarianceStatus" class="var-status-pill neutral">Awaiting Count</span>
             </div>
           </div>
         </div>
 
-        <div class="z-lock-warning-box">
-          <span class="z-warn-icon">⚠️</span>
+        <!-- Lockdown Alert Callout -->
+        <div class="audit-warning-box">
+          <svg class="warn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
           <p>
-            <strong>Warning: Sales Counter Lockdown:</strong> Upon confirming this Z-Reading, the sales counter will be <strong>permanently locked</strong> for this shift. No further walk-in orders or pickups can be accepted, and the finalized collection packet will be transmitted directly to the <strong>Financial Officer</strong> for reconciliation[cite: 42, 43].
+            <strong>Sales Counter Lockdown Notice:</strong> Submitting this Z-Reading will <strong>permanently lock</strong> the sales counter for this shift. No further orders can be processed, and the final collection packet will be transmitted directly to the <strong>Financial Officer</strong> for reconciliation.
           </p>
         </div>
       </div>
 
-      <div class="z-modal-footer">
-        <button type="button" class="btn-cancel-z" onclick="closeZReadingModal()">Return to Register</button>
-        <button type="button" class="btn-confirm-z" onclick="submitFinalZReading()">
-          🔒 Lock Register &amp; Transmit Z-Report
+      <div class="audit-modal-footer">
+        <button type="button" class="btn-secondary-audit" onclick="closeZReadingModal()">Cancel</button>
+        <button type="button" class="btn-danger-lock" onclick="submitFinalZReading()">
+          <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Lock Register &amp; Transmit Z-Report</span>
         </button>
       </div>
     </div>

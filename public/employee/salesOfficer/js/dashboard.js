@@ -260,7 +260,7 @@ async function loadPageData() {
 
             if (insightMessage) {
                 if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Higher revenue generated from Guest Checkouts (<strong>${split.bText}</strong>). Consider offering a 10% discount voucher for first-time sign-ups to drive account conversions.`;
+                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Higher revenue generated from Guest Checkouts (<strong>${split.bText}</strong>). Consider offering promotional loyalty vouchers to accelerate member registration.`;
                 } else if (regPct > 0 || guestPct > 0) {
                     insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Registered Members lead overall sales (<strong>${split.aText}</strong>). Strong brand loyalty and customer retention.`;
                 } else {
@@ -385,7 +385,7 @@ function renderPaginatedTransactions() {
     }).join('');
 }
 
-// Render dynamic numbered page buttons: 1, 2, 3...
+// Render dynamic numbered page buttons
 function renderPaginationControls(totalPages, activePage) {
     const pagerNumbers = document.getElementById('pagerNumbers');
     if (!pagerNumbers) return;
@@ -434,7 +434,7 @@ function updateAcquisitionDisplay() {
 }
 
 // ==========================================================================
-// Z-READING & REGISTER LOCKDOWN LOGIC
+// REGISTER LOCK & AUDIT CONTROLS
 // ==========================================================================
 function checkRegisterLockState() {
     const banner = document.getElementById('registerStatusBanner');
@@ -444,31 +444,76 @@ function checkRegisterLockState() {
     if (isRegisterLocked) {
         if (banner) {
             banner.className = 'register-status-strip locked';
-            bannerText.innerHTML = '🔒 <strong>SHIFT CLOSED &amp; REGISTER LOCKED</strong> — Z-Report has been transmitted to Financial Officer for reconciliation[cite: 42, 43].';
+            bannerText.innerHTML = '<strong>SHIFT CLOSED &amp; REGISTER LOCKED</strong> — Z-Report transmitted to Financial Officer for reconciliation.';
         }
         if (zBtn) {
             zBtn.disabled = true;
-            zBtn.textContent = '🔒 Shift Closed (Locked)';
+            zBtn.innerHTML = `
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span>Shift Closed (Locked)</span>
+            `;
             zBtn.style.opacity = '0.6';
             zBtn.style.cursor = 'not-allowed';
         }
     }
 }
 
-function openXReadingSnapshot() {
-    alert(
-        "📊 X-READING SNAPSHOT (Mid-Shift Check):\n" +
-        "• Release Cycle: Tuesday/Thursday (10:00 AM – 3:00 PM)\n" +
-        "• Pre-orders Collected: ₱7,850.00 (GCash: ₱5,400 | Maya: ₱2,450)\n" +
-        "• Walk-in Presets Drawer Cash: ₱4,560.00\n" +
-        "• Total Gross Inflow So Far: ₱12,410.00\n\n" +
-        "Note: The X-Reading is an interim audit snapshot and does NOT lock the register."
-    );
+// --------------------------------------------------------------------------
+// X-READING INTERIM SNAPSHOT MODAL LOGIC (STYLED MODAL, NO BROWSER ALERT)
+// --------------------------------------------------------------------------
+function openXReadingModal() {
+    const modal = document.getElementById('xReadingModal');
+    if (!modal) return;
+
+    // Derive current sales figures from dashboard or fallback
+    const salesText = document.getElementById('todaySales')?.textContent || '₱188.00';
+    const cleanSales = parseFloat(salesText.replace(/[^0-9.-]+/g, "")) || 188.00;
+
+    const gcashShare = cleanSales * 0.55;
+    const mayaShare = cleanSales * 0.25;
+    const digitalSubtotal = gcashShare + mayaShare;
+    const walkinCash = cleanSales * 0.20;
+    const openingFloat = 1000.00;
+    const expectedDrawer = openingFloat + walkinCash;
+
+    // Update Date Header
+    const dateSub = document.getElementById('xModalSubDate');
+    if (dateSub) {
+        dateSub.textContent = `Interim Snapshot: ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    // Populate Fields
+    document.getElementById('xPreOrdersCount').textContent = `${Math.max(1, Math.round(allFetchedOrders.length * 0.7))} Claims`;
+    document.getElementById('xGcashAmount').textContent = '₱' + gcashShare.toFixed(2);
+    document.getElementById('xMayaAmount').textContent = '₱' + mayaShare.toFixed(2);
+    document.getElementById('xDigitalSubtotal').textContent = '₱' + digitalSubtotal.toFixed(2);
+
+    document.getElementById('xPresetsCount').textContent = `${Math.max(1, Math.round(allFetchedOrders.length * 0.3))} Presets Sold`;
+    document.getElementById('xWalkinCash').textContent = '₱' + walkinCash.toFixed(2);
+    document.getElementById('xExpectedDrawer').textContent = '₱' + expectedDrawer.toFixed(2);
+    document.getElementById('xGrossTotal').textContent = '₱' + cleanSales.toFixed(2);
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
 }
 
+function closeXReadingModal() {
+    const modal = document.getElementById('xReadingModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+// --------------------------------------------------------------------------
+// Z-READING MODAL & REGISTER LOCK LOGIC
+// --------------------------------------------------------------------------
 function openZReadingModal() {
     if (isRegisterLocked) {
-        alert("This shift has already been concluded with a final Z-Reading.");
+        alert("This operational shift has already been concluded with a final Z-Reading.");
         return;
     }
 
@@ -476,7 +521,7 @@ function openZReadingModal() {
     if (modal) {
         const dateSub = document.getElementById('zModalSubDate');
         if (dateSub) {
-            dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} · 03:00 PM`;
+            dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 03:00 PM`;
         }
 
         const cashInput = document.getElementById('zActualCashInput');
@@ -510,7 +555,7 @@ function calculateZVariance() {
     if (isNaN(actualInput) || actualInput === 0) {
         varNumEl.textContent = '₱0.00';
         varNumEl.style.color = '#7d5f5f';
-        varPillEl.className = 'z-var-pill exact';
+        varPillEl.className = 'var-status-pill neutral';
         varPillEl.textContent = 'Awaiting Count';
         return;
     }
@@ -520,25 +565,25 @@ function calculateZVariance() {
     if (variance === 0) {
         varNumEl.textContent = '₱0.00';
         varNumEl.style.color = '#2E7D32';
-        varPillEl.className = 'z-var-pill exact';
-        varPillEl.textContent = '✓ Exact Balanced';
+        varPillEl.className = 'var-status-pill exact';
+        varPillEl.textContent = 'Exact Balanced';
     } else if (variance < 0) {
         varNumEl.textContent = `-${varFormatted}`;
         varNumEl.style.color = '#C9302C';
-        varPillEl.className = 'z-var-pill short';
-        varPillEl.textContent = '⚠️ Shortage';
+        varPillEl.className = 'var-status-pill short';
+        varPillEl.textContent = 'Shortage';
     } else {
         varNumEl.textContent = `+${varFormatted}`;
         varNumEl.style.color = '#B26A00';
-        varPillEl.className = 'z-var-pill over';
-        varPillEl.textContent = '⚠️ Overage';
+        varPillEl.className = 'var-status-pill over';
+        varPillEl.textContent = 'Overage';
     }
 }
 
 async function submitFinalZReading() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
     if (isNaN(actualCash) || actualCash < 0) {
-        alert("Please enter the actual physical cash counted in the drawer before locking.");
+        alert("Please specify the actual physical cash counted in the drawer before locking.");
         return;
     }
 
@@ -548,7 +593,7 @@ async function submitFinalZReading() {
         `• System Expected Cash: ₱${expectedCounterCash.toFixed(2)}\n` +
         `• Actual Drawer Count: ₱${actualCash.toFixed(2)}\n` +
         `• Variance: ${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}\n\n` +
-        `Warning: The sales register will be locked and cannot accept further transactions!`
+        `Warning: The sales register will be locked and cannot accept further orders.`
     );
 
     if (!confirmLock) return;
@@ -584,7 +629,7 @@ async function submitFinalZReading() {
 
     alert(
         "Z-READING TRANSMITTED!\n\n" +
-        "The sales counter has been locked for this shift. The entire collection and audit packet have been transmitted to the Financial Officer for final reconciliation[cite: 42, 43]!"
+        "The sales counter has been locked for this shift. The finalized collection summary has been transmitted to the Financial Officer for collection reconciliation."
     );
 }
 
