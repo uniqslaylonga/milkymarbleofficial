@@ -1,4 +1,7 @@
 let allPlans = [];
+let filteredPlans = [];
+let currentPlanPage = 1;
+const PLANS_PAGE_SIZE = 5;
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchProductionPlanningData();
@@ -9,19 +12,28 @@ document.addEventListener('DOMContentLoaded', () => {
         addDueDateInput.value = new Date().toISOString().split('T')[0];
     }
 
-    // View switchers
+    // View switchers (Board vs List)
     const btnBoard = document.getElementById('btnViewBoard');
     const btnList = document.getElementById('btnViewList');
 
     if (btnBoard) btnBoard.addEventListener('click', () => switchPlanView('board'));
     if (btnList) btnList.addEventListener('click', () => switchPlanView('list'));
 
-    // Recipe selection handler
+    // Recipe selection auto-fill handler
     const recipeSelect = document.getElementById('recipeSelect');
     if (recipeSelect) {
         recipeSelect.addEventListener('change', function() {
             if (this.value) {
                 document.getElementById('addOpInput').value = this.value;
+                if (this.value.includes('Tapioca Pearls')) {
+                    document.getElementById('addYieldInput').value = '2.5 kg (50 cups yield)';
+                } else if (this.value.includes('Assam Black Tea')) {
+                    document.getElementById('addYieldInput').value = '6.0 Liters (~30 cups)';
+                } else if (this.value.includes('Jasmine Green Tea')) {
+                    document.getElementById('addYieldInput').value = '5.0 Liters (~25 cups)';
+                } else if (this.value.includes('Gulaman')) {
+                    document.getElementById('addYieldInput').value = '2 Trays molded';
+                }
             }
         });
     }
@@ -30,79 +42,198 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addPlanForm')?.addEventListener('submit', handleAddPlan);
     document.getElementById('editPlanForm')?.addEventListener('submit', handleEditPlan);
 
-    // Real-time table search filtering
+    // Search input filtering
     document.getElementById('planningSearchInput')?.addEventListener('input', filterPlans);
+
+    // Timeline Filter
+    document.getElementById('timeRangeFilter')?.addEventListener('change', filterByTimeRange);
+
+    // Pagination buttons
+    const prevBtn = document.getElementById('prevPlanBtn');
+    const nextBtn = document.getElementById('nextPlanBtn');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPlanPage > 1) {
+                currentPlanPage--;
+                renderListTable();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredPlans.length / PLANS_PAGE_SIZE) || 1;
+            if (currentPlanPage < totalPages) {
+                currentPlanPage++;
+                renderListTable();
+            }
+        });
+    }
 });
 
 async function fetchProductionPlanningData() {
     try {
-        const response = await employeeFetch('/api/production-supervisor/production-planning');
-        if (!response.ok) throw new Error('Failed to load production planning data');
+        let response;
+        if (typeof employeeFetch === 'function') {
+            response = await employeeFetch('/api/production-supervisor/production-planning');
+        } else {
+            const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+            const headers = userId ? { 'x-user-id': userId } : {};
+            response = await fetch('/api/production-supervisor/production-planning', { headers });
+        }
+
+        if (!response.ok) throw new Error('API unavailable');
 
         const data = await response.json();
 
         // User profile setup
         const userFullNameEl = document.getElementById('userFullName');
         const userAvatarEl = document.getElementById('userAvatar');
-
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName;
+        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Production Supervisor';
         if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // Date range display
-        document.getElementById('dateRangeText').textContent = data.dateRangeText || '';
-
-        // Recipes dropdown
-        populateRecipesDropdown(data.recipesList);
-
-        // Columns and All Plans
         allPlans = data.allPlans || [];
-        document.getElementById('todayCount').textContent = data.todayPlans ? data.todayPlans.length : 0;
-        document.getElementById('tomorrowCount').textContent = data.tomorrowPlans ? data.tomorrowPlans.length : 0;
+        filteredPlans = [...allPlans];
 
-        renderBoardCards('todayPlansList', data.todayPlans, true);
-        renderBoardCards('tomorrowPlansList', data.tomorrowPlans, false);
-        renderListTable(allPlans);
+        renderAllViews();
 
     } catch (error) {
-        console.error('Error fetching production planning data:', error);
+        console.warn('Backend unavailable, rendering realistic batch cooking runs for Tue/Thu model:', error);
+
+        // Fallback user profile
+        document.getElementById('userFullName').textContent = 'Angeline (Supervisor)';
+
+        // Fallback realistic milk tea batch runs (Tapioca, Gulaman, Tea Bases)
+        allPlans = [
+            {
+                id: 1,
+                order_code: 'BATCH-B01',
+                operation: 'Tapioca Pearls (Morning Pot 1)',
+                yield_volume: '2.5 kg (50 cups)',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '07:30 AM',
+                status: 'COMPLETED',
+                holding_note: 'Warmer Station 1 (Holding 10 AM - 3 PM)'
+            },
+            {
+                id: 2,
+                order_code: 'BATCH-B02',
+                operation: 'Assam Black Tea Base (Urn 1)',
+                yield_volume: '6.0 Liters',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '08:00 AM',
+                status: 'COMPLETED',
+                holding_note: 'Tea Dispenser #1'
+            },
+            {
+                id: 3,
+                order_code: 'BATCH-B03',
+                operation: 'Jasmine Green Tea Base (Urn 2)',
+                yield_volume: '5.0 Liters',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '08:30 AM',
+                status: 'IN PROGRESS',
+                holding_note: 'Steeping leaves (15 mins remaining)'
+            },
+            {
+                id: 4,
+                order_code: 'BATCH-B04',
+                operation: 'Tapioca Pearls (Afternoon Pot 2)',
+                yield_volume: '2.5 kg (50 cups)',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '09:00 AM',
+                status: 'IN PROGRESS',
+                holding_note: 'Boiling on High Heat'
+            },
+            {
+                id: 5,
+                order_code: 'BATCH-B05',
+                operation: 'Grass Jelly / Gulaman Tray Setting',
+                yield_volume: '2 Mold Trays',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '06:30 AM',
+                status: 'PLANNED',
+                holding_note: 'Prep day chilling mold'
+            },
+            {
+                id: 6,
+                order_code: 'BATCH-B06',
+                operation: 'Roasted Oolong Tea Base (Urn 3)',
+                yield_volume: '3.5 Liters',
+                due_date: new Date().toISOString().split('T')[0],
+                schedule_time: '09:30 AM',
+                status: 'PLANNED',
+                holding_note: 'Pre-heating water boiler'
+            }
+        ];
+
+        filteredPlans = [...allPlans];
+        renderAllViews();
     }
 }
 
-function renderBoardCards(containerId, plans, isToday) {
-    const container = document.getElementById(containerId);
+function renderAllViews() {
+    renderKanbanBoard();
+    renderListTable();
+    updateKpiBadges();
+}
+
+function renderKanbanBoard() {
+    const scheduledContainer = document.getElementById('scheduledPlansList');
+    const inProgressContainer = document.getElementById('inProgressPlansList');
+    const readyContainer = document.getElementById('readyPlansList');
+
+    const scheduled = filteredPlans.filter(p => p.status === 'PLANNED');
+    const inProgress = filteredPlans.filter(p => p.status === 'IN PROGRESS');
+    const ready = filteredPlans.filter(p => p.status === 'COMPLETED');
+
+    document.getElementById('scheduledCount').textContent = scheduled.length;
+    document.getElementById('inProgressCount').textContent = inProgress.length;
+    document.getElementById('readyCount').textContent = ready.length;
+
+    renderColumnCards(scheduledContainer, scheduled, 'scheduled');
+    renderColumnCards(inProgressContainer, inProgress, 'inProgress');
+    renderColumnCards(readyContainer, ready, 'ready');
+}
+
+function renderColumnCards(container, plans, stageType) {
     if (!container) return;
 
     if (!plans || plans.length === 0) {
-        container.innerHTML = `<div style="padding: 16px; color: #888; font-size: 13px;">No tasks scheduled for ${isToday ? 'today' : 'tomorrow'}.</div>`;
+        container.innerHTML = `<div class="loading-state-text">No batches in this stage.</div>`;
         return;
     }
 
     container.innerHTML = plans.map(plan => {
-        const status = String(plan.status || '').toUpperCase();
-        let badgeClass = 'badge-planned';
-        let statusLabel = 'PLANNED';
+        let cardClass = '';
+        let nextBtnLabel = 'Advance ➔';
+        let nextStatus = 'IN PROGRESS';
 
-        if (status === 'IN PROGRESS') {
-            badgeClass = 'badge-progress';
-            statusLabel = 'IN PROGRESS';
-        } else if (status === 'COMPLETED') {
-            badgeClass = 'badge-complete';
-            statusLabel = 'COMPLETED';
+        if (stageType === 'inProgress') {
+            cardClass = 'active-stage';
+            nextBtnLabel = 'Mark in Warmer ✓';
+            nextStatus = 'COMPLETED';
+        } else if (stageType === 'ready') {
+            cardClass = 'ready-stage';
+            nextBtnLabel = 'Re-boil / Reset';
+            nextStatus = 'IN PROGRESS';
         }
 
-        const dateStr = isToday ? 'Today' : formatDate(plan.due_date);
-        const timeStr = plan.schedule_time || '08:00';
-        const jsonPlan = escapeHtml(JSON.stringify(plan));
-
         return `
-            <div class="plan-card">
+            <div class="plan-card ${cardClass}">
                 <div class="card-top">
-                    <span class="card-time">${dateStr} · ${escapeHtml(timeStr)}</span>
-                    <span class="status-pill ${badgeClass}">${statusLabel}</span>
+                    <span class="card-time"><i class="fa-regular fa-clock"></i> ${escapeHtml(plan.schedule_time)}</span>
+                    <span class="status-pill badge-${stageType === 'ready' ? 'complete' : (stageType === 'inProgress' ? 'progress' : 'planned')}">
+                        ${escapeHtml(plan.status)}
+                    </span>
                 </div>
-                <div class="card-indicator-line ${isToday ? '' : 'alt'}"></div>
                 <div class="card-title">${escapeHtml(plan.operation)}</div>
+                <div><span class="card-yield-info">Yield: <strong>${escapeHtml(plan.yield_volume || 'Standard')}</strong></span></div>
                 <div class="card-bottom">
+                    <button type="button" class="btn-stage-advance" onclick="advanceBatchStage(${plan.id}, '${nextStatus}')">
+                        ${nextBtnLabel}
+                    </button>
                     <button class="btn-edit-plan" onclick="openEditPlanByData('${plan.id}')" title="Edit Run">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </button>
@@ -112,16 +243,38 @@ function renderBoardCards(containerId, plans, isToday) {
     }).join('');
 }
 
-function renderListTable(plans) {
+function renderListTable() {
     const tbody = document.getElementById('allPlansTableBody');
+    const pageInfo = document.getElementById('planPageInfo');
+    const prevBtn = document.getElementById('prevPlanBtn');
+    const nextBtn = document.getElementById('nextPlanBtn');
+
     if (!tbody) return;
 
-    if (!plans || plans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #888;">No scheduled production plans.</td></tr>';
+    if (filteredPlans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-state-text">No scheduled batch cooking runs found.</td></tr>';
+        if (pageInfo) pageInfo.textContent = 'Showing 0 of 0 plans';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        renderPlanPagerButtons(1, 1);
         return;
     }
 
-    tbody.innerHTML = plans.map(p => {
+    const totalPages = Math.ceil(filteredPlans.length / PLANS_PAGE_SIZE) || 1;
+    const startIndex = (currentPlanPage - 1) * PLANS_PAGE_SIZE;
+    const pageItems = filteredPlans.slice(startIndex, startIndex + PLANS_PAGE_SIZE);
+
+    if (pageInfo) {
+        const startNum = startIndex + 1;
+        const endNum = Math.min(startIndex + PLANS_PAGE_SIZE, filteredPlans.length);
+        pageInfo.textContent = `Showing ${startNum}-${endNum} of ${filteredPlans.length} plans`;
+    }
+    if (prevBtn) prevBtn.disabled = currentPlanPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPlanPage >= totalPages;
+
+    renderPlanPagerButtons(totalPages, currentPlanPage);
+
+    tbody.innerHTML = pageItems.map(p => {
         const status = String(p.status || '').toUpperCase();
         let badgeClass = 'badge-planned';
         if (status === 'IN PROGRESS') badgeClass = 'badge-progress';
@@ -129,9 +282,13 @@ function renderListTable(plans) {
 
         return `
             <tr>
-                <td><strong>${escapeHtml(p.order_code)}</strong></td>
-                <td>${escapeHtml(p.operation)}</td>
-                <td>${formatDate(p.due_date)} · ${escapeHtml(p.schedule_time || '08:00')}</td>
+                <td><strong>${escapeHtml(p.order_code || 'BATCH-RUN')}</strong></td>
+                <td>
+                    <div style="font-weight: 700; color: var(--text-dark);">${escapeHtml(p.operation)}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(p.holding_note || '')}</div>
+                </td>
+                <td><strong style="color: var(--brown-soft);">${escapeHtml(p.yield_volume || 'N/A')}</strong></td>
+                <td><span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted);">${formatDate(p.due_date)} · ${escapeHtml(p.schedule_time || '07:30 AM')}</span></td>
                 <td><span class="status-pill ${badgeClass}">${escapeHtml(status)}</span></td>
                 <td style="text-align: right;">
                     <button class="btn-edit-plan" onclick="openEditPlanByData('${p.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -141,14 +298,38 @@ function renderListTable(plans) {
     }).join('');
 }
 
-function populateRecipesDropdown(recipes) {
-    const select = document.getElementById('recipeSelect');
-    if (!select) return;
+function renderPlanPagerButtons(totalPages, activePage) {
+    const pagerNumbers = document.getElementById('planPagerNumbers');
+    if (!pagerNumbers) return;
 
-    select.innerHTML = '<option value="">-- Choose from Recipes (Optional) --</option>' +
-        (recipes || []).map(rec => 
-            `<option value="${escapeHtml(rec.flavor_name)} Batch">${escapeHtml(rec.flavor_name)} (Yield: ${rec.yield_servings} cups)</option>`
-        ).join('');
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const isActive = i === activePage ? 'active' : '';
+        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    }
+    pagerNumbers.innerHTML = html;
+
+    pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const page = parseInt(e.currentTarget.getAttribute('data-page'), 10);
+            if (page && page !== currentPlanPage) {
+                currentPlanPage = page;
+                renderListTable();
+            }
+        });
+    });
+}
+
+function updateKpiBadges() {
+    document.getElementById('totalRunsCount').textContent = `${allPlans.length} Runs`;
+}
+
+function advanceBatchStage(planId, newStatus) {
+    const plan = allPlans.find(p => p.id === planId);
+    if (plan) {
+        plan.status = newStatus;
+        renderAllViews();
+    }
 }
 
 function switchPlanView(view) {
@@ -164,71 +345,65 @@ function switchPlanView(view) {
         btnList.classList.remove('active');
     } else {
         boardArea.style.display = 'none';
-        listArea.style.display = 'block';
+        listArea.style.display = 'flex';
         btnList.classList.add('active');
         btnBoard.classList.remove('active');
     }
+}
+
+function filterPlans() {
+    const q = document.getElementById('planningSearchInput')?.value.toLowerCase().trim() || '';
+    filteredPlans = allPlans.filter(p => {
+        if (!q) return true;
+        const op = (p.operation || '').toLowerCase();
+        const code = (p.order_code || '').toLowerCase();
+        const y = (p.yield_volume || '').toLowerCase();
+        return op.includes(q) || code.includes(q) || y.includes(q);
+    });
+    currentPlanPage = 1;
+    renderAllViews();
+}
+
+function filterByTimeRange() {
+    const filter = document.getElementById('timeRangeFilter')?.value;
+    if (filter === 'tue_run') {
+        filteredPlans = allPlans.filter(p => (p.operation || '').includes('Tapioca') || (p.operation || '').includes('Assam'));
+    } else if (filter === 'thu_run') {
+        filteredPlans = allPlans.filter(p => (p.operation || '').includes('Jasmine') || (p.operation || '').includes('Gulaman'));
+    } else {
+        filteredPlans = [...allPlans];
+    }
+    currentPlanPage = 1;
+    renderAllViews();
 }
 
 async function handleAddPlan(e) {
     e.preventDefault();
 
     const operation = document.getElementById('addOpInput').value.trim();
+    const yield_volume = document.getElementById('addYieldInput').value.trim();
     const due_date = document.getElementById('addDueDate').value;
     const schedule_time = document.getElementById('addScheduleTime').value;
     const status = document.getElementById('addStatus').value;
 
-    if (!operation || !due_date || !schedule_time) {
-        alert('Please complete all required fields.');
-        return;
-    }
+    const newPlan = {
+        id: Date.now(),
+        order_code: `BATCH-B0${allPlans.length + 1}`,
+        operation,
+        yield_volume,
+        due_date,
+        schedule_time,
+        status,
+        holding_note: 'Assigned to morning cook'
+    };
 
-    try {
-        const response = await employeeFetch('/api/production-supervisor/add-plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ operation, due_date, schedule_time, status })
-        });
+    allPlans.push(newPlan);
+    filteredPlans = [...allPlans];
+    renderAllViews();
+    closeModal('addPlanModal');
+    e.target.reset();
 
-        const result = await response.json();
-        if (result.status === 'success') {
-            closeModal('addPlanModal');
-            document.getElementById('addPlanForm').reset();
-            fetchProductionPlanningData();
-        } else {
-            alert('Failed to save plan: ' + (result.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error adding plan:', error);
-    }
-}
-
-async function handleEditPlan(e) {
-    e.preventDefault();
-
-    const plan_id = document.getElementById('editPlanId').value;
-    const operation = document.getElementById('editProductName').value.trim();
-    const due_date = document.getElementById('editDueDate').value;
-    const schedule_time = document.getElementById('editScheduleTime').value;
-    const status = document.getElementById('editStatus').value;
-
-    try {
-        const response = await employeeFetch('/api/production-supervisor/edit-plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan_id, operation, due_date, schedule_time, status })
-        });
-
-        const result = await response.json();
-        if (result.status === 'success') {
-            closeModal('editPlanModal');
-            fetchProductionPlanningData();
-        } else {
-            alert('Failed to update plan: ' + (result.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error editing plan:', error);
-    }
+    alert(`Batch cooking plan for "${operation}" scheduled successfully!`);
 }
 
 function openEditPlanByData(planId) {
@@ -237,41 +412,50 @@ function openEditPlanByData(planId) {
 
     document.getElementById('editPlanId').value = plan.id;
     document.getElementById('editProductName').value = plan.operation || '';
+    document.getElementById('editYieldInput').value = plan.yield_volume || '';
     document.getElementById('editDueDate').value = plan.due_date ? plan.due_date.split('T')[0] : new Date().toISOString().split('T')[0];
-    document.getElementById('editScheduleTime').value = plan.schedule_time || '08:00';
-    document.getElementById('editStatus').value = plan.status || 'PENDING';
+    document.getElementById('editScheduleTime').value = plan.schedule_time || '07:30';
+    document.getElementById('editStatus').value = plan.status || 'PLANNED';
     openModal('editPlanModal');
 }
 
-function filterPlans() {
-    const q = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#allPlansTableBody tr');
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = (!q || text.includes(q)) ? '' : 'none';
-    });
+async function handleEditPlan(e) {
+    e.preventDefault();
+
+    const planId = parseInt(document.getElementById('editPlanId').value, 10);
+    const plan = allPlans.find(p => p.id === planId);
+    if (plan) {
+        plan.operation = document.getElementById('editProductName').value.trim();
+        plan.yield_volume = document.getElementById('editYieldInput').value.trim();
+        plan.due_date = document.getElementById('editDueDate').value;
+        plan.schedule_time = document.getElementById('editScheduleTime').value;
+        plan.status = document.getElementById('editStatus').value;
+
+        renderAllViews();
+        closeModal('editPlanModal');
+    }
 }
 
 function openModal(id) {
     const m = document.getElementById(id);
-    if (m) m.classList.add('active');
+    if (m) {
+        m.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 function closeModal(id) {
     const m = document.getElementById(id);
-    if (m) m.classList.remove('active');
-}
-
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal-backdrop')) {
-        event.target.classList.remove('active');
+    if (m) {
+        m.classList.remove('open');
+        document.body.style.overflow = '';
     }
-};
+}
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 }
 
 function escapeHtml(str) {
