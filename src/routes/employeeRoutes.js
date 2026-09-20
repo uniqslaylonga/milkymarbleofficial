@@ -402,16 +402,21 @@ router.get('/sales-officer/customer-records', async (req, res) => {
     const customers = await fetchAllRows(() => supabase
       .from('customers')
       .select(`
-        id, phone, address, preferred_payment, created_at,
+        id, phone, created_at,
         users(full_name, email, avatar),
-        orders(id, order_number, total_amount, status, placed_at, order_items(id))
+        orders(id, order_number, total_amount, status, placed_at, payment_method, order_items(id))
       `)
       .order('id', { ascending: true }));
 
     const summarise = (orders) => {
       const valid = (orders || []).filter(o => isSaleStatus(o.status));
       valid.sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at));
+      // `customers` has no preferred_payment column, so use the method they use most.
+      const payCounts = {};
+      valid.forEach(o => { if (o.payment_method) payCounts[o.payment_method] = (payCounts[o.payment_method] || 0) + 1; });
+      const preferred = Object.keys(payCounts).sort((a, b) => payCounts[b] - payCounts[a])[0] || 'N/A';
       return {
+        preferred_payment: preferred,
         total_orders: valid.length,
         total_spent: valid.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0),
         last_order_at: valid.length ? valid[0].placed_at : null,
@@ -435,8 +440,7 @@ router.get('/sales-officer/customer-records', async (req, res) => {
         email: (userObj && userObj.email) || '',
         phone: c.phone || 'N/A',
         avatar: resolveAvatar(userObj && userObj.avatar),
-        address: c.address || 'No default address specified.',
-        preferred_payment: c.preferred_payment || 'GCash',
+        address: null, // pick-up only - there is no saved address (page shows its own text)
         created_at: c.created_at,
         ...summarise(c.orders)
       };
@@ -462,7 +466,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
     let guestIdx = 0;
     const guests = [...guestMap.values()].map(g => {
       const sum = summarise(g.orders);
-      const latest = [...g.orders].sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at))[0];
       return {
         id: `guest-${++guestIdx}`,
         type: 'guest',
@@ -470,8 +473,7 @@ router.get('/sales-officer/customer-records', async (req, res) => {
         email: g.email || '',
         phone: 'N/A',
         avatar: resolveAvatar(null),
-        address: 'Counter pick-up (guest checkout)',
-        preferred_payment: (latest && latest.payment_method) || 'N/A',
+        address: null,
         created_at: g.orders[0] ? g.orders[0].placed_at : null,
         ...sum
       };
