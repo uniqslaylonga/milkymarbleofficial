@@ -1,53 +1,48 @@
-async function executeLockdown() {
-    closeCustomConfirm();
-
-    const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
-    const variance = actualCash - expectedCounterCash;
-    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || null;
-
+// POST /api/sales-officer/z-reading
+router.post('/z-reading', async (req, res) => {
     try {
-        const payload = {
-            actual_cash: actualCash,
-            expected_cash: expectedCounterCash,
-            variance: variance,
-            notes: 'Official Shift Z-Reading Transmitted from Sales Counter'
-        };
+        const { actual_cash, expected_cash, variance, digital_inflow, cashier_name, notes } = req.body;
 
-        // Direktang tawag sa API endpoint
-        const response = await fetch('/api/sales-officer/z-reading', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user-id': userId || ''
-            },
-            body: JSON.stringify(payload)
-        });
+        const reportCode = `Z-${Date.now()}`;
 
-        const result = await response.json();
+        // I-save sa bagong shift_z_reports table
+        const { data: insertedReport, error: dbError } = await supabase
+            .from('shift_z_reports')
+            .insert({
+                z_report_code: reportCode,
+                cashier_name: cashier_name || 'Employee',
+                expected_cash: parseFloat(expected_cash) || 0,
+                actual_cash: parseFloat(actual_cash) || 0,
+                variance: parseFloat(variance) || 0,
+                digital_inflow: parseFloat(digital_inflow) || 0,
+                status: 'PENDING_RECONCILIATION',
+                notes: notes || 'Official Shift Z-Reading Transmitted from Sales Counter'
+            })
+            .select()
+            .single();
 
-        if (!response.ok) {
-            throw new Error(result.error || 'Server rejected the transaction');
+        if (dbError) {
+            console.error('Database Insertion Error:', dbError);
+            return res.status(500).json({ error: dbError.message });
         }
 
-        // Kapag matagumpay na naipasok sa drawer_reconciliations:
-        localStorage.setItem('isRegisterLocked', 'true');
-        isRegisterLocked = true;
+        // I-update ang system lock sa system_settings
+        await supabase
+            .from('system_settings')
+            .upsert({
+                setting_key: 'register_status',
+                setting_value: 'LOCKED',
+                description: 'Sales counter register lock state after Z-reading'
+            }, { onConflict: 'setting_key' });
 
-        closeZReadingModal();
-        checkRegisterLockState();
+        return res.json({
+            status: 'success',
+            message: 'Z-Report successfully recorded',
+            data: insertedReport
+        });
 
-        showCustomAlert(
-            "Z-READING TRANSMITTED!",
-            "The sales counter has been locked for this shift. The finalized collection summary has been recorded to drawer_reconciliations and transmitted to the Financial Officer.",
-            "success"
-        );
-
-    } catch (e) {
-        console.error('Error recording to database:', e);
-        showCustomAlert(
-            "Database Error",
-            `Failed to record Z-Reading: ${e.message}. Please check your backend connection or server logs.`,
-            "warning"
-        );
+    } catch (err) {
+        console.error('Server error on Z-Reading:', err);
+        return res.status(500).json({ error: 'Server error processing Z-Reading' });
     }
-}
+});
