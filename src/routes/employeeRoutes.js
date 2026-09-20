@@ -15,7 +15,7 @@
 // Tables this file expects to exist (see supabase_employee_dashboards.sql
 // in the project root — run it once in the Supabase SQL editor):
 // expenses, vendors, inventory_items, inventory_movement_logs,
-// production_orders, recipes.
+// production_orders, recipes, drawer_reconciliations.
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
@@ -217,9 +217,6 @@ async function buildSalesDashboard(req, res) {
     };
 
     // --- Revenue split: registered members vs guest checkouts ---
-    // Uses the same rule as "Today's Sales": every order that is not cancelled and
-    // not still waiting for payment. (Counting only COMPLETED hid guest orders that
-    // were placed and confirmed but not yet handed over.)
     const salesOrders = await fetchAllRows(() =>
       supabase.from('orders').select('id, total_amount, customer_id').not('status', 'in', NOT_SALES).order('id', { ascending: true }));
     let registeredRevenue = 0, guestRevenue = 0;
@@ -251,11 +248,143 @@ async function buildSalesDashboard(req, res) {
 
 router.get('/sales-officer/dashboard', buildSalesDashboard);
 
-// Order Confirmation desk: orders that are placed/paid but not yet queued to
-// production. Separate handler from buildSalesDashboard because the frontend
-// (orderConfirmation.js) needs the actual list of orders to confirm/reject,
-// plus its own counters (pendingCount/confirmedToday/rejectedCount) - the
-// dashboard's aggregate today's-sales numbers don't cover that.
+// ----------------------------------------------------------------------------
+// X-READING & Z-READING AUDIT ENDPOINTS (Connected to drawer_reconciliations)
+// ----------------------------------------------------------------------------
+
+// 1. GET /api/sales-officer/x-reading
+router.get('/sales-officer/x-reading', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const todayStr = phDate(new Date());
+    const todayStart = phDayStartISO(todayStr);
+
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('total_amount, payment_method, order_type, status')
+      .gte('placed_at', todayStart)
+      .not('status', 'in', NOT_SALES);
+
+    if (error) throw error;
+
+    let gcashTotal = 0;
+    let mayaTotal = 0;
+    let walkinCashTotal = 0;
+    let preordersCount = 0;
+    let presetsCount = 0;
+
+    (orders || []).forEach(o => {
+      const amt = parseFloat(o.total_amount) || 0;
+      const method = String(o.payment_method || '').toLowerCase();
+
+      if (method.includes('gcash')) {
+        gcashTotal += amt;
+        preordersCount++;
+      } else if (method.includes('maya')) {
+        mayaTotal += amt;
+        preordersCount++;
+      } else {
+        walkinCashTotal += amt;
+        presetsCount++;
+      }
+    });
+
+    const openingFloat = 1000.00;
+    const expectedDrawer = openingFloat + walkinCashTotal;
+    const grossTotal = gcashTotal + mayaTotal + walkinCashTotal;
+
+    return res.json({
+      status: 'success',
+      preordersCount,
+      presetsCount,
+      gcashTotal,
+      mayaTotal,
+      digitalSubtotal: gcashTotal + mayaTotal,
+      walkinCashTotal,
+      openingFloat,
+      expectedDrawer,
+      grossTotal
+    });
+  } catch (error) {
+    console.error('[sales-officer/x-reading] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// 2. POST /api/sales-officer/z-reading
+router.post('/sales-officer/z-reading', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+
+    const userIdHeader = req.headers['x-user-id'] || req.body?.user_id;
+    let recordedBy = null;
+    if (userIdHeader && !isNaN(parseInt(userIdHeader, 10))) {
+      const parsed = parseInt(userIdHeader, 10);
+      const { data: userExists } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', parsed)
+        .maybeSingle();
+      if (userExists) recordedBy = userExists.id;
+    }
+
+    const countedAmount = parseFloat(req.body?.actual_cash);
+    const expectedAmount = parseFloat(req.body?.expected_cash) || 0;
+    const variance = parseFloat(req.body?.variance) || (countedAmount - expectedAmount);
+    const notes = req.body?.notes || 'Shift Z-Reading Transmitted from Sales Counter';
+
+    if (isNaN(countedAmount) || countedAmount < 0) {
+      return res.status(400).json({ status: 'error', message: 'actual_cash must be a valid number.' });
+    }
+
+    const { data: lastRecon } = await supabase
+      .from('drawer_reconciliations')
+      .select('period_end')
+      .order('period_end', { ascending: false })
+      .limit(1);
+
+    const periodStart = (lastRecon && lastRecon.length && lastRecon[0].period_end)
+      ? lastRecon[0].period_end
+      : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+    const periodEnd = new Date().toISOString();
+
+    const { data: record, error: insertErr } = await supabase
+      .from('drawer_reconciliations')
+      .insert({
+        counted_amount: countedAmount,
+        expected_amount: expectedAmount,
+        variance: Math.round(variance * 100) / 100,
+        period_start: periodStart,
+        period_end: periodEnd,
+        notes,
+        recorded_by: recordedBy
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      console.error('[sales-officer/z-reading] Insert error:', insertErr.message);
+      return res.status(500).json({ status: 'error', message: insertErr.message });
+    }
+
+    try {
+      await supabase.from('system_settings').upsert({
+        setting_key: 'register_status',
+        setting_value: 'LOCKED',
+        description: 'Sales counter register lock state after Z-reading'
+      }, { onConflict: 'setting_key' });
+    } catch (e) {
+      // safe fallback kung wala ang setting
+    }
+
+    return res.json({ status: 'success', message: 'Z-Reading saved successfully.', record });
+  } catch (error) {
+    console.error('[sales-officer/z-reading] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Order Confirmation desk
 router.get('/sales-officer/order-confirmation', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -292,9 +421,6 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
       };
     });
 
-    // Orders don't have a dedicated confirmed_at/rejected_at timestamp, so these
-    // two counters approximate "today" using placed_at for orders placed today
-    // that have since moved past the review queue.
     const { count: confirmedToday } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
@@ -333,14 +459,11 @@ router.get('/sales-officer/order-monitoring', async (req, res) => {
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
     const { count: readyCount, error: e2 } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'READY_FOR_PICKUP');
-    // "Claimed Today" = handed over to the customer today.
     const { count: claimedToday, error: e3 } = await supabase
       .from('orders').select('*', { count: 'exact', head: true })
       .eq('status', 'COMPLETED').gte('completed_at', todayStart);
     if (e1 || e2 || e3) throw (e1 || e2 || e3);
 
-    // Only orders the kitchen already has. PAID_VERIFIED / CONFIRMED orders are
-    // still waiting for the Sales Officer on the Order Confirmation page.
     const { data: activeOrders, error } = await supabase
       .from('orders')
       .select('id, order_number, status, total_amount, placed_at, guest_name, customer_id, customers(users(full_name)), order_items(item_label, quantity)')
@@ -414,7 +537,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
     const summarise = (orders) => {
       const valid = (orders || []).filter(o => isSaleStatus(o.status));
       valid.sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at));
-      // `customers` has no preferred_payment column, so use the method they use most.
       const payCounts = {};
       valid.forEach(o => { if (o.payment_method) payCounts[o.payment_method] = (payCounts[o.payment_method] || 0) + 1; });
       const preferred = Object.keys(payCounts).sort((a, b) => payCounts[b] - payCounts[a])[0] || 'N/A';
@@ -433,7 +555,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       };
     };
 
-    // --- Registered members ---
     const registered = customers.map(c => {
       const userObj = Array.isArray(c.users) ? c.users[0] : c.users;
       return {
@@ -443,13 +564,12 @@ router.get('/sales-officer/customer-records', async (req, res) => {
         email: (userObj && userObj.email) || '',
         phone: c.phone || 'N/A',
         avatar: resolveAvatar(userObj && userObj.avatar),
-        address: null, // pick-up only - there is no saved address (page shows its own text)
+        address: null,
         created_at: c.created_at,
         ...summarise(c.orders)
       };
     });
 
-    // --- Guests: orders with no customer account, grouped by email (else name) ---
     const guestOrders = await fetchAllRows(() => supabase
       .from('orders')
       .select('id, order_number, status, total_amount, payment_method, placed_at, guest_name, guest_email, order_items(id)')
@@ -482,7 +602,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       };
     }).filter(g => g.total_orders > 0);
 
-    // --- Acquisition breakdown (registered accounts only) ---
     const weekAgo = startOfDaysAgo(7);
     const monthAgo = monthsAgo(1);
     const threeMoAgo = monthsAgo(3);
@@ -505,7 +624,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       registeredGrowth = `+${acquisition.month} new this month`;
     }
 
-    // --- Guest vs Member segmentation (same "sale" rule as the dashboard) ---
     const sumCompleted = (orders) => {
       const done = (orders || []).filter(o => isSaleStatus(o.status));
       return { count: done.length, revenue: done.reduce((t, o) => t + (parseFloat(o.total_amount) || 0), 0) };
@@ -551,11 +669,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
   }
 });
 
-// --- Promotions -------------------------------------------------------------
-// Uses the real `promotions` table (also read by the customer-facing
-// /api/promotions/validate endpoint), extended with target_segment,
-// min_spend, usage_cap, usage_count, pitch_note, rejection_reason — see
-// supabase_employee_dashboards.sql.
 router.get('/sales-officer/promotions', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -597,7 +710,6 @@ router.get('/sales-officer/promotions', async (req, res) => {
   }
 });
 
-// Sales Officer pitches a new promo -> goes to CEO as PENDING_APPROVAL.
 router.post('/sales-officer/promotions/pitch', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -632,7 +744,6 @@ router.post('/sales-officer/promotions/pitch', async (req, res) => {
   }
 });
 
-// Kept for backward compatibility with any direct create/toggle calls.
 router.post('/sales-officer/promotions/create', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -691,8 +802,6 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
     const netSales = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
     const aov = orders.length ? netSales / orders.length : 0;
 
-    // order_items has no product_id, so rank by the (cleaned) item label and
-    // borrow the SKU from `products` when a product with that name exists.
     const skuByName = new Map();
     try {
       const { data: products } = await supabase.from('products').select('sku, name');
@@ -724,11 +833,6 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
   }
 });
 
-// Sales Target
-//  * targets come from the `sales_targets` table (falls back to 15,000 / 320,000)
-//  * "Pre-orders" = made-to-order drinks (orders.order_type = 'custom_build')
-//  * "Walk-in"    = preset drinks        (orders.order_type = 'preset')
-//  * batch sizes come from the `preset_batches` table (optional)
 router.get('/sales-officer/sales-target', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -760,7 +864,7 @@ router.get('/sales-officer/sales-target', async (req, res) => {
     let todaySales = 0, monthSales = 0;
     let dailyPre = 0, dailyWalk = 0, monthPre = 0, monthWalk = 0;
     let preordersTotal = 0, preordersClaimed = 0;
-    const presetAgg = new Map(); // `${date}|${label}` -> row
+    const presetAgg = new Map();
 
     orders.forEach(o => {
       const amt = parseFloat(o.total_amount) || 0;
@@ -794,7 +898,6 @@ router.get('/sales-officer/sales-target', async (req, res) => {
       }
     });
 
-    // Batches the kitchen prepared (optional table).
     const batchMap = new Map();
     try {
       const { data: batches } = await supabase
@@ -845,9 +948,6 @@ router.get('/sales-officer/sales-target', async (req, res) => {
 // ============================================================================
 // FINANCE OFFICER
 // ============================================================================
-// Revenue/payments are derived from `orders` (this project tracks payment
-// state directly on orders.status — there's no separate payments table).
-// Budget/expenses run on the new `expenses` table (see the .sql migration).
 
 router.get('/finance-officer/dashboard', async (req, res) => {
   try {
@@ -859,7 +959,7 @@ router.get('/finance-officer/dashboard', async (req, res) => {
       .from('orders').select('total_amount, placed_at').in('status', ['PAID_VERIFIED', 'COMPLETED']);
     const paidOrders = paidOrdersData || [];
     const totalRevenue = paidOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
-    const totalPayments = totalRevenue; // no separate payments ledger — see note above
+    const totalPayments = totalRevenue;
 
     const { data: expenseRows } = await supabase.from('expenses').select('amount, status, expense_date');
     const totalExpenses = (expenseRows || [])
@@ -920,7 +1020,6 @@ router.get('/finance-officer/revenue', async (req, res) => {
     const totalRevenue = (paidOrders || []).reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
     const totalPayments = totalRevenue;
 
-    // Real split by what the order actually was, not a guess.
     let preordersInflow = 0, presetsInflow = 0;
     (paidOrders || []).forEach(o => {
       const amt = parseFloat(o.total_amount) || 0;
@@ -928,8 +1027,6 @@ router.get('/finance-officer/revenue', async (req, res) => {
       else presetsInflow += amt;
     });
 
-    // Real Tuesday/Thursday totals for the last 4 occurrences of each,
-    // in place of the fixed dummy "Cycle 1-4" bar chart numbers.
     const tuesdays = [];
     const thursdays = [];
     (paidOrders || []).forEach(o => {
@@ -1011,7 +1108,6 @@ router.get('/finance-officer/budget', async (req, res) => {
       return {
         id: c.id,
         date: c.cycle_name || d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-        // Used by the "September 2026" / "August 2026" cycle filter.
         month_group: d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase(),
         capital: parseFloat(c.capital) || 0,
         raw_material: parseFloat(c.raw_material) || 0,
@@ -1029,12 +1125,6 @@ router.get('/finance-officer/budget', async (req, res) => {
   }
 });
 
-// ==========================================
-// POST /api/finance-officer/budget
-// Persists a new budget cycle allocation. Marks any currently ACTIVE cycle
-// as RECONCILED first, since only one cycle is meant to be "current" at a
-// time - a new allocation supersedes the previous one.
-// ==========================================
 router.post('/finance-officer/budget', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1085,13 +1175,6 @@ router.get('/finance-officer/expenses', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
-
-    // NOTE: There is no real marketing/taxes/COGS category tracking
-    // anywhere in the schema - the old version of this route fabricated
-    // that split by multiplying the total expense amount by fixed
-    // made-up percentages. That was fake, not a real breakdown, so we no
-    // longer invent one. This returns nothing until real expense
-    // categorization exists in the database.
     return res.json({ status: 'success', user: userProfile, records: [] });
   } catch (error) {
     console.error('[finance-officer/expenses] error:', error.message);
@@ -1125,8 +1208,6 @@ router.get('/finance-officer/payments', async (req, res) => {
       }
 
       const userObj = o.customers && o.customers.users;
-      // We only ever record "Cash on Pick-Up" or "E-Wallet" - there is no
-      // real data distinguishing GCash from Maya, so we don't fabricate one.
       const isCash = o.payment_method === 'Cash on Pick-Up';
       const channel = isCash ? 'cash' : 'ewallet';
       const channelLabel = isCash ? 'Cash on Counter' : 'E-Wallet';
@@ -1140,18 +1221,11 @@ router.get('/finance-officer/payments', async (req, res) => {
         user_identifier: (userObj && userObj.username) || 'N/A',
         channel,
         channel_label: channelLabel,
-        // No payment-gateway reference ID is stored anywhere in the schema
-        // yet, so we say so honestly instead of making one up.
         ref_id: 'N/A',
         status_label: '✓ Verified'
       };
     });
 
-    // Real cash-drawer reconciliation: pull the most recent count a Finance
-    // Officer has actually submitted, and report its saved variance. We do
-    // not recompute this on every page load - the variance is a snapshot of
-    // what the counted cash vs. expected cash was AT THE TIME of that count,
-    // not a live figure (more cash orders may have come in since).
     let latestReconciliation = null;
     const { data: reconRows, error: reconErr } = await supabase
       .from('drawer_reconciliations')
@@ -1174,14 +1248,6 @@ router.get('/finance-officer/payments', async (req, res) => {
   }
 });
 
-// ==========================================
-// POST /api/finance-officer/reconciliation
-// A Finance Officer physically counts the cash drawer and submits the
-// total. We compute what SHOULD be in the drawer - the sum of
-// PAID_VERIFIED, "Cash on Pick-Up" orders placed since the last
-// reconciliation (or since the start of today, if none exists yet) - and
-// save the difference as the variance. This is real data, not a guess.
-// ==========================================
 router.post('/finance-officer/reconciliation', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1193,7 +1259,6 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
     }
     const notes = (req.body?.notes || '').toString().trim() || null;
 
-    // Find where the last reconciliation left off.
     const { data: lastRecon, error: lastReconErr } = await supabase
       .from('drawer_reconciliations')
       .select('period_end')
@@ -1244,10 +1309,6 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
 // PROCUREMENT / INVENTORY OFFICER
 // ============================================================================
 
-// DOA routing rule shared by every procurement endpoint:
-//   <= 300  -> procurement officer buys directly
-//   301-500 -> finance officer
-//   > 500   -> CEO
 function routeForAmount(amount) {
   const n = parseFloat(amount) || 0;
   return n > 500 ? 'ceo' : (n > 300 ? 'finance' : 'procure');
@@ -1258,7 +1319,6 @@ router.get('/procurement-officer/dashboard', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    // ---- purchase requests (expenses): KPI counts + latest table ----
     const { data: expenseRows, error: expErr } = await supabase
       .from('expenses')
       .select('id, item_name, store_name, amount, status, requested_by, created_at')
@@ -1289,13 +1349,11 @@ router.get('/procurement-officer/dashboard', async (req, res) => {
       created_at: e.created_at
     }));
 
-    // ---- vendors ----
     const { data: vendorRows } = await supabase.from('vendors').select('id, vendor_name, category_desc, status, updated_at').order('updated_at', { ascending: false });
     const vendors = vendorRows || [];
     const activeVendors = vendors.filter(v => v.status === 'Active').length;
     const totalVendorsCount = vendors.length;
 
-    // ---- inventory ----
     const { data: invRows } = await supabase.from('inventory_items').select('id, name, item_type, on_hand, reorder_point, unit_of_measure');
     const inventory = invRows || [];
     let ingUnits = 0, pkgUnits = 0, eqpUnits = 0;
@@ -1306,7 +1364,6 @@ router.get('/procurement-officer/dashboard', async (req, res) => {
       else if (r.item_type === 'equipment') eqpUnits += qty;
     });
 
-    // Low stock = at or below a reorder point that has actually been set.
     const lowStock = inventory
       .filter(i => (parseFloat(i.reorder_point) || 0) > 0 && (parseFloat(i.on_hand) || 0) <= (parseFloat(i.reorder_point) || 0))
       .sort((a, b) => ((parseFloat(a.on_hand) || 0) / (parseFloat(a.reorder_point) || 1)) - ((parseFloat(b.on_hand) || 0) / (parseFloat(b.reorder_point) || 1)));
@@ -1345,7 +1402,6 @@ router.post('/procurement-officer/add-request', async (req, res) => {
     const numAmount = parseFloat(amount);
     const route = routeForAmount(numAmount);
     const tier = route === 'ceo' ? 'major' : (route === 'finance' ? 'medium' : 'micro');
-    // <= 300 is pre-authorised for the procurement officer; the rest wait on Finance / CEO.
     const status = route === 'ceo' ? 'PENDING_CEO' : (route === 'finance' ? 'PENDING_FINANCE' : 'APPROVED');
 
     const { data: inserted, error } = await supabase.from('expenses').insert([{
@@ -1370,7 +1426,6 @@ router.post('/procurement-officer/add-request', async (req, res) => {
   }
 });
 
-// Direct buy: the procurement officer may buy anything <= 300 without escalation.
 router.post('/procurement-officer/mark-purchased', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1395,7 +1450,6 @@ router.post('/procurement-officer/mark-purchased', async (req, res) => {
     const { error } = await supabase.from('expenses').update({ status: 'PURCHASED' }).eq('id', exp.id);
     if (error) throw error;
 
-    // Keep the vendor's running total in step (best effort - never blocks the purchase).
     if (exp.store_name) {
       try {
         const { data: vendor } = await supabase.from('vendors').select('id, total_spent').eq('vendor_name', exp.store_name).limit(1).maybeSingle();
@@ -1659,7 +1713,6 @@ router.get('/procurement-officer/stock-control', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    // Purchase-request counts (same definitions as the dashboard).
     const { data: expenseRows } = await supabase.from('expenses').select('amount, status');
     const expenses = expenseRows || [];
     const directBuyCount = expenses.filter(e => routeForAmount(e.amount) === 'procure' && e.status !== 'PURCHASED').length;
@@ -1670,7 +1723,6 @@ router.get('/procurement-officer/stock-control', async (req, res) => {
     const unitById = {};
     allItems.forEach(i => { unitById[i.id] = i.unit_of_measure || ''; });
 
-    // Only report reserved stock if the table actually tracks it.
     const tracksReserved = allItems.some(i => Object.prototype.hasOwnProperty.call(i, 'reserved_qty'));
     const reservedStocks = tracksReserved
       ? allItems.reduce((sum, i) => sum + (parseFloat(i.reserved_qty) || 0), 0)
@@ -1749,9 +1801,6 @@ router.get('/production-supervisor/dashboard', async (req, res) => {
     const { count: inProduction } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PREPARING');
 
-    // "Pre-orders Claimed" = orders placed today that are done (Completed /
-    // Ready for Pickup) vs. all non-cancelled orders placed today. Both
-    // numbers are real counts, not a made-up ratio.
     const { count: claimedTodayCount } = await supabase
       .from('orders').select('*', { count: 'exact', head: true })
       .in('status', ['COMPLETED', 'READY_FOR_PICKUP']).gte('placed_at', `${todayStr}T00:00:00`);
@@ -1759,9 +1808,6 @@ router.get('/production-supervisor/dashboard', async (req, res) => {
       .from('orders').select('*', { count: 'exact', head: true })
       .neq('status', 'CANCELLED').gte('placed_at', `${todayStr}T00:00:00`);
 
-    // Restock pitches raised by this supervisor are real "expenses" rows
-    // (the same table the Procurement Officer's DOA routing uses) — not a
-    // locally-faked list that vanishes on refresh.
     const { data: pitchRows } = await supabase
       .from('expenses')
       .select('id, item_name, amount, status, created_at')
@@ -1911,18 +1957,10 @@ router.get('/production-supervisor/order-list', async (req, res) => {
         quantity: firstItem.quantity || 1,
         customer_name: (ord.customers && ord.customers.users && ord.customers.users.full_name) || ord.guest_name || 'Customer',
         cleanTitle, size, specs, type, statusClass, statusLabel,
-        // No claim-slot or shelf-tag columns exist in the schema yet, so we
-        // don't invent them - the UI leaves these blank rather than showing
-        // made-up values.
         claim_slot: '', shelf_tag: ''
       };
     });
 
-    // There is no presets/batches table in the schema - the old version of
-    // this route returned 4 hand-written fake flavor cards ("Chocolatey
-    // Coffee Noodly Jelly", etc.) regardless of what was actually being
-    // made. That was fabricated, so this now returns an empty list until
-    // real preset-batch tracking exists.
     const presetCards = [];
 
     return res.json({
@@ -1972,8 +2010,6 @@ router.get('/production-supervisor/order-production', async (req, res) => {
         const firstItem = (order.order_items && order.order_items[0]) || {};
         const itemLabel = firstItem.item_label || 'Milky Marble Cup';
 
-        // Claim slot comes straight from the order's own pickup_instructions
-        // (same field/format the dashboard already parses), not a guess.
         let claimSlot = '';
         const pickupMatch = order.pickup_instructions ? order.pickup_instructions.match(/Pick-up:\s*([^|]+)/i) : null;
         if (pickupMatch) claimSlot = pickupMatch[1].trim();
@@ -1986,10 +2022,6 @@ router.get('/production-supervisor/order-production', async (req, res) => {
           orderType: firstItem.is_custom ? 'Pre-Order' : 'Walk-in Preset',
           itemLabel,
           quantity: firstItem.quantity || 1,
-          // cupSize and toppings are real order_items columns. There is no
-          // sugar-level, ice-level, or shelf-assignment column anywhere in
-          // the schema, so those are left out entirely instead of showing
-          // invented values ("25% Sugar", "Less Ice", "Shelf A-04", etc).
           cupSize: firstItem.size || '',
           toppings: firstItem.toppings ? firstItem.toppings.split(',').map(t => t.trim()).filter(Boolean) : [],
           claimSlot
@@ -2013,7 +2045,7 @@ router.get('/production-supervisor/order-production', async (req, res) => {
         unit: inv.unit_of_measure
       }));
     } else {
-      materials = []; // nothing in inventory_items yet - do not invent stock
+      materials = [];
     }
 
     return res.json({ status: 'success', user: userProfile, order: orderData, materials });
@@ -2054,18 +2086,11 @@ router.get('/production-supervisor/production-planning', async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    // NOTE: this used to auto-insert 4 made-up batch plans into
-    // production_orders the first time the table was empty ("Coffee Jelly
-    // Classic Batch", "Buko Pandan Supreme Batch", etc). That was fake data
-    // being written into the real database, not just displayed - removed.
-    // An empty table now just returns an empty list.
-
-    // recipes is optional — degrade gracefully if it doesn't exist yet.
     let recipesList = [];
     try {
       const { data: rRows, error: rErr } = await supabase.from('recipes').select('id, flavor_name, yield_servings').order('flavor_name', { ascending: true });
       if (!rErr) recipesList = rRows || [];
-    } catch { /* table missing — leave empty */ }
+    } catch { /* table missing */ }
 
     const { data: todayPlans } = await supabase.from('production_orders').select('*').eq('due_date', todayStr).order('schedule_time', { ascending: true });
     const { data: tomorrowPlans } = await supabase.from('production_orders').select('*').eq('due_date', tomorrowStr).order('schedule_time', { ascending: true });
@@ -2106,9 +2131,6 @@ router.post('/production-supervisor/add-plan', async (req, res) => {
 
     const { count: totalCount } = await supabase.from('production_orders').select('*', { count: 'exact', head: true });
     const nextCode = 'MM-' + (24080 + (totalCount || 0) + 1);
-    // target_liters used to be hardcoded to 10 for every new plan
-    // regardless of what was actually requested - now it's whatever the
-    // supervisor entered, or null if they left it blank.
     const numTargetLiters = target_liters !== undefined && target_liters !== '' ? parseFloat(target_liters) : null;
 
     const { error } = await supabase.from('production_orders').insert([{
