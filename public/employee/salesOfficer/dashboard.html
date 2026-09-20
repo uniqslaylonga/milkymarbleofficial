@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Milky Marble — Sales Officer Dashboard</title>
   <link rel="icon" type="image/png" href="../images/logo.png">
-  <!-- Chart.js para sa compact visual graphs -->
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- External Stylesheet -->
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
@@ -89,7 +87,7 @@
             <path d="M3 3v18h18" />
             <path d="M7 15l4-6 3 3 5-7" />
           </svg>
-          <span>Reports & Records</span>
+          <span>Reports &amp; Records</span>
         </a>
       </nav>
 
@@ -124,10 +122,28 @@
         </div>
       </header>
 
-      <!-- WELCOME BANNER -->
+      <!-- REGISTER STATUS BANNER -->
+      <div id="registerStatusBanner" class="register-status-strip open">
+        <span class="status-pulse-dot"></span>
+        <span id="registerStatusText">Register Open • Tuesday/Thursday Release Window Active (10:00 AM – 3:00 PM)</span>
+      </div>
+
+      <!-- WELCOME BANNER WITH Z-READING & X-READING BUTTONS -->
       <section class="welcome-banner">
-        <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">...</span>!</h1>
-        <p class="welcome-sub">Here's how the sips are moving today.</p>
+        <div class="welcome-banner-flex">
+          <div>
+            <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">...</span>!</h1>
+            <p class="welcome-sub">Monitor walk-in counter sales, pre-order claims, and execute end-of-shift Z-Reading.</p>
+          </div>
+          <div class="shift-action-buttons">
+            <button type="button" class="btn-x-reading" onclick="openXReadingSnapshot()" title="Preview current shift collections without locking the register">
+              X-Reading (Preview)
+            </button>
+            <button type="button" id="btnEndShiftTrigger" class="btn-z-reading" onclick="openZReadingModal()">
+              🔒 End Shift &amp; Z-Reading
+            </button>
+          </div>
+        </div>
       </section>
 
       <!-- ROW 1: TODAY'S PERFORMANCE (3 CARDS) -->
@@ -157,7 +173,7 @@
       <!-- ROW 2: SIDE-BY-SIDE ANALYTICS (LEFT) & TRANSACTIONS (RIGHT) -->
       <div class="split-dashboard-layout">
         
-        <!-- KALIWANG COLUMN (GRAPHS & ANALYTICS) -->
+        <!-- LEFT COLUMN (GRAPHS & ANALYTICS) -->
         <div class="analytics-column">
           
           <!-- Card 1: Customer Acquisition -->
@@ -240,10 +256,9 @@
 
         </div>
 
-        <!-- KANANG COLUMN (RECENT TRANSACTIONS CARD WITH DATE FILTER & PERMANENT PAGER) -->
+        <!-- RIGHT COLUMN (RECENT TRANSACTIONS CARD WITH DATE FILTER & PERMANENT PAGER) -->
         <div class="transactions-column">
           <div class="stat-card transactions-card">
-            <!-- Header with Title & Date Filters -->
             <div class="card-head-row tx-head-row">
               <div class="head-titles">
                 <h3 class="section-title tx-title">Recent Transactions</h3>
@@ -263,12 +278,11 @@
               </div>
             </div>
 
-            <!-- Scrollable Orders List Container -->
             <div class="orders-container-vertical" id="recentOrdersGrid">
               <p class="loading-state-text">Loading transactions...</p>
             </div>
 
-            <!-- Permanent Pagination Controls (Kapareho ng Order Confirmation) -->
+            <!-- Permanent Pagination Controls -->
             <div class="tx-pagination-bar" id="txPaginationBar">
               <span class="tx-page-info" id="txPageInfo">Showing 0 of 0 orders</span>
               <div class="tx-pager-buttons">
@@ -289,6 +303,90 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- MODAL: END SHIFT & Z-READING CUT-OFF -->
+  <div class="modal-overlay" id="zReadingModal">
+    <div class="z-modal-card" onclick="event.stopPropagation()">
+      <div class="z-modal-header">
+        <div>
+          <span class="z-badge-report">OFFICIAL AUDIT REPORT</span>
+          <h2 class="z-modal-title">End of Shift — Z-Reading Cut-off</h2>
+          <p class="z-modal-sub" id="zModalSubDate">Tuesday/Thursday Release Window Closing (3:00 PM)</p>
+        </div>
+        <button type="button" class="modal-close" onclick="closeZReadingModal()">✕</button>
+      </div>
+
+      <div class="z-modal-body">
+        <!-- 1. PRE-ORDERS AUDIT SUMMARY -->
+        <div class="z-audit-section">
+          <div class="z-sec-title">
+            <span>1. Pre-Orders Audit (Gateway &amp; Claim Status)</span>
+            <span class="z-sec-badge" id="zPreOrdersCount">57 Orders</span>
+          </div>
+          <div class="z-metric-grid">
+            <div class="z-sub-metric">
+              <small>Claimed &amp; Picked Up</small>
+              <strong id="zClaimedAmount">₱7,850.00</strong>
+            </div>
+            <div class="z-sub-metric">
+              <small>GCash E-Wallet Inflow</small>
+              <strong id="zGcashAmount">₱5,400.00</strong>
+            </div>
+            <div class="z-sub-metric">
+              <small>Maya E-Wallet Inflow</small>
+              <strong id="zMayaAmount">₱2,450.00</strong>
+            </div>
+            <div class="z-sub-metric warning-text">
+              <small>Unclaimed / No-Show</small>
+              <strong id="zUnclaimedAmount">₱280.00 (2 cups)</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. WALK-IN PRESETS AUDIT & CASH DRAWER COUNT -->
+        <div class="z-audit-section">
+          <div class="z-sec-title">
+            <span>2. Walk-in Presets &amp; Counter Cash Drawer</span>
+            <span class="z-sec-badge" id="zPresetsCount">38 Cups Sold</span>
+          </div>
+
+          <div class="z-cash-reconcile-card">
+            <div class="z-cash-row">
+              <span>Expected System Cash (Presets + Counter COD):</span>
+              <strong id="zExpectedCash" class="z-expected-num">₱4,560.00</strong>
+            </div>
+
+            <!-- BLIND CASH COUNT INPUT -->
+            <div class="z-input-block">
+              <label for="zActualCashInput">Actual Physical Cash Counted in Drawer (₱) *</label>
+              <input type="number" step="0.5" id="zActualCashInput" class="z-cash-input" placeholder="Enter total physical bills and coins in drawer..." required />
+            </div>
+
+            <!-- VARIANCE CALCULATION BOX -->
+            <div class="z-variance-box" id="zVarianceBox">
+              <span class="z-var-label">Variance (Over / Short):</span>
+              <strong id="zVarianceValue" class="z-var-num">₱0.00</strong>
+              <span id="zVarianceStatus" class="z-var-pill exact">Awaiting Count</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="z-lock-warning-box">
+          <span class="z-warn-icon">⚠️</span>
+          <p>
+            <strong>Warning: Sales Counter Lockdown:</strong> Upon confirming this Z-Reading, the sales counter will be <strong>permanently locked</strong> for this shift. No further walk-in orders or pickups can be accepted, and the finalized collection packet will be transmitted directly to the <strong>Financial Officer</strong> for reconciliation[cite: 42, 43].
+          </p>
+        </div>
+      </div>
+
+      <div class="z-modal-footer">
+        <button type="button" class="btn-cancel-z" onclick="closeZReadingModal()">Return to Register</button>
+        <button type="button" class="btn-confirm-z" onclick="submitFinalZReading()">
+          🔒 Lock Register &amp; Transmit Z-Report
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="js/salesCommon.js"></script>

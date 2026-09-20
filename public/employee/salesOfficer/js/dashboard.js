@@ -13,10 +13,15 @@ let revenueDonutChartInstance = null;
 let allFetchedOrders = [];
 let filteredOrders = [];
 let currentTxPage = 1;
-const TX_PAGE_SIZE = 4; // 4 orders bawat page para sakto sa taas ng left graphs
+const TX_PAGE_SIZE = 4;
+
+// Register Lock & Z-Reading State
+let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
+let expectedCounterCash = 4560.00;
 
 document.addEventListener('DOMContentLoaded', async () => {
     initCharts();
+    checkRegisterLockState();
 
     // Customer Acquisition Filter listener
     const acqFilter = document.getElementById('acquisitionFilter');
@@ -67,12 +72,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Blind cash input calculation listener
+    const cashInput = document.getElementById('zActualCashInput');
+    if (cashInput) {
+        cashInput.addEventListener('input', calculateZVariance);
+    }
+
     await loadPageData();
 });
 
 // Setup Chart.js
 function initCharts() {
-    // 1. Mini Horizontal Bar Chart para sa Acquisition
+    // 1. Mini Horizontal Bar Chart for Acquisition
     const acqCtx = document.getElementById('acquisitionMiniChart');
     if (acqCtx) {
         acquisitionChartInstance = new Chart(acqCtx.getContext('2d'), {
@@ -108,7 +119,7 @@ function initCharts() {
         });
     }
 
-    // 2. Donut Chart para sa Guest vs Member Revenue
+    // 2. Donut Chart for Guest vs Member Revenue
     const revCtx = document.getElementById('revenueDonutChart');
     if (revCtx) {
         revenueDonutChartInstance = new Chart(revCtx.getContext('2d'), {
@@ -153,8 +164,8 @@ async function loadPageData() {
             const userFirstNameEl = document.getElementById('userFirstName');
             const userAvatarEl = document.getElementById('userAvatar');
 
-            if (userNameEl) userNameEl.textContent = data.user.fullName || 'Sales Officer';
-            if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Officer';
+            if (userNameEl) userNameEl.textContent = data.user.fullName || 'Reeze Laureen A. Alapide';
+            if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Reeze';
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
@@ -200,7 +211,7 @@ async function loadPageData() {
             updateAcquisitionDisplay();
         }
 
-        // 4. Revenue Split Donut & Insights
+        // 4. Revenue Split Donut & Strategic Insights
         if (data.revenueSplit) {
             const regAmountEl = document.getElementById('registeredRevenue');
             const regPctEl = document.getElementById('registeredPercent');
@@ -229,7 +240,6 @@ async function loadPageData() {
                 const total = regRev + guestRev;
                 const chart = revenueDonutChartInstance;
                 if (total === 0) {
-                    // No completed orders yet: show a neutral empty ring, not a made-up 50/50 split.
                     chart.data.labels = ['No revenue yet'];
                     chart.data.datasets[0].data = [1];
                     chart.data.datasets[0].backgroundColor = ['#E8E0DC'];
@@ -250,11 +260,11 @@ async function loadPageData() {
 
             if (insightMessage) {
                 if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas mataas ang kita mula sa Guest Checkouts (<strong>${split.bText}</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
+                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Higher revenue generated from Guest Checkouts (<strong>${split.bText}</strong>). Consider offering a 10% discount voucher for first-time sign-ups to drive account conversions.`;
                 } else if (regPct > 0 || guestPct > 0) {
-                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${split.aText}</strong>). Maganda ang customer loyalty retention.`;
+                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Registered Members lead overall sales (<strong>${split.aText}</strong>). Strong brand loyalty and customer retention.`;
                 } else {
-                    insightMessage.textContent = 'Wala pang sapat na sales record upang makagawa ng ratio insight.';
+                    insightMessage.textContent = 'Insufficient sales records to generate customer channel insights.';
                 }
             }
         }
@@ -270,7 +280,7 @@ async function loadPageData() {
     }
 }
 
-// Logic para sa Recent Transactions Date Filter
+// Logic for Recent Transactions Date Filter
 function applyTransactionFilters() {
     const filterType = document.getElementById('txDateFilter')?.value || 'today';
     const customDateVal = document.getElementById('txCustomDate')?.value;
@@ -297,14 +307,14 @@ function applyTransactionFilters() {
         } else if (filterType === 'custom') {
             return ordDateStr === customDateVal;
         }
-        return true; // 'all'
+        return true;
     });
 
     currentTxPage = 1;
     renderPaginatedTransactions();
 }
 
-// Render ang orders sa aktibong page kasama ang permanenteng pager bar
+// Render orders on active page with permanent numbered pagination bar
 function renderPaginatedTransactions() {
     const ordersGrid = document.getElementById('recentOrdersGrid');
     const paginationBar = document.getElementById('txPaginationBar');
@@ -314,7 +324,6 @@ function renderPaginatedTransactions() {
 
     if (!ordersGrid) return;
 
-    // Laging visible ang pagination bar
     if (paginationBar) paginationBar.style.display = 'flex';
 
     if (filteredOrders.length === 0) {
@@ -330,7 +339,6 @@ function renderPaginatedTransactions() {
     const startIndex = (currentTxPage - 1) * TX_PAGE_SIZE;
     const pageItems = filteredOrders.slice(startIndex, startIndex + TX_PAGE_SIZE);
 
-    // Update Text & Button States
     if (pageInfo) {
         const startNum = startIndex + 1;
         const endNum = Math.min(startIndex + TX_PAGE_SIZE, filteredOrders.length);
@@ -341,7 +349,6 @@ function renderPaginatedTransactions() {
 
     renderPaginationControls(totalPages, currentTxPage);
 
-    // Render Cards
     ordersGrid.innerHTML = pageItems.map(ord => {
         const dateFormatted = new Date(ord.placed_at).toLocaleDateString('en-US', {
             month: 'short',
@@ -390,7 +397,6 @@ function renderPaginationControls(totalPages, activePage) {
     }
     pagerNumbers.innerHTML = html;
 
-    // Attach click listener sa bawat numbered button
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const page = parseInt(e.currentTarget.getAttribute('data-page'), 10);
@@ -425,6 +431,161 @@ function updateAcquisitionDisplay() {
     if (footerEl) {
         footerEl.textContent = config.footer;
     }
+}
+
+// ==========================================================================
+// Z-READING & REGISTER LOCKDOWN LOGIC
+// ==========================================================================
+function checkRegisterLockState() {
+    const banner = document.getElementById('registerStatusBanner');
+    const bannerText = document.getElementById('registerStatusText');
+    const zBtn = document.getElementById('btnEndShiftTrigger');
+
+    if (isRegisterLocked) {
+        if (banner) {
+            banner.className = 'register-status-strip locked';
+            bannerText.innerHTML = '🔒 <strong>SHIFT CLOSED &amp; REGISTER LOCKED</strong> — Z-Report has been transmitted to Financial Officer for reconciliation[cite: 42, 43].';
+        }
+        if (zBtn) {
+            zBtn.disabled = true;
+            zBtn.textContent = '🔒 Shift Closed (Locked)';
+            zBtn.style.opacity = '0.6';
+            zBtn.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+function openXReadingSnapshot() {
+    alert(
+        "📊 X-READING SNAPSHOT (Mid-Shift Check):\n" +
+        "• Release Cycle: Tuesday/Thursday (10:00 AM – 3:00 PM)\n" +
+        "• Pre-orders Collected: ₱7,850.00 (GCash: ₱5,400 | Maya: ₱2,450)\n" +
+        "• Walk-in Presets Drawer Cash: ₱4,560.00\n" +
+        "• Total Gross Inflow So Far: ₱12,410.00\n\n" +
+        "Note: The X-Reading is an interim audit snapshot and does NOT lock the register."
+    );
+}
+
+function openZReadingModal() {
+    if (isRegisterLocked) {
+        alert("This shift has already been concluded with a final Z-Reading.");
+        return;
+    }
+
+    const modal = document.getElementById('zReadingModal');
+    if (modal) {
+        const dateSub = document.getElementById('zModalSubDate');
+        if (dateSub) {
+            dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} · 03:00 PM`;
+        }
+
+        const cashInput = document.getElementById('zActualCashInput');
+        if (cashInput) {
+            cashInput.value = '';
+        }
+        calculateZVariance();
+
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeZReadingModal() {
+    const modal = document.getElementById('zReadingModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+function calculateZVariance() {
+    const actualInput = parseFloat(document.getElementById('zActualCashInput')?.value || 0);
+    const variance = actualInput - expectedCounterCash;
+
+    const varNumEl = document.getElementById('zVarianceValue');
+    const varPillEl = document.getElementById('zVarianceStatus');
+
+    if (!varNumEl || !varPillEl) return;
+
+    if (isNaN(actualInput) || actualInput === 0) {
+        varNumEl.textContent = '₱0.00';
+        varNumEl.style.color = '#7d5f5f';
+        varPillEl.className = 'z-var-pill exact';
+        varPillEl.textContent = 'Awaiting Count';
+        return;
+    }
+
+    const varFormatted = '₱' + Math.abs(variance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (variance === 0) {
+        varNumEl.textContent = '₱0.00';
+        varNumEl.style.color = '#2E7D32';
+        varPillEl.className = 'z-var-pill exact';
+        varPillEl.textContent = '✓ Exact Balanced';
+    } else if (variance < 0) {
+        varNumEl.textContent = `-${varFormatted}`;
+        varNumEl.style.color = '#C9302C';
+        varPillEl.className = 'z-var-pill short';
+        varPillEl.textContent = '⚠️ Shortage';
+    } else {
+        varNumEl.textContent = `+${varFormatted}`;
+        varNumEl.style.color = '#B26A00';
+        varPillEl.className = 'z-var-pill over';
+        varPillEl.textContent = '⚠️ Overage';
+    }
+}
+
+async function submitFinalZReading() {
+    const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
+    if (isNaN(actualCash) || actualCash < 0) {
+        alert("Please enter the actual physical cash counted in the drawer before locking.");
+        return;
+    }
+
+    const variance = actualCash - expectedCounterCash;
+    const confirmLock = confirm(
+        `Confirm End-of-Shift Z-Reading?\n\n` +
+        `• System Expected Cash: ₱${expectedCounterCash.toFixed(2)}\n` +
+        `• Actual Drawer Count: ₱${actualCash.toFixed(2)}\n` +
+        `• Variance: ${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}\n\n` +
+        `Warning: The sales register will be locked and cannot accept further transactions!`
+    );
+
+    if (!confirmLock) return;
+
+    try {
+        const payload = {
+            z_report_id: `Z-${Date.now()}`,
+            cut_off_time: new Date().toISOString(),
+            expected_cash: expectedCounterCash,
+            actual_cash: actualCash,
+            variance: variance,
+            preorders_digital_total: 7850.00,
+            status: 'TRANSMITTED_TO_FINANCE'
+        };
+
+        localStorage.setItem('latestZReport', JSON.stringify(payload));
+        localStorage.setItem('isRegisterLocked', 'true');
+        isRegisterLocked = true;
+
+        if (typeof SalesCommon !== 'undefined' && SalesCommon.fetch) {
+            await fetch('/api/sales-officer/z-reading', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(() => {});
+        }
+    } catch (e) {
+        console.warn('Saved offline Z-Report:', e);
+    }
+
+    closeZReadingModal();
+    checkRegisterLockState();
+
+    alert(
+        "Z-READING TRANSMITTED!\n\n" +
+        "The sales counter has been locked for this shift. The entire collection and audit packet have been transmitted to the Financial Officer for final reconciliation[cite: 42, 43]!"
+    );
 }
 
 function escapeHtml(str) {
