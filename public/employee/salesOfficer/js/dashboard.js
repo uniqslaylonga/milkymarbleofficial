@@ -17,7 +17,8 @@ const TX_PAGE_SIZE = 4;
 
 // Register Lock & Z-Reading State
 let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
-let expectedCounterCash = 4560.00;
+let expectedCounterCash = 0; // Real value is fetched from /api/sales-officer/x-reading - see openXReadingModal/refreshExpectedCounterCash.
+let latestXReading = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     initCharts();
@@ -495,37 +496,58 @@ function checkRegisterLockState() {
 // --------------------------------------------------------------------------
 // X-READING INTERIM SNAPSHOT MODAL LOGIC
 // --------------------------------------------------------------------------
-function openXReadingModal() {
+async function openXReadingModal() {
     const modal = document.getElementById('xReadingModal');
     if (!modal) return;
-
-    const salesText = document.getElementById('todaySales')?.textContent || '₱188.00';
-    const cleanSales = parseFloat(salesText.replace(/[^0-9.-]+/g, "")) || 188.00;
-
-    const gcashShare = cleanSales * 0.55;
-    const mayaShare = cleanSales * 0.25;
-    const digitalSubtotal = gcashShare + mayaShare;
-    const walkinCash = cleanSales * 0.20;
-    const openingFloat = 1000.00;
-    const expectedDrawer = openingFloat + walkinCash;
 
     const dateSub = document.getElementById('xModalSubDate');
     if (dateSub) {
         dateSub.textContent = `Interim Snapshot: ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    document.getElementById('xPreOrdersCount').textContent = `${Math.max(1, Math.round(allFetchedOrders.length * 0.7))} Claims`;
-    document.getElementById('xGcashAmount').textContent = '₱' + gcashShare.toFixed(2);
-    document.getElementById('xMayaAmount').textContent = '₱' + mayaShare.toFixed(2);
-    document.getElementById('xDigitalSubtotal').textContent = '₱' + digitalSubtotal.toFixed(2);
-
-    document.getElementById('xPresetsCount').textContent = `${Math.max(1, Math.round(allFetchedOrders.length * 0.3))} Presets Sold`;
-    document.getElementById('xWalkinCash').textContent = '₱' + walkinCash.toFixed(2);
-    document.getElementById('xExpectedDrawer').textContent = '₱' + expectedDrawer.toFixed(2);
-    document.getElementById('xGrossTotal').textContent = '₱' + cleanSales.toFixed(2);
-
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    // Show a loading state while we fetch the real numbers, rather than
+    // flashing fabricated ones first.
+    ['xPreOrdersCount', 'xGcashAmount', 'xMayaAmount', 'xDigitalSubtotal', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'Loading…';
+    });
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = {};
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/sales-officer/x-reading', { headers });
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
+
+        const data = await response.json();
+
+        // Cache the real expected-drawer figure so Z-Reading compares
+        // against the same number this X-Reading just showed, instead of
+        // a stale hardcoded constant.
+        expectedCounterCash = data.expectedDrawer;
+        latestXReading = data;
+
+        document.getElementById('xPreOrdersCount').textContent = `${data.preordersCount} Claims`;
+        document.getElementById('xGcashAmount').textContent = '₱' + data.gcashTotal.toFixed(2);
+        document.getElementById('xMayaAmount').textContent = '₱' + data.mayaTotal.toFixed(2);
+        document.getElementById('xDigitalSubtotal').textContent = '₱' + data.digitalSubtotal.toFixed(2);
+
+        document.getElementById('xPresetsCount').textContent = `${data.presetsCount} Presets Sold`;
+        document.getElementById('xWalkinCash').textContent = '₱' + data.walkinCashTotal.toFixed(2);
+        document.getElementById('xExpectedDrawer').textContent = '₱' + data.expectedDrawer.toFixed(2);
+        document.getElementById('xGrossTotal').textContent = '₱' + data.grossTotal.toFixed(2);
+    } catch (error) {
+        console.error('Could not load X-Reading data:', error);
+        ['xPreOrdersCount', 'xGcashAmount', 'xMayaAmount', 'xDigitalSubtotal', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '—';
+        });
+        showCustomAlert('Could Not Load X-Reading', 'Real sales data could not be fetched from the server. Please try again.', 'warning');
+    }
 }
 
 function closeXReadingModal() {
@@ -539,28 +561,45 @@ function closeXReadingModal() {
 // --------------------------------------------------------------------------
 // Z-READING MODAL & REGISTER LOCK LOGIC
 // --------------------------------------------------------------------------
-function openZReadingModal() {
+async function openZReadingModal() {
     if (isRegisterLocked) {
         showCustomAlert("Shift Already Closed", "This operational shift has already been concluded with a final Z-Reading.", "warning");
         return;
     }
 
     const modal = document.getElementById('zReadingModal');
-    if (modal) {
-        const dateSub = document.getElementById('zModalSubDate');
-        if (dateSub) {
-            dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 03:00 PM`;
-        }
+    if (!modal) return;
 
-        const cashInput = document.getElementById('zActualCashInput');
-        if (cashInput) {
-            cashInput.value = '';
-        }
-        calculateZVariance();
-
-        modal.classList.add('open');
-        document.body.style.overflow = 'hidden';
+    const dateSub = document.getElementById('zModalSubDate');
+    if (dateSub) {
+        dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 03:00 PM`;
     }
+
+    const cashInput = document.getElementById('zActualCashInput');
+    if (cashInput) cashInput.value = '';
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Always fetch the current expected-drawer figure fresh - don't rely on
+    // whatever X-Reading was last opened, since more sales may have come in
+    // since then (or it may never have been opened this session at all).
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = {};
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/sales-officer/x-reading', { headers });
+        if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
+        const data = await response.json();
+        expectedCounterCash = data.expectedDrawer;
+        latestXReading = data;
+    } catch (error) {
+        console.error('Could not refresh expected drawer amount:', error);
+        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched, so the expected drawer amount may be out of date. Please try again before closing the shift.', 'warning');
+    }
+
+    calculateZVariance();
 }
 
 function closeZReadingModal() {
@@ -669,40 +708,56 @@ async function executeLockdown() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
     const variance = actualCash - expectedCounterCash;
 
+    const lockBtn = document.getElementById('zConfirmLockBtn');
+    if (lockBtn) lockBtn.disabled = true;
+
     try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
         const payload = {
-            z_report_id: `Z-${Date.now()}`,
-            cut_off_time: new Date().toISOString(),
-            expected_cash: expectedCounterCash,
             actual_cash: actualCash,
+            expected_cash: expectedCounterCash,
             variance: variance,
-            preorders_digital_total: 7850.00,
-            status: 'TRANSMITTED_TO_FINANCE'
+            notes: `Z-Reading | GCash: ₱${(latestXReading?.gcashTotal ?? 0).toFixed(2)} | Maya: ₱${(latestXReading?.mayaTotal ?? 0).toFixed(2)} | Walk-in Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
         };
 
-        localStorage.setItem('latestZReport', JSON.stringify(payload));
+        const response = await fetch('/api/sales-officer/z-reading', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'The server rejected the Z-Reading.');
+        }
+
+        // Only mark the register locked once the save to the database is
+        // actually confirmed - not before, and not if it fails.
+        localStorage.setItem('latestZReport', JSON.stringify(data.record));
         localStorage.setItem('isRegisterLocked', 'true');
         isRegisterLocked = true;
 
-        if (typeof SalesCommon !== 'undefined' && SalesCommon.fetch) {
-            await fetch('/api/sales-officer/z-reading', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).catch(() => {});
-        }
-    } catch (e) {
-        console.warn('Saved offline Z-Report:', e);
+        closeZReadingModal();
+        checkRegisterLockState();
+
+        showCustomAlert(
+            "Z-READING TRANSMITTED!",
+            "The sales counter has been locked for this shift. The finalized collection summary has been saved and is visible to the Financial Officer for collection reconciliation.",
+            "success"
+        );
+    } catch (error) {
+        console.error('Z-Reading save failed:', error);
+        showCustomAlert(
+            "Z-Reading Not Saved",
+            `The shift could not be closed because the save failed: ${error.message}. The register remains unlocked - please try again.`,
+            "warning"
+        );
+    } finally {
+        if (lockBtn) lockBtn.disabled = false;
     }
-
-    closeZReadingModal();
-    checkRegisterLockState();
-
-    showCustomAlert(
-        "Z-READING TRANSMITTED!",
-        "The sales counter has been locked for this shift. The finalized collection summary has been transmitted to the Financial Officer for collection reconciliation.",
-        "success"
-    );
 }
 
 function escapeHtml(str) {
