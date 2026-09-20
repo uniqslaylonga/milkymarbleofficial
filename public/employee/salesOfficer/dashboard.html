@@ -103,15 +103,13 @@
 
     <!-- MAIN SCROLLABLE CONTENT -->
     <main class="main-content">
-      <!-- TOPBAR -->
+      <!-- TOPBAR: REGISTER STATUS INTEGRATED IN PLACE OF SEARCH BAR -->
       <header class="topbar">
-        <div class="search-box">
-          <input type="text" id="dashboardSearch" placeholder="Search orders, customers, promos, or reports..." />
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
+        <div id="registerStatusBanner" class="topbar-status-strip open">
+          <span class="status-pulse-dot"></span>
+          <span id="registerStatusText">Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)</span>
         </div>
+
         <div class="topbar-right">
           <div class="user-profile">
             <div class="user-avatar">
@@ -121,12 +119,6 @@
           </div>
         </div>
       </header>
-
-      <!-- REGISTER STATUS STRIP -->
-      <div id="registerStatusBanner" class="register-status-strip open">
-        <span class="status-pulse-dot"></span>
-        <span id="registerStatusText">Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)</span>
-      </div>
 
       <!-- WELCOME BANNER WITH AUDIT ACTION BUTTONS -->
       <section class="welcome-banner">
@@ -315,7 +307,7 @@
     </main>
   </div>
 
-  <!-- MODAL 1: X-READING INTERIM SNAPSHOT (MATCHING THEME STYLES) -->
+  <!-- MODAL 1: X-READING INTERIM SNAPSHOT -->
   <div class="modal-overlay" id="xReadingModal">
     <div class="audit-modal-card" onclick="event.stopPropagation()">
       <div class="audit-modal-header">
@@ -477,16 +469,18 @@
           </div>
         </div>
 
-        <!-- Lockdown Alert Callout -->
+        <!-- REFINED MILKY MARBLE LOCKDOWN NOTICE (RESTYLED TO MATCH PALETTE) -->
         <div class="audit-warning-box">
-          <svg class="warn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <p>
+          <div class="audit-warning-icon-wrap">
+            <svg class="warn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <div class="audit-warning-text">
             <strong>Sales Counter Lockdown Notice:</strong> Submitting this Z-Reading will <strong>permanently lock</strong> the sales counter for this shift. No further orders can be processed, and the final collection packet will be transmitted directly to the <strong>Financial Officer</strong> for reconciliation.
-          </p>
+          </div>
         </div>
       </div>
 

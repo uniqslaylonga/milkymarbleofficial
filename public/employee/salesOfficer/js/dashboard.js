@@ -443,8 +443,8 @@ function checkRegisterLockState() {
 
     if (isRegisterLocked) {
         if (banner) {
-            banner.className = 'register-status-strip locked';
-            bannerText.innerHTML = '<strong>SHIFT CLOSED &amp; REGISTER LOCKED</strong> — Z-Report transmitted to Financial Officer for reconciliation.';
+            banner.className = 'topbar-status-strip locked';
+            bannerText.innerHTML = '<strong>Shift Closed &amp; Register Locked</strong> — Transmitted to Finance';
         }
         if (zBtn) {
             zBtn.disabled = true;
@@ -462,13 +462,12 @@ function checkRegisterLockState() {
 }
 
 // --------------------------------------------------------------------------
-// X-READING INTERIM SNAPSHOT MODAL LOGIC (STYLED MODAL, NO BROWSER ALERT)
+// X-READING INTERIM SNAPSHOT MODAL LOGIC
 // --------------------------------------------------------------------------
 function openXReadingModal() {
     const modal = document.getElementById('xReadingModal');
     if (!modal) return;
 
-    // Derive current sales figures from dashboard or fallback
     const salesText = document.getElementById('todaySales')?.textContent || '₱188.00';
     const cleanSales = parseFloat(salesText.replace(/[^0-9.-]+/g, "")) || 188.00;
 
@@ -479,13 +478,11 @@ function openXReadingModal() {
     const openingFloat = 1000.00;
     const expectedDrawer = openingFloat + walkinCash;
 
-    // Update Date Header
     const dateSub = document.getElementById('xModalSubDate');
     if (dateSub) {
         dateSub.textContent = `Interim Snapshot: ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    // Populate Fields
     document.getElementById('xPreOrdersCount').textContent = `${Math.max(1, Math.round(allFetchedOrders.length * 0.7))} Claims`;
     document.getElementById('xGcashAmount').textContent = '₱' + gcashShare.toFixed(2);
     document.getElementById('xMayaAmount').textContent = '₱' + mayaShare.toFixed(2);
@@ -583,7 +580,7 @@ function calculateZVariance() {
 async function submitFinalZReading() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
     if (isNaN(actualCash) || actualCash < 0) {
-        alert("Please specify the actual physical cash counted in the drawer before locking.");
+        alert("Please enter the actual physical cash counted in the drawer before locking.");
         return;
     }
 
