@@ -163,7 +163,7 @@ function updateSegmentationDisplay(seg) {
     document.getElementById('memberRevenuePercent').textContent = `${memRevPct}% Revenue`;
     document.getElementById('guestRevenuePercent').textContent = `${guestRevPct}% Revenue`;
 
-    document.getElementById('memberOrdersTotal').textContent = `${Number(seg.memberOrders || 0).toLocaleString()} completed orders`;
+    document.getElementById('memberOrdersTotal').textContent = `${Number(seg.memberOrders || 0).toLocaleString()} orders`;
     document.getElementById('guestOrdersTotal').textContent = `${Number(seg.guestOrders || 0).toLocaleString()} guest checkouts`;
 
     const barMemFill = document.getElementById('barMemberFill');

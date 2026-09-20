@@ -216,11 +216,14 @@ async function buildSalesDashboard(req, res) {
       last6Months: acqDates.filter(d => d >= sixMoAgo).length
     };
 
-    // --- Revenue split: registered members vs guest checkouts (completed orders) ---
-    const completedOrders = await fetchAllRows(() =>
-      supabase.from('orders').select('id, total_amount, customer_id').eq('status', 'COMPLETED').order('id', { ascending: true }));
+    // --- Revenue split: registered members vs guest checkouts ---
+    // Uses the same rule as "Today's Sales": every order that is not cancelled and
+    // not still waiting for payment. (Counting only COMPLETED hid guest orders that
+    // were placed and confirmed but not yet handed over.)
+    const salesOrders = await fetchAllRows(() =>
+      supabase.from('orders').select('id, total_amount, customer_id').not('status', 'in', NOT_SALES).order('id', { ascending: true }));
     let registeredRevenue = 0, guestRevenue = 0;
-    completedOrders.forEach(o => {
+    salesOrders.forEach(o => {
       const amt = parseFloat(o.total_amount) || 0;
       if (o.customer_id) registeredRevenue += amt; else guestRevenue += amt;
     });
@@ -502,9 +505,9 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       registeredGrowth = `+${acquisition.month} new this month`;
     }
 
-    // --- Guest vs Member segmentation (completed orders only) ---
+    // --- Guest vs Member segmentation (same "sale" rule as the dashboard) ---
     const sumCompleted = (orders) => {
-      const done = (orders || []).filter(o => o.status === 'COMPLETED');
+      const done = (orders || []).filter(o => isSaleStatus(o.status));
       return { count: done.length, revenue: done.reduce((t, o) => t + (parseFloat(o.total_amount) || 0), 0) };
     };
     let memberRevenue = 0, memberOrders = 0;
