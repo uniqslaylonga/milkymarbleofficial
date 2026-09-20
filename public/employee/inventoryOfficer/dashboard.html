@@ -1,184 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Procurement & Inventory Dashboard</title>
+    <title>Milky Marble — Procurement &amp; Inventory Dashboard</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/sidebar.css">
 </head>
-
 <body>
-
-    <div class="dashboard-wrapper">
-        <!-- Sidebar -->
+    <div class="app-container">
+        <!-- STICKY SIDEBAR (PAREHONG DESIGN SA SALES AT PRODUCTION) -->
         <aside class="sidebar">
-            <div class="sidebar-top">
-                <div class="brand-container">
+            <div class="brand-section">
+                <div class="brand-logo-wrap">
                     <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
-                    <div class="brand-title">Milky Marble</div>
                 </div>
-
-                <ul class="nav-links">
-                    <li>
-                        <a href="dashboard.html" class="nav-link active">
-                            <i class="fa-solid fa-table-cells-large"></i>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="procurement.html" class="nav-link">
-                            <i class="fa-solid fa-cart-shopping"></i>
-                            <span>Procurement</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="inventorySection.html" class="nav-link">
-                            <i class="fa-solid fa-box-archive"></i>
-                            <span>Inventory Section</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="stockControl.html" class="nav-link">
-                            <i class="fa-solid fa-warehouse"></i>
-                            <span>Stock Control</span>
-                        </a>
-                    </li>
-                </ul>
+                <div class="brand-title">Milky Marble</div>
             </div>
 
-            <a href="../login.html" class="logout-btn">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                <span>Log out</span>
-            </a>
+            <nav class="nav-menu">
+                <a href="dashboard.html" class="nav-link active">
+                    <i class="fa-solid fa-table-cells-large nav-fa"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="procurement.html" class="nav-link">
+                    <i class="fa-solid fa-cart-shopping nav-fa"></i>
+                    <span>Procurement</span>
+                </a>
+                <a href="inventorySection.html" class="nav-link">
+                    <i class="fa-solid fa-box-archive nav-fa"></i>
+                    <span>Inventory Section</span>
+                </a>
+                <a href="stockControl.html" class="nav-link">
+                    <i class="fa-solid fa-warehouse nav-fa"></i>
+                    <span>Stock Control</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <a href="../login.html" class="nav-link logout-btn">
+                    <i class="fa-solid fa-arrow-right-from-bracket nav-fa"></i>
+                    <span>Log out</span>
+                </a>
+            </div>
         </aside>
 
-        <!-- Main Container -->
+        <!-- MAIN SCROLLABLE CONTENT -->
         <main class="main-content">
-            <header class="top-bar">
+            <!-- TOPBAR -->
+            <header class="topbar">
                 <div class="search-box">
-                    <input type="text" placeholder="Search...">
-                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="procurementSearchInput" placeholder="Search purchase requests, suppliers, or inventory SKUs...">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 </div>
 
-                <div class="top-actions">
+                <div class="topbar-right">
+                    <button class="notif-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
                     <div class="user-profile">
-                        <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
-                            <img id="userAvatar" src="../images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='../images/account.png';">
-                        </span>
-                        <span id="userName">Loading...</span>
+                        <div class="user-avatar">
+                            <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
+                        </div>
+                        <span id="userName" class="user-name">Rhodalyn D. Leodones</span>
                     </div>
                 </div>
             </header>
 
-            <!-- Hero Greeting -->
+            <!-- WELCOME BANNER WITH DOA HIERARCHY BADGE -->
             <section class="welcome-banner">
-                <div class="welcome-text">
-                    <h1>Glad to have you here, <span id="userFirstName">User</span>!</h1>
-                    <p>Here's how the sips are moving today.</p>
-                </div>
-                <div class="banner-buttons">
-                    <button class="btn-primary" onclick="openModal('addRequestModal')"><i class="fa-solid fa-plus"></i> Add Request</button>
+                <div class="welcome-banner-content">
+                    <div class="welcome-text-col">
+                        <div class="banner-badge-row">
+                            <span class="release-window-pill">Restock Ops: Tue &amp; Thu Production Support</span>
+                            <span class="shift-subtag">DOA Matrix Active (≤₱300 Direct Buy)</span>
+                        </div>
+                        <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">Rhodalyn</span>!</h1>
+                        <p class="welcome-sub">Manage kitchen requisitions, vendor purchases, and warehouse thresholds before brew days.</p>
+                    </div>
+                    <div class="banner-action-col">
+                        <button type="button" class="btn-primary" onclick="openModal('addRequestModal')">
+                            <i class="fa-solid fa-plus"></i> Add Purchase Request
+                        </button>
+                    </div>
                 </div>
             </section>
 
-            <!-- KPI Grid -->
-            <section class="kpi-grid">
-                <div class="kpi-card" onclick="window.location.href='purchasingVendorManagement.html'" style="cursor: pointer;">
-                    <div class="kpi-header">
-                        <span>Open Requests</span>
-                        <i class="fa-solid fa-clipboard-list kpi-icon"></i>
+            <!-- 4 OPERATIONAL KPI CARDS -->
+            <section class="section">
+                <div class="overview-grid four-col-grid">
+                    <!-- 1. Direct Buy Queue -->
+                    <div class="stat-card" onclick="filterRequestsByRoute('procure')" style="cursor: pointer;">
+                        <div class="stat-header">
+                            <span class="stat-title">Direct Buy (≤ ₱300)</span>
+                            <i class="fa-solid fa-bolt stat-icon" style="color: #2E7D32;"></i>
+                        </div>
+                        <div class="stat-body"><span id="directBuyCount" class="stat-value">03</span></div>
+                        <div class="stat-footer">Instant Procurement Approval</div>
                     </div>
-                    <div id="openRequests" class="kpi-value">00</div>
-                </div>
 
-                <div class="kpi-card" onclick="window.location.href='purchasingVendorManagement.html'" style="cursor: pointer;">
-                    <div class="kpi-header">
-                        <span>Active Vendors</span>
-                        <i class="fa-solid fa-store kpi-icon"></i>
+                    <!-- 2. Escalated to Finance/CEO -->
+                    <div class="stat-card" onclick="filterRequestsByRoute('escalated')" style="cursor: pointer;">
+                        <div class="stat-header">
+                            <span class="stat-title">Escalated (₱301+)</span>
+                            <i class="fa-solid fa-file-signature stat-icon" style="color: #EAA342;"></i>
+                        </div>
+                        <div class="stat-body"><span id="escalatedCount" class="stat-value">04</span></div>
+                        <div class="stat-footer">Pending Finance / CEO Review</div>
                     </div>
-                    <div id="activeVendors" class="kpi-value">00</div>
-                </div>
 
-                <div class="kpi-card" onclick="window.location.href='inventoryCategoryManagement.html'" style="cursor: pointer;">
-                    <div class="kpi-header">
-                        <span>Items Monitored</span>
-                        <i class="fa-solid fa-cube kpi-icon"></i>
+                    <!-- 3. Monitored Items -->
+                    <div class="stat-card" onclick="window.location.href='inventorySection.html'" style="cursor: pointer;">
+                        <div class="stat-header">
+                            <span class="stat-title">Items Monitored</span>
+                            <i class="fa-solid fa-cubes-stacked stat-icon"></i>
+                        </div>
+                        <div class="stat-body"><span id="itemsMonitored" class="stat-value">07</span></div>
+                        <div class="stat-footer">Tea, Boba, Dairy &amp; Packaging</div>
                     </div>
-                    <div id="itemsMonitored" class="kpi-value">00</div>
-                </div>
 
-                <div class="kpi-card" onclick="window.location.href='inventoryCategoryManagement.html'" style="cursor: pointer;">
-                    <div class="kpi-header">
-                        <span>Reserved Stocks</span>
-                        <i class="fa-solid fa-warehouse kpi-icon"></i>
+                    <!-- 4. Low Stock Alerts -->
+                    <div class="stat-card" onclick="window.location.href='stockControl.html'" style="cursor: pointer;">
+                        <div class="stat-header">
+                            <span class="stat-title">Critical Attention</span>
+                            <i class="fa-solid fa-triangle-exclamation stat-icon" style="color: #D9534F;"></i>
+                        </div>
+                        <div class="stat-body"><span id="attentionCount" class="stat-value">02</span></div>
+                        <div class="stat-footer">Below safety reserve level</div>
                     </div>
-                    <div id="reservedStocks" class="kpi-value">0</div>
                 </div>
             </section>
 
-            <!-- Mid Grid: Purchase Requests + Vendor Transactions -->
+            <!-- MID GRID: PURCHASE REQUESTS (DOA ROUTING) & VENDOR DESK -->
             <section class="mid-grid">
-                <div class="panel-card">
-                    <div class="panel-header">
+                <!-- KALIWANG CARD: PURCHASE REQUESTS DIRECTORY -->
+                <div class="directory-card">
+                    <div class="panel-header-bar">
                         <div>
-                            <h2>Latest Purchase Requests</h2>
-                            <p>Here's how the sips are moving today.</p>
+                            <h2 class="section-title">Latest Purchase Requests</h2>
+                            <p class="section-sub-text">Hierarchy routing applied based on estimated expense threshold.</p>
                         </div>
-                        <a href="purchasingVendorManagement.html" class="view-link">View all <i class="fa-solid fa-chevron-right"></i></a>
+                        <div class="order-filter-tabs">
+                            <button type="button" class="tab-btn active" data-filter="all">All Requests</button>
+                            <button type="button" class="tab-btn" data-filter="procure">≤ ₱300 (Direct)</button>
+                            <button type="button" class="tab-btn" data-filter="finance">₱301–₱500</button>
+                            <button type="button" class="tab-btn" data-filter="ceo">&gt; ₱500</button>
+                        </div>
                     </div>
 
-                    <div id="purchaseRequestsList" class="request-list">
-                        <p class="no-data">Loading purchase requests...</p>
+                    <!-- THRESHOLD LEGEND PILLS -->
+                    <div class="threshold-legend-row">
+                        <span class="badge-route route-procure">🟢 ≤ ₱300: Rhodalyn Direct Approval</span>
+                        <span class="badge-route route-finance">🟠 ₱301–₱500: Finance Endorsement</span>
+                        <span class="badge-route route-ceo">🔴 &gt; ₱500: CEO Clearance</span>
+                    </div>
+
+                    <!-- REQUESTS TABLE -->
+                    <div class="table-container">
+                        <table class="cust-table">
+                            <thead>
+                                <tr>
+                                    <th>PR Code &amp; Item</th>
+                                    <th>Source / Dept</th>
+                                    <th>Qty</th>
+                                    <th>Total Cost</th>
+                                    <th>DOA Routing Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseRequestsList">
+                                <tr>
+                                    <td colspan="6" class="loading-state-text">Loading purchase requests...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PERMANENT NUMBERED PAGINATION BAR -->
+                    <div class="tx-pagination-bar" id="prPaginationBar">
+                        <span class="tx-page-info" id="prPageInfo">Showing 0 of 0 requests</span>
+                        <div class="tx-pager-buttons">
+                            <button type="button" class="pager-btn" id="prevPrBtn" title="Previous Page" disabled>
+                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <div class="pager-numbers" id="prPagerNumbers">
+                                <button type="button" class="pager-num-btn active" disabled>1</button>
+                            </div>
+                            <button type="button" class="pager-btn" id="nextPrBtn" title="Next Page" disabled>
+                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="panel-card">
-                    <div class="panel-header">
+                <!-- KANANG CARD: VENDOR & PRE-RELEASE RESTOCK TIMETABLE -->
+                <div class="directory-card">
+                    <div class="panel-header-bar">
                         <div>
-                            <h2>Latest Vendor Transaction</h2>
-                            <p>Active supplier List</p>
+                            <h2 class="section-title">Supplier Desk</h2>
+                            <p class="section-sub-text">Mon/Wed Pre-Release Restock Window</p>
                         </div>
-                        <button class="circle-arrow-btn" onclick="window.location.href='purchasingVendorManagement.html'"><i class="fa-solid fa-chevron-right"></i></button>
+                        <button class="circle-arrow-btn" onclick="window.location.href='procurement.html'" title="Open Procurement Directory">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="insight-box-sm warning-style" style="margin-bottom: 12px;">
+                        <span class="insight-icon">📅</span>
+                        <p class="insight-text">
+                            <strong>Pre-Release Procurement Cut-off:</strong> All Tuesday supplies must be purchased by Monday 4:00 PM; Thursday supplies by Wednesday 4:00 PM.
+                        </p>
                     </div>
 
                     <div id="vendorList" class="vendor-list">
-                        <p class="no-data">Loading active vendors...</p>
+                        <p class="loading-state-text">Loading active suppliers...</p>
                     </div>
 
                     <div class="vendor-footer-stats">
                         <div><strong id="totalVendorsCount">0</strong> Suppliers in Directory</div>
-                        <div><strong id="activeVendorsPercent">0%</strong> Active Supplier</div>
+                        <div><strong id="activeVendorsPercent">100%</strong> On-time Delivery</div>
                     </div>
                 </div>
             </section>
 
-            <!-- Bottom Panel: Inventory List & Stock Alerts -->
-            <section class="panel-card bottom-panel">
-                <div class="panel-header">
+            <!-- BOTTOM PANEL: INVENTORY CATEGORY UNITS & ATTENTION CALLOUT -->
+            <section class="directory-card" style="margin-top: 24px;">
+                <div class="panel-header-bar">
                     <div>
-                        <h2>Inventory List</h2>
-                        <p>A summary of available units</p>
+                        <h2 class="section-title">Warehouse Inventory Summary</h2>
+                        <p class="section-sub-text">Stock levels monitored for raw tea, boba, and packaging.</p>
                     </div>
-                    <a href="inventoryCategoryManagement.html" class="view-link">Open inventory <i class="fa-solid fa-chevron-right"></i></a>
+                    <a href="inventorySection.html" class="view-link">Open Full Inventory <i class="fa-solid fa-chevron-right"></i></a>
                 </div>
 
                 <div class="inventory-overview-grid">
                     <div class="bars-container">
                         <div class="bars-header">
-                            <span>Available units per category</span>
-                            <span class="total-units"><strong id="totalAvailableUnits">0</strong> Units</span>
+                            <span>Available Units by Classification</span>
+                            <span class="total-units"><strong id="totalAvailableUnits">0</strong> Total Units</span>
                         </div>
 
                         <div class="progress-row">
-                            <span class="row-label">Ingredients</span>
+                            <span class="row-label">Ingredients (Tea, Boba, Sugar)</span>
                             <div class="progress-track">
                                 <div id="ingFill" class="progress-fill" style="width: 0%;"></div>
                             </div>
@@ -186,7 +248,7 @@
                         </div>
 
                         <div class="progress-row">
-                            <span class="row-label">Packaging</span>
+                            <span class="row-label">Packaging (Cups, Sealing Film)</span>
                             <div class="progress-track">
                                 <div id="pkgFill" class="progress-fill" style="width: 0%;"></div>
                             </div>
@@ -194,7 +256,7 @@
                         </div>
 
                         <div class="progress-row">
-                            <span class="row-label">Equipment</span>
+                            <span class="row-label">Equipment &amp; Utensils</span>
                             <div class="progress-track">
                                 <div id="eqpFill" class="progress-fill" style="width: 0%;"></div>
                             </div>
@@ -207,10 +269,10 @@
                             <i class="fa-solid fa-shield-halved"></i>
                         </div>
                         <div class="callout-content">
-                            <span class="callout-tag">STOCK CONTROL</span>
-                            <h3><span id="attentionCount">0</span> items deserve attention</h3>
-                            <p>Handle low stock items immediately</p>
-                            <a href="stockControlAlerts.html" class="callout-link">View alerts <i class="fa-solid fa-chevron-right"></i></a>
+                            <span class="callout-tag">STOCK CONTROL ALERT</span>
+                            <h3><span id="attentionCountBottom">2</span> items deserve attention</h3>
+                            <p>Tapioca Pearls and Assam Tea Leaves are below 2-day buffer for the next release.</p>
+                            <a href="stockControl.html" class="callout-link">View Critical Thresholds <i class="fa-solid fa-chevron-right"></i></a>
                         </div>
                     </div>
                 </div>
@@ -218,35 +280,63 @@
         </main>
     </div>
 
-    <!-- Modal: Add Purchase Request -->
-    <div class="modal-backdrop" id="addRequestModal">
-        <div class="modal-card">
-            <div class="modal-title-row">
-                <div class="modal-title-icon"><i class="fa-solid fa-asterisk"></i></div>
-                <h2>Add Purchase Request</h2>
+    <!-- MODAL: ADD PURCHASE REQUEST (WITH LIVE DOA THRESHOLD ROUTING BADGE) -->
+    <div class="modal-overlay" id="addRequestModal">
+        <div class="profile-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h3 class="modal-title">New Purchase Requisition</h3>
+                    <p class="modal-subtitle">Automatically routed to Procurement, Finance, or CEO based on total cost.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal('addRequestModal')">✕</button>
             </div>
 
-            <form id="addRequestForm">
-                <div class="form-group">
-                    <label>Item Name / Description</label>
-                    <input type="text" id="itemName" placeholder="e.g Raw Jelly Ingredients & Milk Supplies" required>
-                </div>
-
-                <div class="form-row two-col">
-                    <div class="form-group">
-                        <label>Store / Supplier Name</label>
-                        <input type="text" id="storeName" placeholder="e.g All-In Wholesaler" required>
+            <form id="addRequestForm" class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Item Name / Description *</label>
+                        <input type="text" id="itemName" placeholder="e.g. Tapioca Pearls (1kg pack) or Full Cream Milk" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Estimated Amount (&#8369;)</label>
-                        <input type="number" step="0.01" id="amount" placeholder="e.g. 5000.00" min="1" required>
+                        <label>Requesting Unit *</label>
+                        <select id="requestingDept" required>
+                            <option value="Production Kitchen" selected>Production Kitchen</option>
+                            <option value="Sales Counter">Sales Counter</option>
+                            <option value="Warehouse Store">Warehouse Store</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Preferred Supplier / Vendor *</label>
+                        <input type="text" id="storeName" placeholder="e.g. Caloocan Boba Supplies Hub" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Quantity *</label>
+                        <input type="number" id="requestQty" min="1" step="1" value="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Est. Unit Cost (₱) *</label>
+                        <input type="number" id="unitCost" min="1" step="0.5" placeholder="e.g. 130" required>
+                    </div>
+
+                    <!-- LIVE ROUTING PREVIEW BOX -->
+                    <div class="form-group full">
+                        <div class="routing-preview-box">
+                            <span class="routing-label">Total Estimated Cost:</span>
+                            <strong id="previewTotalCost" class="routing-total-val">₱0.00</strong>
+                            <div id="routingBadge" class="badge-route route-procure">
+                                🟢 Direct Route: Procurement Officer (Direct Purchase Authorized)
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="modal-actions">
-                    <button type="button" class="btn-cancel" onclick="closeModal('addRequestModal')">Cancel</button>
-                    <button type="submit" class="btn-submit"><i class="fa-solid fa-plus"></i> Submit Request</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal('addRequestModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Submit Requisition</button>
                 </div>
             </form>
         </div>
@@ -255,5 +345,4 @@
     <script src="../js/employeeAuth.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
-
 </html>
