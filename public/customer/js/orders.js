@@ -865,18 +865,21 @@ window.confirmOrderReceived = function(orderId) {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch('/api/orders/action', {
-        method: 'POST',
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'received', order_id: orderId })
+        body: JSON.stringify({ status: 'COMPLETED' })
       });
       const data = await res.json();
-      if (data.status === 'success') {
+      if (res.ok && data.status === 'success') {
         Swal.fire({ icon: 'success', title: 'Order Complete!', text: 'Thank you! Enjoy your sips!' });
         loadOrders();
+      } else {
+        Swal.fire({ icon: 'error', title: 'Could Not Confirm', text: data.message || 'Something went wrong. Please try again.' });
       }
     } catch (e) {
-      loadOrders();
+      console.error('Confirm order received failed:', e);
+      Swal.fire({ icon: 'error', title: 'Network Error', text: 'Could not reach the server. Please check your connection and try again.' });
     }
   });
 };
