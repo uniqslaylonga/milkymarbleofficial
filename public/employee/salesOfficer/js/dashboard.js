@@ -581,6 +581,14 @@ async function openZReadingModal() {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
+    // Show a loading state while we fetch the real numbers, rather than
+    // flashing whatever static placeholder is baked into the HTML.
+    const zFieldIds = ['zPreOrdersCount', 'zClaimedAmount', 'zGcashAmount', 'zMayaAmount', 'zUnclaimedAmount', 'zPresetsCount', 'zExpectedCash'];
+    zFieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'Loading…';
+    });
+
     // Always fetch the current expected-drawer figure fresh - don't rely on
     // whatever X-Reading was last opened, since more sales may have come in
     // since then (or it may never have been opened this session at all).
@@ -594,9 +602,21 @@ async function openZReadingModal() {
         const data = await response.json();
         expectedCounterCash = data.expectedDrawer;
         latestXReading = data;
+
+        document.getElementById('zPreOrdersCount').textContent = `${data.preordersCount} Orders`;
+        document.getElementById('zClaimedAmount').textContent = '₱' + data.claimedAmount.toFixed(2);
+        document.getElementById('zGcashAmount').textContent = '₱' + data.gcashTotal.toFixed(2);
+        document.getElementById('zMayaAmount').textContent = '₱' + data.mayaTotal.toFixed(2);
+        document.getElementById('zUnclaimedAmount').textContent = '₱' + data.unclaimedAmount.toFixed(2);
+        document.getElementById('zPresetsCount').textContent = `${data.cupsSold} Cups Sold`;
+        document.getElementById('zExpectedCash').textContent = '₱' + data.expectedDrawer.toFixed(2);
     } catch (error) {
         console.error('Could not refresh expected drawer amount:', error);
-        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched, so the expected drawer amount may be out of date. Please try again before closing the shift.', 'warning');
+        zFieldIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '—';
+        });
+        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched, so the figures shown may be out of date. Please try again before closing the shift.', 'warning');
     }
 
     calculateZVariance();

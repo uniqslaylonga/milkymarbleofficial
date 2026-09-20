@@ -261,7 +261,7 @@ router.get('/sales-officer/x-reading', async (req, res) => {
 
     const { data: orders, error } = await supabase
       .from('orders')
-      .select('total_amount, payment_method, order_type, status')
+      .select('total_amount, payment_method, order_type, status, order_items(quantity)')
       .gte('placed_at', todayStart)
       .not('status', 'in', NOT_SALES);
 
@@ -272,20 +272,43 @@ router.get('/sales-officer/x-reading', async (req, res) => {
     let walkinCashTotal = 0;
     let preordersCount = 0;
     let presetsCount = 0;
+    let cupsSold = 0;
+    // "Claimed" = digital (GCash/Maya) pre-orders already picked up (COMPLETED).
+    // "Unclaimed / No-show" = digital pre-orders still not picked up as of
+    // this Z-Reading cut-off (i.e. not COMPLETED and not already CANCELLED -
+    // CANCELLED orders are excluded upstream by NOT_SALES, so anything left
+    // in a non-terminal status here is still awaiting claim).
+    let claimedCount = 0;
+    let claimedAmount = 0;
+    let unclaimedCount = 0;
+    let unclaimedAmount = 0;
 
     (orders || []).forEach(o => {
       const amt = parseFloat(o.total_amount) || 0;
       const method = String(o.payment_method || '').toLowerCase();
+      const itemQty = (o.order_items || []).reduce((s, it) => s + (parseInt(it.quantity, 10) || 0), 0);
+
+      const isDigital = method.includes('gcash') || method.includes('maya');
 
       if (method.includes('gcash')) {
         gcashTotal += amt;
-        preordersCount++;
       } else if (method.includes('maya')) {
         mayaTotal += amt;
-        preordersCount++;
       } else {
         walkinCashTotal += amt;
         presetsCount++;
+        cupsSold += itemQty;
+      }
+
+      if (isDigital) {
+        preordersCount++;
+        if (o.status === 'COMPLETED') {
+          claimedCount++;
+          claimedAmount += amt;
+        } else {
+          unclaimedCount++;
+          unclaimedAmount += amt;
+        }
       }
     });
 
@@ -297,10 +320,15 @@ router.get('/sales-officer/x-reading', async (req, res) => {
       status: 'success',
       preordersCount,
       presetsCount,
+      cupsSold,
       gcashTotal,
       mayaTotal,
       digitalSubtotal: gcashTotal + mayaTotal,
       walkinCashTotal,
+      claimedCount,
+      claimedAmount,
+      unclaimedCount,
+      unclaimedAmount,
       openingFloat,
       expectedDrawer,
       grossTotal
