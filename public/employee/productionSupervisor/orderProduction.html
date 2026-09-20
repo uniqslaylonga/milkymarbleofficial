@@ -3,141 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Order Details</title>
+    <title>Milky Marble — Order Details & Cup Assembly</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/orderproduction.css">
-    <link rel="stylesheet" href="css/sidebar.css">
 </head>
 <body>
-<div class="dashboard-wrapper">
+<div class="app-container">
+    <!-- STICKY SIDEBAR -->
     <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="brand-container">
+        <div class="brand-section">
+            <div class="brand-logo-wrap">
                 <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
-                <div class="brand-title">Milky Marble</div>
             </div>
-
-            <ul class="nav-links">
-                <li>
-                    <a href="dashboard.html" class="nav-link">
-                        <i class="fa-solid fa-table-cells-large"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="orderList.html" class="nav-link">
-                        <i class="fa-solid fa-list-check"></i>
-                        <span>Order List</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="orderProduction.html" class="nav-link active">
-                        <i class="fa-solid fa-industry"></i>
-                        <span>Order Production</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="productionPlanning.html" class="nav-link">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        <span>Production Planning</span>
-                    </a>
-                </li>
-            </ul>
+            <div class="brand-title">Milky Marble</div>
         </div>
 
-        <a href="../login.html" class="logout-btn">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-            <span>Log out</span>
-        </a>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-link">
+                <i class="fa-solid fa-table-cells-large nav-fa"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="orderList.html" class="nav-link">
+                <i class="fa-solid fa-list-check nav-fa"></i>
+                <span>Order List</span>
+            </a>
+            <a href="orderProduction.html" class="nav-link active">
+                <i class="fa-solid fa-industry nav-fa"></i>
+                <span>Order Production</span>
+            </a>
+            <a href="productionPlanning.html" class="nav-link">
+                <i class="fa-solid fa-calendar-days nav-fa"></i>
+                <span>Production Planning</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="../login.html" class="nav-link logout-btn">
+                <i class="fa-solid fa-arrow-right-from-bracket nav-fa"></i>
+                <span>Log out</span>
+            </a>
+        </div>
     </aside>
 
+    <!-- MAIN SCROLLABLE CONTENT -->
     <main class="main-content">
-        <header class="top-bar">
+        <!-- TOPBAR -->
+        <header class="topbar">
             <div class="search-box">
-                <input type="text" placeholder="Search for anything...">
-                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="productionSearchInput" placeholder="Search order number or recipe materials...">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
             </div>
 
-            <div class="top-actions">
-                <button class="notification-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
+            <div class="topbar-right">
+                <button class="notif-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
                 <div class="user-profile">
-                    <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
-                        <img id="userAvatar" src="/employee/images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/employee/images/account.png';">
-                    </span>
-                    <span id="userFullName">Loading...</span>
+                    <div class="user-avatar">
+                        <img id="userAvatar" src="/employee/images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
+                    </div>
+                    <span id="userFullName" class="user-name">Loading...</span>
                 </div>
             </div>
         </header>
 
+        <!-- PAGE HEADER & NAVIGATION -->
         <section class="order-page">
             <div class="page-header">
-                <div class="breadcrumbs">Order Production</div>
-                <h1>Order Details</h1>
+                <div class="page-eyebrow">Workstation &amp; Cup Mixing Desk</div>
+                <h1 class="page-title">Order Details &amp; Recipe Assembly</h1>
             </div>
 
             <a href="orderList.html" class="back-link">
-                <i class="fa-solid fa-arrow-left"></i> Back to Orders
+                <i class="fa-solid fa-arrow-left"></i> Back to Order Queue
             </a>
 
-            <!-- Top Summary Cards -->
+            <!-- TOP SUMMARY CARDS (SPLIT VIEW) -->
             <div class="order-summary">
+                <!-- ORDER SPECIFICATION CARD -->
                 <div class="order-card">
                     <div class="order-meta">
-                        <span id="orderCode" class="order-code">MM-1000</span>
-                        <span id="orderClient" class="order-staff">Customer</span>
+                        <div class="order-meta-left">
+                            <span id="orderCode" class="order-code">MM-PRE-081</span>
+                            <span id="orderTypeBadge" class="type-pill type-preorder">Pre-Order</span>
+                        </div>
+                        <span id="orderClient" class="order-staff">Customer: Clarisse Santos</span>
                     </div>
 
-                    <h2 id="itemLabel">Loading Order Details...</h2>
+                    <h2 id="itemLabel" class="item-title">Classic Pearl Milk Tea</h2>
 
+                    <!-- DYNAMIC MILK TEA SPECIFICATION TAGS -->
                     <div id="tagRow" class="tag-row">
-                        <span id="flavorTag" class="tag tag-coffee">Coffee</span>
-                        <span id="variationTag" class="tag tag-spaghetti">Spaghetti</span>
+                        <span id="sizeTag" class="spec-tag"><i class="fa-solid fa-wine-glass"></i> 16oz Regular</span>
+                        <span id="sugarTag" class="spec-tag"><i class="fa-solid fa-cubes-stacked"></i> 25% Sugar</span>
+                        <span id="iceTag" class="spec-tag"><i class="fa-solid fa-snowflake"></i> Less Ice</span>
+                        <span id="toppingTag" class="spec-tag"><i class="fa-solid fa-circle-dot"></i> Tapioca Pearls</span>
+                        <span id="slotTag" class="spec-tag highlight"><i class="fa-regular fa-clock"></i> Tue 10:00 AM - 11:30 AM</span>
+                    </div>
+
+                    <div class="recipe-notes-box">
+                        <span class="notes-label">Barista Instructions:</span>
+                        <p id="recipeInstructions" class="notes-text">
+                            Add cooked warm pearls first, pour freshly steeped Assam Black Tea base with fresh milk, blend with 25% cane syrup, add minimal ice, seal cup tightly, and place into <strong>Shelf A-04</strong>.
+                        </p>
                     </div>
                 </div>
 
+                <!-- COMPLETE ORDER ACTION CARD -->
                 <div class="close-card">
-                    <div class="close-icon">
-                        <i class="fa-solid fa-box-open"></i>
+                    <div class="close-top-row">
+                        <div class="close-icon">
+                            <i class="fa-solid fa-box-open"></i>
+                        </div>
+                        <span class="shelf-indicator" id="shelfIndicatorTag">📍 Assign to: Shelf A-04</span>
                     </div>
 
                     <div class="close-copy">
-                        <h3>Close this order</h3>
-                        <p>Confirm and mark ready for pick-up</p>
+                        <h3>Seal &amp; Mark Ready</h3>
+                        <p>Confirm cup assembly is complete and place on counter holding rack for pickup.</p>
                     </div>
 
                     <form id="completeOrderForm">
                         <button class="complete-btn" type="submit">
-                            <i class="fa-solid fa-check"></i> COMPLETE
+                            <i class="fa-solid fa-check"></i> COMPLETE &amp; MARK SHELF-READY
                         </button>
                     </form>
                 </div>
             </div>
 
-            <!-- Ingredients & Material Check from Database Inventory -->
+            <!-- INGREDIENTS & RAW MATERIAL DEDUCTION PANEL -->
             <div class="materials-panel">
                 <div class="panel-title-wrap">
                     <div class="panel-icon">
                         <i class="fa-solid fa-scale-balanced"></i>
                     </div>
-                    <h3>Ingredients &amp; Material Inventory Check</h3>
+                    <div>
+                        <h3>Ingredients &amp; Material Inventory Check</h3>
+                        <p class="materials-sub">Auto-calculated inventory deductions for this specific cup customization.</p>
+                    </div>
                 </div>
 
                 <form id="materialsForm">
                     <div class="materials-table">
                         <div class="materials-head">
-                            <span class="col-name">Item</span>
-                            <span class="col-amount">Stock on Hand</span>
-                            <span class="col-unit">Unit</span>
+                            <span class="col-name">Raw Ingredient / Consumable</span>
+                            <span class="col-amount">Calculated Quantity</span>
+                            <span class="col-unit">Unit of Measure</span>
                         </div>
 
                         <div id="materialsList">
-                            <div style="padding: 20px; text-align: center; color: #888;">Loading inventory materials...</div>
+                            <div class="loading-materials">Loading inventory materials...</div>
                         </div>
                     </div>
                 </form>

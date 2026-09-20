@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CUSTOM FONT FAMILY SETUP (MATCHING ALL ERP MODULES)
+   CUSTOM FONT FAMILY SETUP
    ========================================================================== */
 @font-face {
   font-family: 'Bootzy TM';
@@ -53,6 +53,12 @@
   padding: 0;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden; /* Pinipigilan ang anumang side scrolling ng browser */
+}
+
 body {
   font-family: var(--font-family-body);
   background-color: var(--bg-main);
@@ -60,12 +66,15 @@ body {
   min-height: 100vh;
 }
 
-/* App Container Layout */
+/* ===== APP CONTAINER (STRICT CONSTRAINTS) ===== */
 .app-container {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr); /* minmax(0, 1fr) pinipigilan ang pagtulak ng screen */
+  width: 100%;
+  max-width: 100vw;
   min-height: 100vh;
   align-items: start;
+  overflow-x: hidden;
 }
 
 /* ===== STICKY SIDEBAR ===== */
@@ -173,7 +182,11 @@ body {
 
 /* ===== MAIN CONTENT ===== */
 .main-content {
-  padding: 24px 40px 40px 24px;
+  padding: 24px 36px 40px 24px;
+  min-width: 0; /* Kritikal: Pinipigilan ang pag-awas sa grid */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* TOPBAR */
@@ -321,6 +334,8 @@ body {
 /* SECTION */
 .section {
   margin-bottom: 24px;
+  width: 100%;
+  min-width: 0;
 }
 
 .section-title {
@@ -349,10 +364,12 @@ body {
 .overview-grid {
   display: grid;
   gap: 18px;
+  width: 100%;
+  min-width: 0;
 }
 
 .four-col-grid {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* minmax(0, 1fr) para pantay at hindi umapaw */
 }
 
 .stat-card {
@@ -362,6 +379,7 @@ body {
   padding: 16px 20px 14px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .stat-header {
@@ -376,6 +394,7 @@ body {
   font-weight: 700;
   color: var(--text-dark);
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .stat-icon {
@@ -403,6 +422,7 @@ body {
   font-size: 11.5px;
   font-weight: 700;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -415,6 +435,9 @@ body {
   box-shadow: 0 2px 8px rgba(246, 146, 153, 0.08);
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0; /* Pinipigilan ang table na magpalapad sa card */
 }
 
 .panel-header-bar {
@@ -453,7 +476,9 @@ body {
 }
 
 .table-container {
-  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto; /* Kung sakaling kailanganin mag-scroll, sa loob lang ng table, hindi ang buong page */
   min-height: 250px;
 }
 
@@ -470,6 +495,7 @@ body {
   padding: 10px 12px;
   border-bottom: 1.5px solid var(--border-soft);
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .cust-table td {
@@ -486,12 +512,14 @@ body {
 .order-identity-block strong {
   color: var(--brown-soft);
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .order-identity-block small {
   display: block;
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .type-pill {
@@ -502,6 +530,7 @@ body {
   text-transform: uppercase;
   display: inline-block;
   margin-top: 3px;
+  white-space: nowrap;
 }
 
 .type-preorder {
@@ -538,6 +567,7 @@ body {
   border-radius: 8px;
   border: 1px dashed var(--accent-pink);
   display: inline-block;
+  white-space: nowrap;
 }
 
 .status-badge-prep {
@@ -548,6 +578,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .status-badge-prep.ready {
@@ -564,12 +595,13 @@ body {
   background-color: var(--accent-pink);
   color: #fff;
   border: none;
-  padding: 5px 12px;
+  padding: 6px 12px;
   border-radius: 12px;
   font-family: var(--font-family-body);
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
   transition: opacity 0.15s;
 }
 
@@ -593,6 +625,8 @@ body {
   padding-top: 14px;
   margin-top: 10px;
   border-top: 1.5px solid var(--border-soft);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tx-page-info {
@@ -691,12 +725,14 @@ body {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  width: 100%;
 }
 
 .preset-card {
@@ -707,6 +743,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .preset-top {
@@ -782,11 +819,16 @@ body {
   color: #fff;
 }
 
-/* RESPONSIVE */
-@media (max-width: 1150px) {
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS (PREVENTS OVERFLOW ON SMALLER LAPTOPS)
+   ========================================================================== */
+@media (max-width: 1350px) {
   .four-col-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+@media (max-width: 1024px) {
   .preset-grid {
     grid-template-columns: 1fr;
   }
