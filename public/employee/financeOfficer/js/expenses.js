@@ -207,7 +207,7 @@ function handleAddDisbursement(e) {
     alert('Disbursement logging isn\'t connected to the database yet, so nothing was saved. This needs a real backend endpoint before it can record anything.');
     closeExpenseModal();
 }
-}
+
 
 function openExpenseModal() {
     const m = document.getElementById('expenseModal');

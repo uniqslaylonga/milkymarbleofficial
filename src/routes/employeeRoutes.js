@@ -1095,65 +1095,87 @@ router.get('/finance-officer/payments', async (req, res) => {
 // PROCUREMENT / INVENTORY OFFICER
 // ============================================================================
 
+// DOA routing rule shared by every procurement endpoint:
+//   <= 300  -> procurement officer buys directly
+//   301-500 -> finance officer
+//   > 500   -> CEO
+function routeForAmount(amount) {
+  const n = parseFloat(amount) || 0;
+  return n > 500 ? 'ceo' : (n > 300 ? 'finance' : 'procure');
+}
+
 router.get('/procurement-officer/dashboard', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    const { count: openRequests } = await supabase
-      .from('expenses').select('*', { count: 'exact', head: true }).in('status', ['PENDING_FINANCE', 'PENDING_CEO']);
-
-    const { data: vendorRows } = await supabase.from('vendors').select('id, vendor_name, category_desc, status, updated_at').order('updated_at', { ascending: false });
-    const activeVendors = (vendorRows || []).filter(v => v.status === 'Active').length;
-    const totalVendorsCount = (vendorRows || []).length;
-    const vendorsList = (vendorRows || []).slice(0, 5);
-
-    const { count: itemsMonitored } = await supabase.from('inventory_items').select('*', { count: 'exact', head: true });
-
-    const { data: prRows } = await supabase
+    // ---- purchase requests (expenses): KPI counts + latest table ----
+    const { data: expenseRows, error: expErr } = await supabase
       .from('expenses')
-      .select('id, item_name, store_name, amount, status, requested_by')
-      .order('created_at', { ascending: false })
-      .limit(5);
+      .select('id, item_name, store_name, amount, status, requested_by, created_at')
+      .order('created_at', { ascending: false });
+    if (expErr) throw expErr;
+    const expenses = expenseRows || [];
 
-    const purchaseRequests = (prRows || []).map(e => ({
+    const directBuyCount = expenses.filter(e => routeForAmount(e.amount) === 'procure' && e.status !== 'PURCHASED').length;
+    const escalatedCount = expenses.filter(e => routeForAmount(e.amount) !== 'procure' && ['PENDING_FINANCE', 'PENDING_CEO'].includes(e.status)).length;
+
+    const latest = expenses.slice(0, 20);
+    const requesterIds = [...new Set(latest.map(e => e.requested_by).filter(Boolean))];
+    const requesterMap = {};
+    if (requesterIds.length) {
+      const { data: requesterUsers } = await supabase.from('users').select('id, full_name').in('id', requesterIds);
+      (requesterUsers || []).forEach(u => { requesterMap[u.id] = u.full_name; });
+    }
+
+    const purchaseRequests = latest.map(e => ({
       id: e.id,
       pr_code: `PR-${1000 + e.id}`,
       name: e.item_name,
-      department: 'Procurement',
-      quantity: 1,
-      unit: 'unit',
+      supplier: e.store_name || '',
+      requester_name: requesterMap[e.requested_by] || '',
       total_price: parseFloat(e.amount) || 0,
-      status: e.status
+      route: routeForAmount(e.amount),
+      status: e.status,
+      created_at: e.created_at
     }));
 
-    const { data: invRows } = await supabase.from('inventory_items').select('item_type, on_hand');
+    // ---- vendors ----
+    const { data: vendorRows } = await supabase.from('vendors').select('id, vendor_name, category_desc, status, updated_at').order('updated_at', { ascending: false });
+    const vendors = vendorRows || [];
+    const activeVendors = vendors.filter(v => v.status === 'Active').length;
+    const totalVendorsCount = vendors.length;
+
+    // ---- inventory ----
+    const { data: invRows } = await supabase.from('inventory_items').select('id, name, item_type, on_hand, reorder_point, unit_of_measure');
+    const inventory = invRows || [];
     let ingUnits = 0, pkgUnits = 0, eqpUnits = 0;
-    (invRows || []).forEach(r => {
+    inventory.forEach(r => {
       const qty = parseFloat(r.on_hand) || 0;
       if (r.item_type === 'raw_material') ingUnits += qty;
       else if (r.item_type === 'packaging') pkgUnits += qty;
       else if (r.item_type === 'equipment') eqpUnits += qty;
     });
-    const totalAvailableUnits = ingUnits + pkgUnits + eqpUnits;
 
-    // PostgREST can't filter on a computed comparison (on_hand <= reorder_point)
-    // directly, so pull the rows and compute the low-stock count in JS.
-    const { data: allInvItems } = await supabase.from('inventory_items').select('on_hand, reorder_point');
-    const lowStockCount = (allInvItems || []).filter(i => (parseFloat(i.on_hand) || 0) <= (parseFloat(i.reorder_point) || 0)).length;
+    // Low stock = at or below a reorder point that has actually been set.
+    const lowStock = inventory
+      .filter(i => (parseFloat(i.reorder_point) || 0) > 0 && (parseFloat(i.on_hand) || 0) <= (parseFloat(i.reorder_point) || 0))
+      .sort((a, b) => ((parseFloat(a.on_hand) || 0) / (parseFloat(a.reorder_point) || 1)) - ((parseFloat(b.on_hand) || 0) / (parseFloat(b.reorder_point) || 1)));
 
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { openRequests: openRequests || 0, activeVendors, itemsMonitored: itemsMonitored || 0, reservedStocks: 0 },
+      metrics: { directBuyCount, escalatedCount, itemsMonitored: inventory.length, activeVendors },
       purchaseRequests,
-      vendorsList,
+      vendorsList: vendors.slice(0, 5),
       vendorStats: {
         totalVendorsCount,
-        activeVendorsPercent: totalVendorsCount > 0 ? Math.round((activeVendors / totalVendorsCount) * 100) : 0
+        activeVendors,
+        activeVendorsPercent: totalVendorsCount > 0 ? Math.round((activeVendors / totalVendorsCount) * 100) : null
       },
-      inventoryCategory: { ingUnits, pkgUnits, eqpUnits, totalAvailableUnits },
-      attentionCount: lowStockCount
+      inventoryCategory: { ingUnits, pkgUnits, eqpUnits, totalAvailableUnits: ingUnits + pkgUnits + eqpUnits },
+      attentionCount: lowStock.length,
+      lowStockItems: lowStock.slice(0, 3).map(i => ({ id: i.id, name: i.name, on_hand: parseFloat(i.on_hand) || 0, unit: i.unit_of_measure || '' }))
     });
   } catch (error) {
     console.error('[procurement-officer/dashboard] error:', error.message);
@@ -1172,22 +1194,76 @@ router.post('/procurement-officer/add-request', async (req, res) => {
     }
 
     const numAmount = parseFloat(amount);
-    const tier = numAmount > 500 ? 'major' : (numAmount > 300 ? 'medium' : 'micro');
+    const route = routeForAmount(numAmount);
+    const tier = route === 'ceo' ? 'major' : (route === 'finance' ? 'medium' : 'micro');
+    // <= 300 is pre-authorised for the procurement officer; the rest wait on Finance / CEO.
+    const status = route === 'ceo' ? 'PENDING_CEO' : (route === 'finance' ? 'PENDING_FINANCE' : 'APPROVED');
 
-    const { error } = await supabase.from('expenses').insert([{
+    const { data: inserted, error } = await supabase.from('expenses').insert([{
       item_name,
       store_name: store_name || '',
       amount: numAmount,
       tier,
-      status: 'PENDING_FINANCE',
+      status,
       requested_by: userId || null,
       expense_date: new Date().toISOString().split('T')[0]
-    }]);
+    }]).select('id, status').single();
     if (error) throw error;
 
-    return res.json({ status: 'success', message: 'Purchase request added successfully.' });
+    return res.json({
+      status: 'success',
+      message: 'Purchase request added successfully.',
+      request: { id: inserted.id, pr_code: `PR-${1000 + inserted.id}`, status: inserted.status, route }
+    });
   } catch (error) {
     console.error('[procurement-officer/add-request] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Direct buy: the procurement officer may buy anything <= 300 without escalation.
+router.post('/procurement-officer/mark-purchased', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const { expense_id } = req.body;
+    if (!expense_id) {
+      return res.status(400).json({ status: 'error', message: 'Expense ID is required.' });
+    }
+
+    const { data: exp, error: findErr } = await supabase
+      .from('expenses').select('id, item_name, store_name, amount, status').eq('id', expense_id).maybeSingle();
+    if (findErr) throw findErr;
+    if (!exp) return res.status(404).json({ status: 'error', message: 'Purchase request not found.' });
+
+    const amount = parseFloat(exp.amount) || 0;
+    if (routeForAmount(amount) !== 'procure') {
+      return res.status(403).json({ status: 'error', message: 'Only requests of PHP 300 or less can be bought directly. This one needs Finance / CEO approval.' });
+    }
+    if (exp.status === 'PURCHASED') {
+      return res.status(400).json({ status: 'error', message: 'This request is already marked as purchased.' });
+    }
+
+    const { error } = await supabase.from('expenses').update({ status: 'PURCHASED' }).eq('id', exp.id);
+    if (error) throw error;
+
+    // Keep the vendor's running total in step (best effort - never blocks the purchase).
+    if (exp.store_name) {
+      try {
+        const { data: vendor } = await supabase.from('vendors').select('id, total_spent').eq('vendor_name', exp.store_name).limit(1).maybeSingle();
+        if (vendor) {
+          await supabase.from('vendors').update({
+            total_spent: (parseFloat(vendor.total_spent) || 0) + amount,
+            updated_at: new Date().toISOString()
+          }).eq('id', vendor.id);
+        }
+      } catch (e) {
+        console.warn('[procurement-officer/mark-purchased] could not update vendor total:', e.message);
+      }
+    }
+
+    return res.json({ status: 'success', message: 'Marked as purchased.' });
+  } catch (error) {
+    console.error('[procurement-officer/mark-purchased] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 });
@@ -1213,12 +1289,10 @@ router.get('/procurement-officer/purchasing-vendor', async (req, res) => {
       id: e.id,
       pr_code: `PR-${1000 + e.id}`,
       name: e.item_name,
-      vendor_name: e.store_name,
-      department: 'Procurement',
-      requester_name: requesterMap[e.requested_by] || 'Staff',
-      quantity: 1,
-      unit: 'unit',
+      vendor_name: e.store_name || '',
+      requester_name: requesterMap[e.requested_by] || '',
       total_price: parseFloat(e.amount) || 0,
+      route: routeForAmount(e.amount),
       status: e.status,
       created_at: e.created_at
     }));
@@ -1436,23 +1510,40 @@ router.get('/procurement-officer/stock-control', async (req, res) => {
     if (!supabase) return noDb(res);
     const userProfile = await getEmployeeProfile(req);
 
-    const { count: openRequests } = await supabase
-      .from('expenses').select('*', { count: 'exact', head: true }).in('status', ['PENDING_FINANCE', 'PENDING_CEO']);
-    const { count: activeVendors } = await supabase
-      .from('vendors').select('*', { count: 'exact', head: true }).eq('status', 'Active');
-    const { count: itemsMonitored } = await supabase.from('inventory_items').select('*', { count: 'exact', head: true });
+    // Purchase-request counts (same definitions as the dashboard).
+    const { data: expenseRows } = await supabase.from('expenses').select('amount, status');
+    const expenses = expenseRows || [];
+    const directBuyCount = expenses.filter(e => routeForAmount(e.amount) === 'procure' && e.status !== 'PURCHASED').length;
+    const escalatedCount = expenses.filter(e => routeForAmount(e.amount) !== 'procure' && ['PENDING_FINANCE', 'PENDING_CEO'].includes(e.status)).length;
 
-    const { data: allItems } = await supabase.from('inventory_items').select('id, name, item_type, on_hand, reorder_point, unit_of_measure');
-    const lowStockItems = (allItems || [])
+    const { data: itemRows } = await supabase.from('inventory_items').select('*');
+    const allItems = itemRows || [];
+    const unitById = {};
+    allItems.forEach(i => { unitById[i.id] = i.unit_of_measure || ''; });
+
+    // Only report reserved stock if the table actually tracks it.
+    const tracksReserved = allItems.some(i => Object.prototype.hasOwnProperty.call(i, 'reserved_qty'));
+    const reservedStocks = tracksReserved
+      ? allItems.reduce((sum, i) => sum + (parseFloat(i.reserved_qty) || 0), 0)
+      : null;
+
+    const lowStockItems = allItems
       .filter(i => (parseFloat(i.on_hand) || 0) <= (parseFloat(i.reorder_point) || 0) && (parseFloat(i.reorder_point) || 0) > 0)
-      .sort((a, b) => (a.on_hand / (a.reorder_point || 1)) - (b.on_hand / (b.reorder_point || 1)))
-      .map(i => ({ ...i, reorder_level: i.reorder_point, unit: i.unit_of_measure }));
+      .sort((a, b) => ((parseFloat(a.on_hand) || 0) / (parseFloat(a.reorder_point) || 1)) - ((parseFloat(b.on_hand) || 0) / (parseFloat(b.reorder_point) || 1)))
+      .map(i => ({
+        id: i.id,
+        name: i.name,
+        item_type: i.item_type,
+        on_hand: parseFloat(i.on_hand) || 0,
+        reorder_level: parseFloat(i.reorder_point) || 0,
+        unit: i.unit_of_measure || ''
+      }));
 
     const { data: rawLogs } = await supabase
       .from('inventory_movement_logs')
       .select('id, item_id, item_name, change_type, quantity_changed, employee_name, created_at')
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(50);
 
     const todayStr = new Date().toISOString().split('T')[0];
     const yesterday = new Date();
@@ -1470,13 +1561,13 @@ router.get('/procurement-officer/stock-control', async (req, res) => {
       if (logDateStr === todayStr) { dateGroup = 'today'; displayTime = `Today - ${timeStr}`; }
       else if (logDateStr === yesterdayStr) { dateGroup = 'yesterday'; displayTime = `Yesterday - ${timeStr}`; }
 
-      return { ...log, dateGroup, displayTime };
+      return { ...log, unit: unitById[log.item_id] || '', dateGroup, displayTime };
     });
 
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { openRequests: openRequests || 0, activeVendors: activeVendors || 0, itemsMonitored: itemsMonitored || 0, reservedStocks: 0 },
+      metrics: { directBuyCount, escalatedCount, itemsMonitored: allItems.length, reservedStocks },
       lowStockItems,
       movementLogs
     });

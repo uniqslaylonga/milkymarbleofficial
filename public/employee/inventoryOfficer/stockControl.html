@@ -52,7 +52,7 @@
         <!-- TOPBAR -->
         <header class="topbar">
             <div class="search-box">
-                <input type="text" id="stockSearchInput" placeholder="Search stock movement logs, items, or SKU codes...">
+                <input type="text" id="stockSearchInput" placeholder="Search stock movement logs or items...">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
             </div>
 
@@ -62,7 +62,7 @@
                     <div class="user-avatar">
                         <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
                     </div>
-                    <span id="userFullName" class="user-name">Rhodalyn D. Leodones</span>
+                    <span id="userFullName" class="user-name"></span>
                 </div>
             </div>
         </header>
@@ -90,7 +90,7 @@
                         <span class="stat-title">Direct Buy Eligible</span>
                         <i class="fa-solid fa-bolt stat-icon" style="color: #2E7D32;"></i>
                     </div>
-                    <div class="stat-body"><span id="openRequests" class="stat-value">02</span></div>
+                    <div class="stat-body"><span id="directBuyCount" class="stat-value">—</span></div>
                     <div class="stat-footer">≤ ₱300 Requisitions (Instant)</div>
                 </div>
 
@@ -100,7 +100,7 @@
                         <span class="stat-title">In DOA Escalation</span>
                         <i class="fa-solid fa-file-signature stat-icon" style="color: #EAA342;"></i>
                     </div>
-                    <div class="stat-body"><span id="activeVendors" class="stat-value">03</span></div>
+                    <div class="stat-body"><span id="escalatedCount" class="stat-value">—</span></div>
                     <div class="stat-footer">Pending Finance / CEO Review</div>
                 </div>
 
@@ -110,18 +110,18 @@
                         <span class="stat-title">Items Monitored</span>
                         <i class="fa-solid fa-cubes-stacked stat-icon"></i>
                     </div>
-                    <div class="stat-body"><span id="itemsMonitored" class="stat-value">08</span></div>
-                    <div class="stat-footer">Raw Tea, Dairy, Boba &amp; Cups</div>
+                    <div class="stat-body"><span id="itemsMonitored" class="stat-value">—</span></div>
+                    <div class="stat-footer">Tracked in inventory</div>
                 </div>
 
                 <!-- 4. Reserved Stock Buffer -->
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-title">Tue/Thu Buffer Reserved</span>
+                        <span class="stat-title">Reserved Stock</span>
                         <i class="fa-solid fa-shield-halved stat-icon" style="color: var(--brown-soft);"></i>
                     </div>
-                    <div class="stat-body"><span id="reservedStocks" class="stat-value">22.5 kg</span></div>
-                    <div class="stat-footer">Locked for Pre-orders &amp; Presets</div>
+                    <div class="stat-body"><span id="reservedStocks" class="stat-value">—</span></div>
+                    <div class="stat-footer">Set aside from on-hand stock</div>
                 </div>
             </div>
         </section>
@@ -140,8 +140,8 @@
                         <i class="fa-solid fa-filter filter-icon"></i>
                         <select id="dateFilter">
                             <option value="all" selected>All Date Logs</option>
-                            <option value="today">Today (Brew Day)</option>
-                            <option value="yesterday">Yesterday (Prep Day)</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
                             <option value="older">Older Records</option>
                         </select>
                     </div>

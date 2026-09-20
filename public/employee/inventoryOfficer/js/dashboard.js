@@ -7,7 +7,7 @@ let activeFilterRoute = 'all';
 document.addEventListener('DOMContentLoaded', () => {
     fetchProcurementDashboardData();
 
-    // 1. Live DOA Threshold Calculation sa Modal
+    // 1. Live DOA threshold calculation in the modal
     const qtyInput = document.getElementById('requestQty');
     const unitCostInput = document.getElementById('unitCost');
     if (qtyInput && unitCostInput) {
@@ -15,19 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
         unitCostInput.addEventListener('input', calculateModalThreshold);
     }
 
-    // 2. Add Request Form Submission
+    // 2. Add request form
     const addRequestForm = document.getElementById('addRequestForm');
     if (addRequestForm) {
         addRequestForm.addEventListener('submit', handleAddRequestSubmit);
     }
 
-    // 3. Search Bar Input
+    // 3. Search bar
     const searchInput = document.getElementById('procurementSearchInput');
     if (searchInput) {
         searchInput.addEventListener('input', applyRequestsFilter);
     }
 
-    // 4. Tab Filter Buttons
+    // 4. Route filter tabs
     const tabButtons = document.querySelectorAll('.order-filter-tabs .tab-btn');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 5. Permanent Pagination Buttons
+    // 5. Pagination buttons
     const prevBtn = document.getElementById('prevPrBtn');
     const nextBtn = document.getElementById('nextPrBtn');
 
@@ -62,6 +62,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function pad2(n) {
+    return String(Number(n) || 0).padStart(2, '0');
+}
+
+function formatPeso(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// POST JSON to the employee API (sends the x-user-id header via employeeFetch).
+async function apiPost(url, body) {
+    const opts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    };
+    const res = (typeof employeeFetch === 'function') ? await employeeFetch(url, opts) : await fetch(url, opts);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || ('Server responded with status ' + res.status));
+    }
+    return data;
+}
+
+function routeBadge(route) {
+    if (route === 'ceo') return { cls: 'route-ceo', text: '🔴 CEO Clearance' };
+    if (route === 'finance') return { cls: 'route-finance', text: '🟠 Finance Approval' };
+    return { cls: 'route-procure', text: '🟢 Direct Buy' };
+}
+
+// ---------------------------------------------------------------------------
+// Load everything from the server
+// ---------------------------------------------------------------------------
 async function fetchProcurementDashboardData() {
     try {
         let response;
@@ -77,19 +118,26 @@ async function fetchProcurementDashboardData() {
 
         const data = await response.json();
 
-        // User profile setup
-        const userNameEl = document.getElementById('userName');
-        const userFirstNameEl = document.getElementById('userFirstName');
+        // Profile
+        const user = data.user || {};
+        setText('userName', user.fullName || '');
+        const welcome = document.getElementById('welcomeTitle');
+        if (welcome) welcome.textContent = user.firstName ? `Glad to have you here, ${user.firstName}!` : 'Glad to have you here!';
         const userAvatarEl = document.getElementById('userAvatar');
+        if (userAvatarEl && user.avatarSrc) userAvatarEl.src = user.avatarSrc;
 
-        if (userNameEl) userNameEl.textContent = data.user.fullName || 'Rhodalyn D. Leodones';
-        if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Rhodalyn';
-        if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
+        // KPI cards (all computed on the server)
+        const m = data.metrics || {};
+        setText('directBuyCount', pad2(m.directBuyCount));
+        setText('escalatedCount', pad2(m.escalatedCount));
+        setText('itemsMonitored', pad2(m.itemsMonitored));
+        setText('attentionCount', pad2(data.attentionCount));
 
         allRequests = data.purchaseRequests || [];
         applyRequestsFilter();
-        renderVendorsList(data.vendorsList);
+        renderVendorsList(data.vendorsList, data.vendorStats);
         renderInventoryStats(data.inventoryCategory);
+        renderAttentionCallout(data.attentionCount, data.lowStockItems);
 
     } catch (error) {
         console.error('Could not load live data from the server:', error);
@@ -97,7 +145,7 @@ async function fetchProcurementDashboardData() {
     }
 }
 
-// Live DOA Calculation in Add Request Modal
+// Live DOA calculation in the Add Request modal
 function calculateModalThreshold() {
     const qty = parseFloat(document.getElementById('requestQty')?.value || 1);
     const unitCost = parseFloat(document.getElementById('unitCost')?.value || 0);
@@ -107,14 +155,14 @@ function calculateModalThreshold() {
     const badgeEl = document.getElementById('routingBadge');
 
     if (totalEl) {
-        totalEl.textContent = '₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        totalEl.textContent = '₱' + formatPeso(total);
     }
 
     if (badgeEl) {
         if (total <= 300) {
             badgeEl.className = 'badge-route route-procure';
-            badgeEl.textContent = '🟢 Direct Route: Procurement Officer (Rhodalyn Direct Purchase Authorized)';
-        } else if (total > 300 && total <= 500) {
+            badgeEl.textContent = '🟢 Direct Route: Procurement Officer (Direct Purchase Authorized)';
+        } else if (total <= 500) {
             badgeEl.className = 'badge-route route-finance';
             badgeEl.textContent = '🟠 Escalation Route: Requires Financial Officer Clearance';
         } else {
@@ -124,44 +172,30 @@ function calculateModalThreshold() {
     }
 }
 
-// Filter Requests (Search + Route Filter Tabs)
+// Filter requests (search + route tabs)
 function applyRequestsFilter() {
     const searchVal = document.getElementById('procurementSearchInput')?.value.trim().toLowerCase() || '';
 
     filteredRequests = allRequests.filter(pr => {
-        // Route Filter
-        if (activeFilterRoute === 'procure' && pr.route !== 'procure') return false;
-        if (activeFilterRoute === 'finance' && pr.route !== 'finance') return false;
-        if (activeFilterRoute === 'ceo' && pr.route !== 'ceo') return false;
+        if (activeFilterRoute !== 'all' && pr.route !== activeFilterRoute) return false;
 
-        // Search Filter
         if (searchVal) {
             const code = (pr.pr_code || '').toLowerCase();
             const name = (pr.name || '').toLowerCase();
-            const dept = (pr.department || '').toLowerCase();
+            const who = (pr.requester_name || '').toLowerCase();
             const supp = (pr.supplier || '').toLowerCase();
-            if (!code.includes(searchVal) && !name.includes(searchVal) && !dept.includes(searchVal) && !supp.includes(searchVal)) {
+            if (!code.includes(searchVal) && !name.includes(searchVal) && !who.includes(searchVal) && !supp.includes(searchVal)) {
                 return false;
             }
         }
-
         return true;
     });
-
-    // Update KPI Counts
-    const directCount = allRequests.filter(r => r.total_price <= 300).length;
-    const escalatedCount = allRequests.filter(r => r.total_price > 300).length;
-
-    const directEl = document.getElementById('directBuyCount');
-    const escEl = document.getElementById('escalatedCount');
-    if (directEl) directEl.textContent = String(directCount).padStart(2, '0');
-    if (escEl) escEl.textContent = String(escalatedCount).padStart(2, '0');
 
     currentPrPage = 1;
     renderPurchaseRequests();
 }
 
-// Render Purchase Requests Table with Permanent Pager
+// Render purchase requests table with numbered pager
 function renderPurchaseRequests() {
     const tbody = document.getElementById('purchaseRequestsList');
     const pageInfo = document.getElementById('prPageInfo');
@@ -171,7 +205,7 @@ function renderPurchaseRequests() {
     if (!tbody) return;
 
     if (filteredRequests.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading-state-text">No purchase requests match the selected route or search.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-state-text">No purchase requests to show.</td></tr>';
         if (pageInfo) pageInfo.textContent = 'Showing 0 of 0 requests';
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
@@ -194,18 +228,9 @@ function renderPurchaseRequests() {
     renderPrPagerButtons(totalPages, currentPrPage);
 
     tbody.innerHTML = pageItems.map(pr => {
-        const price = Number(pr.total_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const isDirectBuy = pr.total_price <= 300;
-        let routeBadgeClass = 'route-procure';
-        let routeText = '🟢 Direct Buy (Rhodalyn)';
-
-        if (pr.total_price > 500) {
-            routeBadgeClass = 'route-ceo';
-            routeText = '🔴 CEO Clearance';
-        } else if (pr.total_price > 300) {
-            routeBadgeClass = 'route-finance';
-            routeText = '🟠 Finance Approval';
-        }
+        const price = formatPeso(pr.total_price);
+        const badge = routeBadge(pr.route);
+        const canDirectBuy = pr.route === 'procure' && pr.status !== 'PURCHASED';
 
         return `
             <tr>
@@ -214,22 +239,21 @@ function renderPurchaseRequests() {
                     <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(pr.pr_code)}</div>
                 </td>
                 <td>
-                    <div style="font-weight: 700; color: var(--text-dark);">${escapeHtml(pr.department)}</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(pr.supplier || 'Local Store')}</div>
+                    <div style="font-weight: 700; color: var(--text-dark);">${escapeHtml(pr.requester_name) || '—'}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(pr.supplier) || '—'}</div>
                 </td>
-                <td><strong>${escapeHtml(pr.quantity)}</strong></td>
                 <td><strong style="color: var(--brown-soft); font-family: var(--font-family-heading); font-size: 13.5px;">₱ ${price}</strong></td>
                 <td>
-                    <span class="badge-route ${routeBadgeClass}">${routeText}</span>
+                    <span class="badge-route ${badge.cls}">${badge.text}</span>
                     <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Status: <strong>${escapeHtml(pr.status)}</strong></div>
                 </td>
                 <td style="text-align: right;">
-                    ${isDirectBuy ? `
-                        <button type="button" class="btn-buy-instant" onclick="handleDirectBuy(${pr.id}, '${escapeHtml(pr.name)}')">
-                            <i class="fa-solid fa-check"></i> Approve &amp; Buy
+                    ${canDirectBuy ? `
+                        <button type="button" class="btn-buy-instant" onclick="handleDirectBuy(${Number(pr.id)})">
+                            <i class="fa-solid fa-check"></i> Buy
                         </button>
                     ` : `
-                        <button type="button" class="btn-view-status" onclick="alert('This requisition (₱${price}) is routed to${routeText}. Awaiting review.')">
+                        <button type="button" class="btn-view-status" onclick="showRouteInfo(${Number(pr.id)})">
                             View Route
                         </button>
                     `}
@@ -239,7 +263,13 @@ function renderPurchaseRequests() {
     }).join('');
 }
 
-// Numbered Pager: 1, 2, 3...
+function showRouteInfo(prId) {
+    const pr = allRequests.find(r => r.id === prId);
+    if (!pr) return;
+    alert(`${pr.pr_code} (₱${formatPeso(pr.total_price)})\nRoute: ${routeBadge(pr.route).text}\nStatus: ${pr.status}`);
+}
+
+// Numbered pager: 1, 2, 3...
 function renderPrPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('prPagerNumbers');
     if (!pagerNumbers) return;
@@ -262,16 +292,18 @@ function renderPrPagerButtons(totalPages, activePage) {
     });
 }
 
-// Direct Buy Action for ≤ ₱300
-function handleDirectBuy(prId, itemName) {
-    const confirmAction = confirm(`Execute DIRECT PURCHASE for "${itemName}" (≤ ₱300 threshold)? This is authorized under your Procurement Officer mandate.`);
-    if (!confirmAction) return;
-
+// Direct buy for requests of ₱300 or less - saved on the server
+async function handleDirectBuy(prId) {
     const item = allRequests.find(r => r.id === prId);
-    if (item) {
-        item.status = 'PURCHASE_COMPLETED';
-        applyRequestsFilter();
-        alert(`Direct purchase for "${itemName}" executed successfully! Stock will be delivered to the Kitchen.`);
+    if (!item) return;
+
+    if (!confirm(`Mark "${item.name}" (₱${formatPeso(item.total_price)}) as purchased? Requests of ₱300 or less are within your direct-buy authority.`)) return;
+
+    try {
+        await apiPost('/api/procurement-officer/mark-purchased', { expense_id: prId });
+        await fetchProcurementDashboardData();
+    } catch (error) {
+        alert('Could not complete the purchase: ' + error.message);
     }
 }
 
@@ -285,13 +317,17 @@ function filterRequestsByRoute(route) {
     applyRequestsFilter();
 }
 
-// Render Active Vendors
-function renderVendorsList(vendors) {
+// Suppliers (real vendors table)
+function renderVendorsList(vendors, stats) {
     const container = document.getElementById('vendorList');
     if (!container) return;
 
+    const s = stats || {};
+    setText('totalVendorsCount', s.totalVendorsCount != null ? s.totalVendorsCount : (vendors || []).length);
+    setText('activeVendorsPercent', s.activeVendorsPercent != null ? `${s.activeVendorsPercent}%` : '—');
+
     if (!vendors || vendors.length === 0) {
-        container.innerHTML = '<p class="loading-state-text">No active suppliers found.</p>';
+        container.innerHTML = '<p class="loading-state-text">No suppliers in the directory yet.</p>';
         return;
     }
 
@@ -301,77 +337,93 @@ function renderVendorsList(vendors) {
                 <div class="vendor-img-placeholder"><i class="fa-solid fa-truck-ramp-box"></i></div>
                 <div>
                     <div class="vendor-name">${escapeHtml(vendor.vendor_name)}</div>
-                    <div class="vendor-desc">${escapeHtml(vendor.category_desc)}</div>
+                    <div class="vendor-desc">${escapeHtml(vendor.category_desc) || '—'}</div>
                 </div>
             </div>
-            <span class="status-pill-vendor">${escapeHtml(vendor.status || 'ACTIVE')}</span>
+            <span class="status-pill-vendor">${escapeHtml(vendor.status) || '—'}</span>
         </div>
     `).join('');
-
-    const totalVendorsEl = document.getElementById('totalVendorsCount');
-    if (totalVendorsEl) totalVendorsEl.textContent = vendors.length;
 }
 
-// Render Warehouse Progress Bars
+// Warehouse progress bars
 function renderInventoryStats(category) {
-    if (!category) return;
+    const c = category || {};
+    const totalUnits = c.totalAvailableUnits || 0;
+    const ingUnits = c.ingUnits || 0;
+    const pkgUnits = c.pkgUnits || 0;
+    const eqpUnits = c.eqpUnits || 0;
 
-    const totalUnits = category.totalAvailableUnits || 0;
-    const ingUnits = category.ingUnits || 0;
-    const pkgUnits = category.pkgUnits || 0;
-    const eqpUnits = category.eqpUnits || 0;
+    setText('totalAvailableUnits', totalUnits.toLocaleString());
+    setText('ingUnits', ingUnits.toLocaleString());
+    setText('pkgUnits', pkgUnits.toLocaleString());
+    setText('eqpUnits', eqpUnits.toLocaleString());
 
-    document.getElementById('totalAvailableUnits').textContent = totalUnits.toLocaleString();
-    document.getElementById('ingUnits').textContent = ingUnits.toLocaleString();
-    document.getElementById('pkgUnits').textContent = pkgUnits.toLocaleString();
-    document.getElementById('eqpUnits').textContent = eqpUnits.toLocaleString();
-
-    document.getElementById('ingFill').style.width = totalUnits > 0 ? `${Math.min(100, (ingUnits / totalUnits) * 100)}%` : '0%';
-    document.getElementById('pkgFill').style.width = totalUnits > 0 ? `${Math.min(100, (pkgUnits / totalUnits) * 100)}%` : '0%';
-    document.getElementById('eqpFill').style.width = totalUnits > 0 ? `${Math.min(100, (eqpUnits / totalUnits) * 100)}%` : '0%';
+    const width = (n) => totalUnits > 0 ? `${Math.min(100, (n / totalUnits) * 100)}%` : '0%';
+    const ing = document.getElementById('ingFill');
+    const pkg = document.getElementById('pkgFill');
+    const eqp = document.getElementById('eqpFill');
+    if (ing) ing.style.width = width(ingUnits);
+    if (pkg) pkg.style.width = width(pkgUnits);
+    if (eqp) eqp.style.width = width(eqpUnits);
 }
 
-// Handle Form Submission with DOA Routing
+// "N items deserve attention" callout - names come from the real low-stock list
+function renderAttentionCallout(count, items) {
+    const n = Number(count) || 0;
+    setText('attentionCountBottom', n);
+
+    const detail = document.getElementById('attentionDetail');
+    if (!detail) return;
+
+    if (n === 0) {
+        detail.textContent = 'All tracked items are above their reorder points.';
+        return;
+    }
+
+    const names = (items || []).map(i => i.name).filter(Boolean);
+    const shown = names.join(', ');
+    const more = n > names.length ? ` and ${n - names.length} more` : '';
+    detail.textContent = `${shown}${more} ${n === 1 ? 'is' : 'are'} at or below the reorder point.`;
+}
+
+// Add a purchase request - saved on the server, then reloaded
 async function handleAddRequestSubmit(e) {
     e.preventDefault();
 
     const itemName = document.getElementById('itemName').value.trim();
-    const dept = document.getElementById('requestingDept').value;
     const storeName = document.getElementById('storeName').value.trim();
     const qty = parseFloat(document.getElementById('requestQty').value || 1);
     const unitCost = parseFloat(document.getElementById('unitCost').value || 0);
     const totalCost = qty * unitCost;
 
-    let targetRoute = 'procure';
-    let targetStatus = 'DIRECT_BUY_AUTHORIZED';
-
-    if (totalCost > 500) {
-        targetRoute = 'ceo';
-        targetStatus = 'PENDING_CEO';
-    } else if (totalCost > 300) {
-        targetRoute = 'finance';
-        targetStatus = 'PENDING_FINANCE';
+    if (!itemName || !(totalCost > 0)) {
+        alert('Please enter an item name, a quantity and a unit cost.');
+        return;
     }
 
-    const newPr = {
-        id: Date.now(),
-        pr_code: `PR-${1000 + allRequests.length + 1}`,
-        name: `${itemName} (${qty}x)`,
-        department: dept,
-        supplier: storeName,
-        quantity: `${qty} units`,
-        total_price: totalCost,
-        route: targetRoute,
-        status: targetStatus
-    };
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    allRequests.unshift(newPr);
-    applyRequestsFilter();
-    closeModal('addRequestModal');
-    e.target.reset();
-    calculateModalThreshold();
+    try {
+        const result = await apiPost('/api/procurement-officer/add-request', {
+            item_name: qty > 1 ? `${itemName} (${qty}x)` : itemName,
+            store_name: storeName,
+            amount: totalCost
+        });
 
-    alert(`Requisition for "${itemName}" (₱${totalCost.toFixed(2)}) submitted!\nDOA Routing: ${targetRoute === 'procure' ? '🟢 Direct Buy Authorized for Rhodalyn' : (targetRoute === 'finance' ? '🟠 Endorsed to Finance' : '🔴 Escalated to CEO')}`);
+        closeModal('addRequestModal');
+        e.target.reset();
+        calculateModalThreshold();
+        await fetchProcurementDashboardData();
+
+        const route = result.request && result.request.route;
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
+        alert(`Requisition for "${itemName}" (₱${formatPeso(totalCost)}) saved.\nRouting: ${routeText}`);
+    } catch (error) {
+        alert('Could not save the requisition: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function openModal(id) {
@@ -391,7 +443,7 @@ function closeModal(id) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

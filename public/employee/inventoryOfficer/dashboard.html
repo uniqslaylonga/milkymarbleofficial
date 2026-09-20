@@ -61,7 +61,7 @@
                         <div class="user-avatar">
                             <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
                         </div>
-                        <span id="userName" class="user-name">Rhodalyn D. Leodones</span>
+                        <span id="userName" class="user-name"></span>
                     </div>
                 </div>
             </header>
@@ -74,7 +74,7 @@
                             <span class="release-window-pill">Restock Ops: Tue &amp; Thu Production Support</span>
                             <span class="shift-subtag">DOA Matrix Active (≤₱300 Direct Buy)</span>
                         </div>
-                        <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">Rhodalyn</span>!</h1>
+                        <h1 class="welcome-title" id="welcomeTitle">Glad to have you here!</h1>
                         <p class="welcome-sub">Manage kitchen requisitions, vendor purchases, and warehouse thresholds before brew days.</p>
                     </div>
                     <div class="banner-action-col">
@@ -94,7 +94,7 @@
                             <span class="stat-title">Direct Buy (≤ ₱300)</span>
                             <i class="fa-solid fa-bolt stat-icon" style="color: #2E7D32;"></i>
                         </div>
-                        <div class="stat-body"><span id="directBuyCount" class="stat-value">03</span></div>
+                        <div class="stat-body"><span id="directBuyCount" class="stat-value">—</span></div>
                         <div class="stat-footer">Instant Procurement Approval</div>
                     </div>
 
@@ -104,7 +104,7 @@
                             <span class="stat-title">Escalated (₱301+)</span>
                             <i class="fa-solid fa-file-signature stat-icon" style="color: #EAA342;"></i>
                         </div>
-                        <div class="stat-body"><span id="escalatedCount" class="stat-value">04</span></div>
+                        <div class="stat-body"><span id="escalatedCount" class="stat-value">—</span></div>
                         <div class="stat-footer">Pending Finance / CEO Review</div>
                     </div>
 
@@ -114,8 +114,8 @@
                             <span class="stat-title">Items Monitored</span>
                             <i class="fa-solid fa-cubes-stacked stat-icon"></i>
                         </div>
-                        <div class="stat-body"><span id="itemsMonitored" class="stat-value">07</span></div>
-                        <div class="stat-footer">Tea, Boba, Dairy &amp; Packaging</div>
+                        <div class="stat-body"><span id="itemsMonitored" class="stat-value">—</span></div>
+                        <div class="stat-footer">Tracked in inventory</div>
                     </div>
 
                     <!-- 4. Low Stock Alerts -->
@@ -124,7 +124,7 @@
                             <span class="stat-title">Critical Attention</span>
                             <i class="fa-solid fa-triangle-exclamation stat-icon" style="color: #D9534F;"></i>
                         </div>
-                        <div class="stat-body"><span id="attentionCount" class="stat-value">02</span></div>
+                        <div class="stat-body"><span id="attentionCount" class="stat-value">—</span></div>
                         <div class="stat-footer">Below safety reserve level</div>
                     </div>
                 </div>
@@ -149,7 +149,7 @@
 
                     <!-- THRESHOLD LEGEND PILLS -->
                     <div class="threshold-legend-row">
-                        <span class="badge-route route-procure">🟢 ≤ ₱300: Rhodalyn Direct Approval</span>
+                        <span class="badge-route route-procure">🟢 ≤ ₱300: Procurement Direct Approval</span>
                         <span class="badge-route route-finance">🟠 ₱301–₱500: Finance Endorsement</span>
                         <span class="badge-route route-ceo">🔴 &gt; ₱500: CEO Clearance</span>
                     </div>
@@ -160,8 +160,7 @@
                             <thead>
                                 <tr>
                                     <th>PR Code &amp; Item</th>
-                                    <th>Source / Dept</th>
-                                    <th>Qty</th>
+                                    <th>Requested By / Supplier</th>
                                     <th>Total Cost</th>
                                     <th>DOA Routing Status</th>
                                     <th style="text-align: right;">Action</th>
@@ -169,7 +168,7 @@
                             </thead>
                             <tbody id="purchaseRequestsList">
                                 <tr>
-                                    <td colspan="6" class="loading-state-text">Loading purchase requests...</td>
+                                    <td colspan="5" class="loading-state-text">Loading purchase requests...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -216,8 +215,8 @@
                     </div>
 
                     <div class="vendor-footer-stats">
-                        <div><strong id="totalVendorsCount">0</strong> Suppliers in Directory</div>
-                        <div><strong id="activeVendorsPercent">100%</strong> On-time Delivery</div>
+                        <div><strong id="totalVendorsCount">—</strong> Suppliers in Directory</div>
+                        <div><strong id="activeVendorsPercent">—</strong> Active Suppliers</div>
                     </div>
                 </div>
             </section>
@@ -270,8 +269,8 @@
                         </div>
                         <div class="callout-content">
                             <span class="callout-tag">STOCK CONTROL ALERT</span>
-                            <h3><span id="attentionCountBottom">2</span> items deserve attention</h3>
-                            <p>Tapioca Pearls and Assam Tea Leaves are below 2-day buffer for the next release.</p>
+                            <h3><span id="attentionCountBottom">—</span> items deserve attention</h3>
+                            <p id="attentionDetail">Checking stock levels...</p>
                             <a href="stockControl.html" class="callout-link">View Critical Thresholds <i class="fa-solid fa-chevron-right"></i></a>
                         </div>
                     </div>
@@ -295,21 +294,12 @@
                 <div class="form-grid">
                     <div class="form-group full">
                         <label>Item Name / Description *</label>
-                        <input type="text" id="itemName" placeholder="e.g. Tapioca Pearls (1kg pack) or Full Cream Milk" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Requesting Unit *</label>
-                        <select id="requestingDept" required>
-                            <option value="Production Kitchen" selected>Production Kitchen</option>
-                            <option value="Sales Counter">Sales Counter</option>
-                            <option value="Warehouse Store">Warehouse Store</option>
-                        </select>
+                        <input type="text" id="itemName" placeholder="Item name / description" required>
                     </div>
 
                     <div class="form-group">
                         <label>Preferred Supplier / Vendor *</label>
-                        <input type="text" id="storeName" placeholder="e.g. Caloocan Boba Supplies Hub" required>
+                        <input type="text" id="storeName" placeholder="Supplier name" required>
                     </div>
 
                     <div class="form-group">
@@ -319,7 +309,7 @@
 
                     <div class="form-group">
                         <label>Est. Unit Cost (₱) *</label>
-                        <input type="number" id="unitCost" min="1" step="0.5" placeholder="e.g. 130" required>
+                        <input type="number" id="unitCost" min="1" step="0.5" placeholder="0.00" required>
                     </div>
 
                     <!-- LIVE ROUTING PREVIEW BOX -->

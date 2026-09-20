@@ -1,7 +1,6 @@
 let activeCategory = 'all';
 let allItems = [];
 let filteredItems = [];
-let allVendors = [];
 let currentInvPage = 1;
 const INV_PAGE_SIZE = 6;
 
@@ -39,6 +38,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// The database stores 'raw_material' | 'packaging' | 'equipment'.
+function categoryOf(item) {
+    const t = String(item.item_type || '').toLowerCase();
+    if (t === 'packaging') return 'packaging';
+    if (t === 'equipment') return 'equipment';
+    return 'ingredients';
+}
+
+function categoryTitle(item) {
+    const c = categoryOf(item);
+    return c === 'packaging' ? 'Packaging' : (c === 'equipment' ? 'Equipment' : 'Ingredients');
+}
+
+// POST JSON to the employee API (sends the x-user-id header via employeeFetch).
+async function apiPost(url, body) {
+    const opts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    };
+    const res = (typeof employeeFetch === 'function') ? await employeeFetch(url, opts) : await fetch(url, opts);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || ('Server responded with status ' + res.status));
+    }
+    return data;
+}
+
 async function fetchInventorySectionData() {
     try {
         let response;
@@ -56,13 +84,11 @@ async function fetchInventorySectionData() {
 
         // User Profile
         const userFullNameEl = document.getElementById('userFullName');
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Rhodalyn D. Leodones';
+        if (userFullNameEl) userFullNameEl.textContent = (data.user && data.user.fullName) || '';
 
         allItems = data.items || [];
-        allVendors = data.vendors || [];
 
         applyInventoryFilters();
-        populateVendorDropdowns(allVendors);
 
     } catch (error) {
         console.error('Could not load live data from the server:', error);
@@ -76,41 +102,29 @@ function applyInventoryFilters() {
     const statusFilter = document.getElementById('statusFilter')?.value || '';
 
     filteredItems = allItems.filter(item => {
-        // Category Filter
-        let displayCategory = 'ingredients';
-        if (item.item_type === 'packaging') displayCategory = 'packaging';
-        if (item.item_type === 'equipment') displayCategory = 'equipment';
+        if (activeCategory !== 'all' && categoryOf(item) !== activeCategory) return false;
 
-        if (activeCategory !== 'all' && displayCategory !== activeCategory) return false;
-
-        // Status Filter
         const onHand = parseFloat(item.on_hand || 0);
         const reorder = parseFloat(item.reorder_point || 0);
-        const isLow = onHand <= reorder;
+        const isLow = reorder > 0 && onHand <= reorder;
 
         if (statusFilter === 'low' && !isLow) return false;
         if (statusFilter === 'normal' && isLow) return false;
 
-        // Search Filter
         if (q) {
             const name = (item.name || '').toLowerCase();
             const sku = (item.sku_code || '').toLowerCase();
-            const vend = (item.vendor_name || '').toLowerCase();
-            if (!name.includes(q) && !sku.includes(q) && !vend.includes(q)) return false;
+            if (!name.includes(q) && !sku.includes(q)) return false;
         }
 
         return true;
     });
 
-    // Update Counts on Badges
-    const ingTotal = allItems.filter(i => (i.item_type || 'ingredients') === 'ingredients').length;
-    const pkgTotal = allItems.filter(i => i.item_type === 'packaging').length;
-    const eqpTotal = allItems.filter(i => i.item_type === 'equipment').length;
-
+    // Badge counts (real, by category)
     document.getElementById('totalCount').textContent = allItems.length;
-    document.getElementById('ingCount').textContent = ingTotal;
-    document.getElementById('pkgCount').textContent = pkgTotal;
-    document.getElementById('eqpCount').textContent = eqpTotal;
+    document.getElementById('ingCount').textContent = allItems.filter(i => categoryOf(i) === 'ingredients').length;
+    document.getElementById('pkgCount').textContent = allItems.filter(i => categoryOf(i) === 'packaging').length;
+    document.getElementById('eqpCount').textContent = allItems.filter(i => categoryOf(i) === 'equipment').length;
     document.getElementById('visibleCount').textContent = filteredItems.length;
 
     currentInvPage = 1;
@@ -157,44 +171,31 @@ function renderInventoryTable() {
     renderInvPagerButtons(totalPages, currentInvPage);
 
     tbody.innerHTML = pageItems.map(item => {
-        const unit = item.unit_of_measure || 'units';
+        const unit = item.unit_of_measure || '';
         const onHand = parseFloat(item.on_hand || 0);
-        const reserved = parseFloat(item.reserved_qty || 0);
         const reorder = parseFloat(item.reorder_point || 0);
-        const isLow = onHand <= reorder;
+        const isLow = reorder > 0 && onHand <= reorder;
 
-        let categoryTitle = 'Ingredients';
-        if (item.item_type === 'packaging') categoryTitle = 'Packaging';
-        if (item.item_type === 'equipment') categoryTitle = 'Equipment';
-
-        // Requisition DOA Route calculation if restocked
-        const estRequisitionCost = (reorder * 2) * (item.est_unit_cost || 50);
-        let routeBadgeClass = 'route-procure';
-        let routeText = '🟢 ≤ ₱300 Direct Buy';
-        if (estRequisitionCost > 500) {
-            routeBadgeClass = 'route-ceo';
-            routeText = '🔴 > ₱500 CEO Clearance';
-        } else if (estRequisitionCost > 300) {
-            routeBadgeClass = 'route-finance';
-            routeText = '🟠 ₱301-₱500 Finance';
-        }
+        // Reserved stock / SKU only exist if the table has those columns.
+        const hasReserved = item.reserved_qty !== undefined && item.reserved_qty !== null;
+        const reservedText = hasReserved ? `${parseFloat(item.reserved_qty) || 0} ${escapeHtml(unit)}` : '—';
+        const skuLine = item.sku_code
+            ? `<div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.sku_code)}</div>`
+            : '';
 
         return `
             <tr>
                 <td>
                     <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(item.name)}</strong>
-                    <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.sku_code || 'SKU-00')}</div>
+                    ${skuLine}
                 </td>
-                <td><span style="font-weight: 700; color: var(--text-dark);">${escapeHtml(categoryTitle)}</span></td>
+                <td><span style="font-weight: 700; color: var(--text-dark);">${escapeHtml(categoryTitle(item))}</span></td>
                 <td>
                     <span class="avail-num ${isLow ? 'low-stock-num' : ''}">${onHand} ${escapeHtml(unit)}</span>
                     ${isLow ? '<span class="low-badge">Low Buffer</span>' : ''}
                 </td>
                 <td>
-                    <span style="font-size: 12px; font-weight: 700; color: var(--brown-soft);">
-                        ${reserved} ${escapeHtml(unit)}
-                    </span>
-                    <div style="font-size: 10px; color: var(--text-muted);">Tue/Thu Buffer</div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--brown-soft);">${reservedText}</span>
                 </td>
                 <td>
                     <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
@@ -203,15 +204,15 @@ function renderInventoryTable() {
                 </td>
                 <td>
                     ${isLow ? `
-                        <button type="button" class="btn-restock-trigger" onclick="quickRestockItem(${item.id})">
+                        <button type="button" class="btn-restock-trigger" onclick="quickRestockItem(${Number(item.id)})">
                             <i class="fa-solid fa-cart-plus"></i> Pitch Restock
                         </button>
                     ` : `
-                        <span class="badge-route ${routeBadgeClass}">${routeText}</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">Adequate</span>
                     `}
                 </td>
                 <td style="text-align: right;">
-                    <button type="button" class="btn-adjust-link" onclick="openAdjustStockById(${item.id})">
+                    <button type="button" class="btn-adjust-link" onclick="openAdjustStockById(${Number(item.id)})">
                         <i class="fa-solid fa-sliders"></i> Adjust
                     </button>
                 </td>
@@ -243,30 +244,34 @@ function renderInvPagerButtons(totalPages, activePage) {
     });
 }
 
-function quickRestockItem(itemId) {
+// Pitch a restock: creates a real purchase request. There is no stored unit
+// price, so the officer enters the estimated total and DOA routing follows it.
+async function quickRestockItem(itemId) {
     const item = allItems.find(i => i.id === itemId);
     if (!item) return;
 
-    const qtyToBuy = Math.ceil(item.reorder_point * 1.5) || 2;
-    const estCost = qtyToBuy * (item.est_unit_cost || 130);
+    const input = prompt(`Estimated total cost (₱) to restock "${item.name}":`);
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (!(amount > 0)) {
+        alert('Please enter a valid amount greater than 0.');
+        return;
+    }
 
-    let routeText = '🟢 Direct Route: Procurement (Rhodalyn Direct Buy Authorized)';
-    if (estCost > 500) routeText = '🔴 Executive Route: Requires CEO Approval';
-    else if (estCost > 300) routeText = '🟠 Escalation Route: Requires Financial Officer Clearance';
-
-    const proceed = confirm(`Initiate Restock Requisition for "${item.name}"?\n• Quantity: ${qtyToBuy} ${item.unit_of_measure}\n• Est. Total: ₱${estCost.toFixed(2)}\n• Routing: ${routeText}`);
-    if (proceed) {
-        alert(`Requisition pitched! Forwarded to Procurement desk under DOA matrix.`);
+    try {
+        const result = await apiPost('/api/procurement-officer/add-request', {
+            item_name: `Restock: ${item.name}`,
+            store_name: '',
+            amount
+        });
+        const route = result.request && result.request.route;
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
+        alert(`Restock requisition for "${item.name}" (₱${amount.toFixed(2)}) saved.\nRouting: ${routeText}`);
+    } catch (error) {
+        alert('Could not save the requisition: ' + error.message);
     }
 }
 
-function populateVendorDropdowns(vendors) {
-    const addSelect = document.getElementById('addVendorSelect');
-    if (!addSelect) return;
-
-    addSelect.innerHTML = '<option value="">-- Choose Partner Vendor --</option>' +
-        vendors.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-}
 
 async function handleAddStock(e) {
     e.preventDefault();
@@ -275,93 +280,83 @@ async function handleAddStock(e) {
     const quantity = parseFloat(document.getElementById('addQuantity').value);
     const unit = document.getElementById('addUnit').value;
     const reorder_level = parseFloat(document.getElementById('addReorderLevel').value);
-    const vendor_name = document.getElementById('addVendorSelect').value;
-    const est_cost = parseFloat(document.getElementById('addEstCost').value || 100);
 
-    const newItem = {
-        id: allItems.length + 1,
-        sku_code: `SKU-${department.substring(0,3).toUpperCase()}-${String(allItems.length + 1).padStart(2, '0')}`,
-        name,
-        item_type: department.toLowerCase(),
-        on_hand: quantity,
-        unit_of_measure: unit,
-        reserved_qty: 0,
-        reorder_point: reorder_level,
-        est_unit_cost: est_cost,
-        vendor_name: vendor_name || 'Local Store'
-    };
+    if (!name || isNaN(quantity) || isNaN(reorder_level)) {
+        alert('Please fill out the item name, quantity and reorder threshold.');
+        return;
+    }
 
-    allItems.push(newItem);
-    applyInventoryFilters();
-    closeModal('addStockModal');
-    e.target.reset();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    alert(`Item "${name}" successfully registered into warehouse stock!`);
+    try {
+        await apiPost('/api/procurement-officer/add-stock', { name, department, quantity, unit, reorder_level });
+        closeModal('addStockModal');
+        e.target.reset();
+        await fetchInventorySectionData();
+    } catch (error) {
+        alert('Could not add the stock item: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function openAdjustStockById(itemId) {
     const item = allItems.find(i => i.id === itemId);
     if (!item) return;
 
-    let displayCategory = 'Ingredients';
-    if (item.item_type === 'packaging') displayCategory = 'Packaging';
-    if (item.item_type === 'equipment') displayCategory = 'Equipment';
-
     document.getElementById('adjustItemId').value = item.id;
     document.getElementById('deleteItemId').value = item.id;
-    document.getElementById('adjustItemName').value = item.name;
-    document.getElementById('adjustItemDept').value = displayCategory;
+    document.getElementById('adjustItemName').value = item.name || '';
+    document.getElementById('adjustItemDept').value = categoryTitle(item);
     document.getElementById('adjustItemQty').value = item.on_hand;
     document.getElementById('adjustItemReorder').value = item.reorder_point;
-    document.getElementById('adjustItemUnit').value = item.unit_of_measure || 'kg';
-
-    // Update Live DOA badge preview
-    const estTotal = (item.reorder_point || 2) * (item.est_unit_cost || 100);
-    const badgeEl = document.getElementById('adjustRoutingBadge');
-    if (badgeEl) {
-        if (estTotal <= 300) {
-            badgeEl.className = 'badge-route route-procure';
-            badgeEl.textContent = '🟢 Direct Route: Procurement Officer (≤ ₱300 Direct Buy)';
-        } else if (estTotal <= 500) {
-            badgeEl.className = 'badge-route route-finance';
-            badgeEl.textContent = '🟠 Escalation Route: Financial Officer Clearance (₱301–₱500)';
-        } else {
-            badgeEl.className = 'badge-route route-ceo';
-            badgeEl.textContent = '🔴 Executive Route: CEO Executive Clearance (> ₱500)';
-        }
-    }
+    if (item.unit_of_measure) document.getElementById('adjustItemUnit').value = item.unit_of_measure;
 
     openModal('adjustStockModal');
 }
 
 async function handleAdjustStock(e) {
     e.preventDefault();
-    const itemId = parseInt(document.getElementById('adjustItemId').value, 10);
-    const item = allItems.find(i => i.id === itemId);
+    const item_id = parseInt(document.getElementById('adjustItemId').value, 10);
+    const name = document.getElementById('adjustItemName').value.trim();
+    const department = document.getElementById('adjustItemDept').value;
+    const quantity = parseFloat(document.getElementById('adjustItemQty').value);
+    const reorder_level = parseFloat(document.getElementById('adjustItemReorder').value);
+    const unit = document.getElementById('adjustItemUnit').value;
 
-    if (item) {
-        item.name = document.getElementById('adjustItemName').value.trim();
-        item.item_type = document.getElementById('adjustItemDept').value.toLowerCase();
-        item.on_hand = parseFloat(document.getElementById('adjustItemQty').value);
-        item.reorder_point = parseFloat(document.getElementById('adjustItemReorder').value);
-        item.unit_of_measure = document.getElementById('adjustItemUnit').value;
+    if (!item_id || !name || isNaN(quantity)) {
+        alert('Please fill out the item name and on-hand count.');
+        return;
+    }
 
-        applyInventoryFilters();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        await apiPost('/api/procurement-officer/adjust-stock', { item_id, name, department, quantity, unit, reorder_level });
         closeModal('adjustStockModal');
-        alert(`Stock counts for "${item.name}" updated successfully!`);
+        await fetchInventorySectionData();
+    } catch (error) {
+        alert('Could not save the adjustment: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
-function handleDeleteFromModal() {
-    const itemId = parseInt(document.getElementById('deleteItemId').value, 10);
-    const item = allItems.find(i => i.id === itemId);
+async function handleDeleteFromModal() {
+    const item_id = parseInt(document.getElementById('deleteItemId').value, 10);
+    const item = allItems.find(i => i.id === item_id);
     if (!item) return;
 
-    if (confirm(`Permanently remove "${item.name}" from inventory?`)) {
-        allItems = allItems.filter(i => i.id !== itemId);
-        applyInventoryFilters();
+    if (!confirm(`Permanently remove "${item.name}" from inventory?`)) return;
+
+    try {
+        await apiPost('/api/procurement-officer/delete-stock', { item_id });
         closeModal('adjustStockModal');
-        alert(`Item removed.`);
+        await fetchInventorySectionData();
+    } catch (error) {
+        alert('Could not remove the item: ' + error.message);
     }
 }
 
@@ -382,7 +377,7 @@ function closeModal(id) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

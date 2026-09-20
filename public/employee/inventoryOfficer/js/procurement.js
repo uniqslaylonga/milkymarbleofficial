@@ -10,6 +10,32 @@ const REQ_PAGE_SIZE = 5;
 let currentVenPage = 1;
 const VEN_PAGE_SIZE = 5;
 
+// POST JSON to the employee API (sends the x-user-id header via employeeFetch).
+async function apiPost(url, body) {
+    const opts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    };
+    const res = (typeof employeeFetch === 'function') ? await employeeFetch(url, opts) : await fetch(url, opts);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || ('Server responded with status ' + res.status));
+    }
+    return data;
+}
+
+function formatPeso(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function routeBadge(route) {
+    if (route === 'ceo') return { cls: 'route-ceo', text: '🔴 CEO Clearance' };
+    if (route === 'finance') return { cls: 'route-finance', text: '🟠 Finance Approval' };
+    return { cls: 'route-procure', text: '🟢 Direct Buy' };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchProcurementData();
 
@@ -80,7 +106,7 @@ async function fetchProcurementData() {
 
         // User profile
         const userFullNameEl = document.getElementById('userFullName');
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Rhodalyn D. Leodones';
+        if (userFullNameEl) userFullNameEl.textContent = (data.user && data.user.fullName) || '';
 
         allRequests = data.requests || [];
         allVendors = data.vendors || [];
@@ -123,22 +149,21 @@ function applyCurrentFilters() {
     const q = document.getElementById('procurementSearchInput')?.value.toLowerCase().trim() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
 
-    // Filter Requests
+    // Purchase requests
     filteredRequests = allRequests.filter(req => {
         if (statusFilter && req.status !== statusFilter) return false;
         if (q) {
             const name = (req.name || '').toLowerCase();
             const code = (req.pr_code || '').toLowerCase();
-            const dept = (req.department || '').toLowerCase();
+            const who = (req.requester_name || '').toLowerCase();
             const supp = (req.vendor_name || '').toLowerCase();
-            if (!name.includes(q) && !code.includes(q) && !dept.includes(q) && !supp.includes(q)) return false;
+            if (!name.includes(q) && !code.includes(q) && !who.includes(q) && !supp.includes(q)) return false;
         }
         return true;
     });
 
-    // Filter Vendors
+    // Vendors (the status dropdown is for purchase requests, so it does not filter these)
     filteredVendors = allVendors.filter(v => {
-        if (statusFilter && v.status !== statusFilter) return false;
         if (q) {
             const vName = (v.vendor_name || '').toLowerCase();
             const cat = (v.category_desc || '').toLowerCase();
@@ -168,7 +193,7 @@ function renderRequestsTable() {
     if (!tbody) return;
 
     if (filteredRequests.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-state-text">No purchase requests recorded for this filter.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-state-text">No purchase requests recorded for this filter.</td></tr>';
         if (pageInfo) pageInfo.textContent = 'Showing 0 of 0 requests';
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
@@ -191,19 +216,9 @@ function renderRequestsTable() {
     renderPrPagerButtons(totalPages, currentReqPage);
 
     tbody.innerHTML = pageItems.map(req => {
-        const isDirectBuy = req.total_price <= 300;
-        let routeBadgeClass = 'route-procure';
-        let routeText = '🟢 Direct Buy (Rhodalyn)';
-
-        if (req.total_price > 500) {
-            routeBadgeClass = 'route-ceo';
-            routeText = '🔴 CEO Clearance';
-        } else if (req.total_price > 300) {
-            routeBadgeClass = 'route-finance';
-            routeText = '🟠 Finance Approval';
-        }
-
-        const price = Number(req.total_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const badge = routeBadge(req.route);
+        const price = formatPeso(req.total_price);
+        const canDirectBuy = req.route === 'procure' && req.status !== 'PURCHASED';
 
         return `
             <tr>
@@ -211,21 +226,20 @@ function renderRequestsTable() {
                     <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(req.name)}</strong>
                     <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(req.pr_code)}</div>
                 </td>
-                <td><span style="font-weight: 700;">${escapeHtml(req.requester_name || 'Kitchen Staff')}</span></td>
-                <td><span style="font-size: 12px; color: var(--text-muted);">${escapeHtml(req.department)}</span></td>
-                <td><span style="font-weight: 700;">${escapeHtml(req.vendor_name || 'Local Store')}</span></td>
+                <td><span style="font-weight: 700;">${escapeHtml(req.requester_name) || '—'}</span></td>
+                <td><span style="font-weight: 700;">${escapeHtml(req.vendor_name) || '—'}</span></td>
                 <td><strong style="color: var(--brown-soft); font-family: var(--font-family-heading); font-size: 13.5px;">₱ ${price}</strong></td>
                 <td>
-                    <span class="badge-route ${routeBadgeClass}">${routeText}</span>
+                    <span class="badge-route ${badge.cls}">${badge.text}</span>
                     <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Status: <strong>${escapeHtml(req.status)}</strong></div>
                 </td>
                 <td style="text-align: right;">
-                    ${isDirectBuy && req.status !== 'PURCHASED' ? `
-                        <button type="button" class="btn-buy-instant" onclick="executeDirectBuy(${req.id}, '${escapeHtml(req.name)}')">
-                            <i class="fa-solid fa-check"></i> Approve &amp; Buy
+                    ${canDirectBuy ? `
+                        <button type="button" class="btn-buy-instant" onclick="executeDirectBuy(${Number(req.id)})">
+                            <i class="fa-solid fa-check"></i> Buy
                         </button>
                     ` : `
-                        <button type="button" class="btn-view-status" onclick="alert('Requisition (₱${price}) routed to: ${routeText}. Status: ${req.status}')">
+                        <button type="button" class="btn-view-status" onclick="showRequestStatus(${Number(req.id)})">
                             View Status
                         </button>
                     `}
@@ -302,8 +316,8 @@ function renderVendorsTable() {
                     <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(v.vendor_name)}</strong>
                     <div style="font-size: 11px; color: var(--text-muted);">${vCode}</div>
                 </td>
-                <td><span style="font-size: 12px; color: var(--text-dark);">${escapeHtml(v.category_desc || 'General Supplier')}</span></td>
-                <td><span style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(v.contact_email || 'N/A')}</span></td>
+                <td><span style="font-size: 12px; color: var(--text-dark);">${escapeHtml(v.category_desc) || '—'}</span></td>
+                <td><span style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(v.contact_email) || '—'}</span></td>
                 <td><span class="status-pill-vendor ${vClass}">${escapeHtml(vStatus)}</span></td>
                 <td><strong style="color: var(--brown-soft);">₱ ${totalSpent}</strong></td>
                 <td style="text-align: right;">
@@ -340,16 +354,24 @@ function renderVenPagerButtons(totalPages, activePage) {
 }
 
 // Direct Buy Action for ≤ ₱300
-function executeDirectBuy(reqId, itemName) {
-    const confirmBuy = confirm(`Approve and execute DIRECT PURCHASE for "${itemName}" (≤ ₱300)?\nAuthorized under your Procurement mandate.`);
-    if (!confirmBuy) return;
-
+async function executeDirectBuy(reqId) {
     const req = allRequests.find(r => r.id === reqId);
-    if (req) {
-        req.status = 'PURCHASED';
-        applyCurrentFilters();
-        alert(`Direct Purchase for "${itemName}" approved! Forwarded to kitchen delivery.`);
+    if (!req) return;
+
+    if (!confirm(`Mark "${req.name}" (₱${formatPeso(req.total_price)}) as purchased?\nRequests of ₱300 or less are within your direct-buy authority.`)) return;
+
+    try {
+        await apiPost('/api/procurement-officer/mark-purchased', { expense_id: reqId });
+        await fetchProcurementData();
+    } catch (error) {
+        alert('Could not complete the purchase: ' + error.message);
     }
+}
+
+function showRequestStatus(reqId) {
+    const req = allRequests.find(r => r.id === reqId);
+    if (!req) return;
+    alert(`${req.pr_code} (₱${formatPeso(req.total_price)})\nRoute: ${routeBadge(req.route).text}\nStatus: ${req.status}`);
 }
 
 function populateVendorDropdowns(vendors) {
@@ -390,7 +412,6 @@ function switchTab(tab) {
 async function handleAddRequest(e) {
     e.preventDefault();
     const item_name = document.getElementById('reqItemName').value.trim();
-    const dept = document.getElementById('reqDept').value;
     const amount = parseFloat(document.getElementById('reqAmount').value);
     const vendor_name = document.getElementById('reqVendorName').value;
     const qty = parseInt(document.getElementById('reqQty').value || 1, 10);
@@ -400,36 +421,29 @@ async function handleAddRequest(e) {
         return;
     }
 
-    let targetRoute = 'procure';
-    let targetStatus = 'DIRECT_BUY_AUTHORIZED';
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    if (amount > 500) {
-        targetRoute = 'ceo';
-        targetStatus = 'PENDING_CEO';
-    } else if (amount > 300) {
-        targetRoute = 'finance';
-        targetStatus = 'PENDING_FINANCE';
+    try {
+        const result = await apiPost('/api/procurement-officer/add-request', {
+            item_name: qty > 1 ? `${item_name} (${qty}x)` : item_name,
+            store_name: vendor_name,
+            amount
+        });
+
+        closeModal('addRequestModal');
+        e.target.reset();
+        calculateModalThreshold();
+        await fetchProcurementData();
+
+        const route = result.request && result.request.route;
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
+        alert(`Requisition for "${item_name}" (₱${formatPeso(amount)}) saved.\nRouting: ${routeText}`);
+    } catch (error) {
+        alert('Could not save the requisition: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
-
-    const newPr = {
-        id: Date.now(),
-        pr_code: `PR-${1000 + allRequests.length + 1}`,
-        name: `${item_name} (${qty}x)`,
-        requester_name: 'Rhodalyn (Procurement)',
-        department: dept,
-        vendor_name: vendor_name || 'Local Store',
-        total_price: amount,
-        route: targetRoute,
-        status: targetStatus
-    };
-
-    allRequests.unshift(newPr);
-    applyCurrentFilters();
-    closeModal('addRequestModal');
-    e.target.reset();
-    calculateModalThreshold();
-
-    alert(`Requisition for "${item_name}" (₱${amount.toFixed(2)}) submitted!\nDOA Routing: ${targetRoute === 'procure' ? '🟢 Direct Buy Authorized' : (targetRoute === 'finance' ? '🟠 Endorsed to Finance' : '🔴 Escalated to CEO')}`);
 }
 
 async function handleAddVendor(e) {
@@ -439,22 +453,20 @@ async function handleAddVendor(e) {
     const contact = document.getElementById('addVendorContact').value.trim();
     const status = document.getElementById('addVendorStatus').value;
 
-    const newVen = {
-        id: allVendors.length + 1,
-        vendor_name,
-        category_desc: category,
-        contact_email: contact,
-        status,
-        total_spent: 0.00
-    };
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    allVendors.push(newVen);
-    applyCurrentFilters();
-    populateVendorDropdowns(allVendors);
-    closeModal('addVendorModal');
-    e.target.reset();
-
-    alert(`Vendor "${vendor_name}" added to verified suppliers!`);
+    try {
+        await apiPost('/api/procurement-officer/add-vendor', { vendor_name, category, contact, status });
+        closeModal('addVendorModal');
+        e.target.reset();
+        await fetchProcurementData();
+        alert(`Vendor "${vendor_name}" saved.`);
+    } catch (error) {
+        alert('Could not save the vendor: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function openEditVendor(vendorId) {
@@ -472,17 +484,23 @@ function openEditVendor(vendorId) {
 async function handleEditVendor(e) {
     e.preventDefault();
     const vendor_id = parseInt(document.getElementById('editVendorId').value, 10);
-    const v = allVendors.find(item => item.id === vendor_id);
-    if (v) {
-        v.vendor_name = document.getElementById('editVendorName').value.trim();
-        v.category_desc = document.getElementById('editVendorCategory').value.trim();
-        v.contact_email = document.getElementById('editVendorContact').value.trim();
-        v.status = document.getElementById('editVendorStatus').value;
+    const vendor_name = document.getElementById('editVendorName').value.trim();
+    const category = document.getElementById('editVendorCategory').value.trim();
+    const contact = document.getElementById('editVendorContact').value.trim();
+    const status = document.getElementById('editVendorStatus').value;
 
-        applyCurrentFilters();
-        populateVendorDropdowns(allVendors);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        await apiPost('/api/procurement-officer/edit-vendor', { vendor_id, vendor_name, category, contact, status });
         closeModal('editVendorModal');
-        alert(`Vendor "${v.vendor_name}" updated successfully!`);
+        await fetchProcurementData();
+        alert(`Vendor "${vendor_name}" updated.`);
+    } catch (error) {
+        alert('Could not update the vendor: ' + error.message);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -503,7 +521,7 @@ function closeModal(id) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

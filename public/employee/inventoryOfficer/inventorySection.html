@@ -62,7 +62,7 @@
                     <div class="user-avatar">
                         <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
                     </div>
-                    <span id="userFullName" class="user-name">Rhodalyn D. Leodones</span>
+                    <span id="userFullName" class="user-name"></span>
                 </div>
             </div>
         </header>
@@ -138,9 +138,9 @@
                             <th>Item Code &amp; Description</th>
                             <th>Category</th>
                             <th>Available On Hand</th>
-                            <th>Reserved (Tue/Thu)</th>
+                            <th>Reserved</th>
                             <th>Reorder Point</th>
-                            <th>Status &amp; DOA Restock</th>
+                            <th>Status</th>
                             <th style="text-align: right;">Action</th>
                         </tr>
                     </thead>
@@ -186,7 +186,7 @@
             <div class="form-grid">
                 <div class="form-group full">
                     <label for="addName">Item Name &amp; Description *</label>
-                    <input type="text" id="addName" placeholder="e.g. Assam Black Tea Leaves, Full Cream Milk" required>
+                    <input type="text" id="addName" placeholder="Item name" required>
                 </div>
 
                 <div class="form-group">
@@ -212,24 +212,12 @@
 
                 <div class="form-group">
                     <label for="addQuantity">Initial On Hand Quantity *</label>
-                    <input type="number" step="0.01" id="addQuantity" value="10" min="0" required>
+                    <input type="number" step="0.01" id="addQuantity" placeholder="0" min="0" required>
                 </div>
 
                 <div class="form-group">
                     <label for="addReorderLevel">Safety Reorder Threshold *</label>
-                    <input type="number" step="0.01" id="addReorderLevel" value="5" min="0" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="addVendorSelect">Primary Supplier / Vendor</label>
-                    <select id="addVendorSelect">
-                        <option value="">-- Choose Partner Vendor --</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="addEstCost">Est. Unit Price (₱) *</label>
-                    <input type="number" step="0.5" id="addEstCost" placeholder="e.g. 130" value="130" required>
+                    <input type="number" step="0.01" id="addReorderLevel" placeholder="0" min="0" required>
                 </div>
             </div>
 
@@ -246,8 +234,8 @@
     <div class="profile-modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <div class="modal-header-left">
-                <h3 class="modal-title">Adjust Stock / Pitch Restock</h3>
-                <p class="modal-subtitle">Update counts or trigger procurement under the DOA Matrix.</p>
+                <h3 class="modal-title">Adjust Stock</h3>
+                <p class="modal-subtitle">Update the counts for this item.</p>
             </div>
             <button type="button" class="modal-close" onclick="closeModal('adjustStockModal')">✕</button>
         </div>
@@ -291,16 +279,6 @@
                 <div class="form-group">
                     <label for="adjustItemReorder">Safety Reorder Point *</label>
                     <input type="number" step="0.01" id="adjustItemReorder" min="0" required>
-                </div>
-
-                <div class="form-group full">
-                    <!-- LIVE DOA ROUTING PREVIEW BOX -->
-                    <div class="routing-preview-box">
-                        <span class="routing-label">DOA Restock Purchase Routing:</span>
-                        <div id="adjustRoutingBadge" class="badge-route route-procure">
-                            🟢 Direct Route: Procurement Officer (≤ ₱300 Direct Buy)
-                        </div>
-                    </div>
                 </div>
             </div>
 

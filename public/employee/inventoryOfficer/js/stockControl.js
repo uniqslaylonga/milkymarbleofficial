@@ -4,6 +4,27 @@ let allLowStockAlerts = [];
 let currentMovPage = 1;
 const MOV_PAGE_SIZE = 5;
 
+// POST JSON to the employee API (sends the x-user-id header via employeeFetch).
+async function apiPost(url, body) {
+    const opts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    };
+    const res = (typeof employeeFetch === 'function') ? await employeeFetch(url, opts) : await fetch(url, opts);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || data.status === 'error') {
+        throw new Error(data.message || ('Server responded with status ' + res.status));
+    }
+    return data;
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchStockControlData();
 
@@ -44,16 +65,15 @@ async function fetchStockControlData() {
         const data = await response.json();
 
         // User Profile
-        const userFullNameEl = document.getElementById('userFullName');
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Rhodalyn D. Leodones';
+        setText('userFullName', (data.user && data.user.fullName) || '');
 
-        // KPI Grid
-        if (data.metrics) {
-            document.getElementById('openRequests').textContent = String(data.metrics.openRequests || 2).padStart(2, '0');
-            document.getElementById('activeVendors').textContent = String(data.metrics.activeVendors || 3).padStart(2, '0');
-            document.getElementById('itemsMonitored').textContent = String(data.metrics.itemsMonitored || 8).padStart(2, '0');
-            document.getElementById('reservedStocks').textContent = data.metrics.reservedStocks || '22.5 kg';
-        }
+        // KPI cards - straight from the server; nothing is filled in if it is missing
+        const m = data.metrics || {};
+        const pad2 = n => String(Number(n) || 0).padStart(2, '0');
+        setText('directBuyCount', pad2(m.directBuyCount));
+        setText('escalatedCount', pad2(m.escalatedCount));
+        setText('itemsMonitored', pad2(m.itemsMonitored));
+        setText('reservedStocks', (m.reservedStocks === null || m.reservedStocks === undefined) ? '—' : Number(m.reservedStocks).toLocaleString());
 
         allMovementLogs = data.movementLogs || [];
         allLowStockAlerts = data.lowStockItems || [];
@@ -123,22 +143,22 @@ function renderMovementLogs() {
     container.innerHTML = pageItems.map(log => {
         const type = log.change_type || 'ADJUST';
         const qty = parseFloat(log.quantity_changed || 0);
-        const itemCode = 'SKU-0' + (log.item_id || 1);
+        const unit = log.unit ? ' ' + log.unit : '';
 
         let iconClass = 'fa-sliders';
         let boxClass = 'box-adjust';
-        let changeSign = `±${qty}`;
+        let changeSign = `±${qty}${unit}`;
         let changeClass = 'adj';
 
         if (type === 'ADD') {
             iconClass = 'fa-plus';
             boxClass = 'box-plus';
-            changeSign = `+${qty} ${log.unit || ''}`;
+            changeSign = `+${qty}${unit}`;
             changeClass = 'pos';
         } else if (type === 'DEDUCT') {
             iconClass = 'fa-minus';
             boxClass = 'box-minus';
-            changeSign = `-${qty} ${log.unit || ''}`;
+            changeSign = `-${qty}${unit}`;
             changeClass = 'neg';
         }
 
@@ -150,7 +170,7 @@ function renderMovementLogs() {
                     </div>
                     <div>
                         <div class="mov-name">${escapeHtml(log.item_name)}</div>
-                        <div class="mov-code">${itemCode} • ${escapeHtml(log.employee_name || 'Staff')}</div>
+                        <div class="mov-code">${escapeHtml(log.employee_name) || '—'}</div>
                     </div>
                 </div>
 
@@ -206,14 +226,12 @@ function renderLowStockAlerts(alerts) {
     if (alertsBadge) alertsBadge.textContent = `${alerts.length} Breaches`;
 
     container.innerHTML = alerts.map(alert => {
-        const reorderLevel = parseFloat(alert.reorder_level || 1);
+        const reorderLevel = parseFloat(alert.reorder_level) || 1;
         const onHand = parseFloat(alert.on_hand || 0);
         const percent = Math.min(100, Math.round((onHand / reorderLevel) * 100));
-        const categoryLabel = alert.item_type === 'packaging' ? 'Packaging' : 'Ingredients';
-
-        let routeClass = 'route-procure';
-        if (alert.doa_route === 'ceo') routeClass = 'route-ceo';
-        else if (alert.doa_route === 'finance') routeClass = 'route-finance';
+        const type = String(alert.item_type || '').toLowerCase();
+        const categoryLabel = type === 'packaging' ? 'Packaging' : (type === 'equipment' ? 'Equipment' : 'Ingredients');
+        const unit = alert.unit ? ' ' + alert.unit : '';
 
         return `
             <div class="alert-card">
@@ -221,15 +239,12 @@ function renderLowStockAlerts(alerts) {
                     <div>
                         <div class="alert-item-name">${escapeHtml(alert.name)}</div>
                         <div class="alert-item-meta">
-                            ${categoryLabel} — <span class="highlight-low">${onHand} ${alert.unit || ''} on hand</span> (reorder at ${reorderLevel})
-                        </div>
-                        <div style="margin-top: 4px;">
-                            <span class="badge-route ${routeClass}">${escapeHtml(alert.doa_text || 'DOA Check')}</span>
+                            ${categoryLabel} — <span class="highlight-low">${onHand}${escapeHtml(unit)} on hand</span> (reorder at ${reorderLevel})
                         </div>
                     </div>
 
                     <div class="alert-actions">
-                        <button type="button" class="btn-handle-restock" onclick="quickHandleAlert(${alert.id}, '${escapeHtml(alert.name)}', ${alert.est_cost || 250}, '${alert.doa_route || 'procure'}')">
+                        <button type="button" class="btn-handle-restock" onclick="quickHandleAlert(${Number(alert.id)})">
                             Pitch Reorder
                         </button>
                     </div>
@@ -243,20 +258,37 @@ function renderLowStockAlerts(alerts) {
     }).join('');
 }
 
-function quickHandleAlert(itemId, itemName, estCost, doaRoute) {
-    let routeNotice = '🟢 Direct Buy Authorized for Rhodalyn (≤ ₱300)';
-    if (doaRoute === 'ceo') routeNotice = '🔴 Escalated to CEO (> ₱500)';
-    else if (doaRoute === 'finance') routeNotice = '🟠 Endorsed to Financial Officer (₱301–₱500)';
+// Pitch a reorder: creates a real purchase request. There is no stored unit
+// price, so the officer enters the estimated total and DOA routing follows it.
+async function quickHandleAlert(itemId) {
+    const alertItem = allLowStockAlerts.find(a => a.id === itemId);
+    if (!alertItem) return;
 
-    const confirmPitch = confirm(`Create Restock Purchase Requisition for:\n"${itemName}"\n• Estimated Expense: ₱${estCost.toFixed(2)}\n• Routing: ${routeNotice}\n\nProceed?`);
-    if (confirmPitch) {
-        alert(`Requisition for "${itemName}" submitted to Procurement queue!\nForwarded to: ${routeNotice}`);
+    const input = prompt(`Estimated total cost (₱) to reorder "${alertItem.name}":`);
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (!(amount > 0)) {
+        alert('Please enter a valid amount greater than 0.');
+        return;
+    }
+
+    try {
+        const result = await apiPost('/api/procurement-officer/add-request', {
+            item_name: `Restock: ${alertItem.name}`,
+            store_name: '',
+            amount
+        });
+        const route = result.request && result.request.route;
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
+        alert(`Requisition for "${alertItem.name}" (₱${amount.toFixed(2)}) saved.\nRouting: ${routeText}`);
         window.location.href = 'procurement.html';
+    } catch (error) {
+        alert('Could not save the requisition: ' + error.message);
     }
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

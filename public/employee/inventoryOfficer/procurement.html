@@ -62,7 +62,7 @@
                     <div class="user-avatar">
                         <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
                     </div>
-                    <span id="userFullName" class="user-name">Rhodalyn D. Leodones</span>
+                    <span id="userFullName" class="user-name"></span>
                 </div>
             </div>
         </header>
@@ -107,11 +107,11 @@
                     <div class="custom-select-wrap">
                         <i class="fa-solid fa-filter filter-icon"></i>
                         <select id="statusFilter">
-                            <option value="">All Status &amp; Routes</option>
-                            <option value="DIRECT_BUY_AUTHORIZED">Direct Buy (≤ ₱300)</option>
+                            <option value="">All Statuses</option>
+                            <option value="APPROVED">Approved (Direct Buy)</option>
                             <option value="PENDING_FINANCE">Pending Finance (₱301–₱500)</option>
                             <option value="PENDING_CEO">Pending CEO (> ₱500)</option>
-                            <option value="APPROVED">Approved / Purchased</option>
+                            <option value="PURCHASED">Purchased</option>
                         </select>
                     </div>
                 </div>
@@ -132,7 +132,6 @@
                             <tr>
                                 <th>PR Code &amp; Item Name</th>
                                 <th>Requester</th>
-                                <th>Department</th>
                                 <th>Supplier / Store</th>
                                 <th>Amount</th>
                                 <th>DOA Route &amp; Status</th>
@@ -140,7 +139,7 @@
                             </tr>
                         </thead>
                         <tbody id="requestsTableBody">
-                            <tr><td colspan="7" class="loading-state-text">Loading purchase requests...</td></tr>
+                            <tr><td colspan="6" class="loading-state-text">Loading purchase requests...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -217,16 +216,7 @@
             <div class="form-grid">
                 <div class="form-group full">
                     <label for="reqItemName">Raw Ingredient / Supply Description *</label>
-                    <input type="text" id="reqItemName" placeholder="e.g. Condensed Milk, Tapioca Pearls (1kg), 16oz Cups" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="reqDept">Requesting Department *</label>
-                    <select id="reqDept" required>
-                        <option value="Production Kitchen" selected>Production Kitchen</option>
-                        <option value="Sales Counter">Sales Counter</option>
-                        <option value="Warehouse Store">Warehouse Store</option>
-                    </select>
+                    <input type="text" id="reqItemName" placeholder="Item or supply description" required>
                 </div>
 
                 <div class="form-group">
@@ -243,7 +233,7 @@
 
                 <div class="form-group">
                     <label for="reqAmount">Estimated Total Amount (₱) *</label>
-                    <input type="number" step="0.5" id="reqAmount" placeholder="e.g. 260" min="1" required>
+                    <input type="number" step="0.5" id="reqAmount" placeholder="0.00" min="1" required>
                 </div>
 
                 <!-- LIVE DOA ROUTING PREVIEW BADGE -->
@@ -281,17 +271,17 @@
             <div class="form-grid">
                 <div class="form-group full">
                     <label for="addVendorName">Supplier / Vendor Name *</label>
-                    <input type="text" id="addVendorName" placeholder="e.g. North Caloocan Boba Hub" required>
+                    <input type="text" id="addVendorName" placeholder="Vendor name" required>
                 </div>
 
                 <div class="form-group full">
                     <label for="addVendorCategory">Category / Supplies *</label>
-                    <input type="text" id="addVendorCategory" placeholder="e.g. Tapioca Pearls, Syrups &amp; Toppings" required>
+                    <input type="text" id="addVendorCategory" placeholder="What this vendor supplies" required>
                 </div>
 
                 <div class="form-group">
                     <label for="addVendorContact">Contact Details *</label>
-                    <input type="text" id="addVendorContact" placeholder="e.g. sales@bobahub.com / 0917-xxx-xxxx" required>
+                    <input type="text" id="addVendorContact" placeholder="Email or phone number" required>
                 </div>
 
                 <div class="form-group">
