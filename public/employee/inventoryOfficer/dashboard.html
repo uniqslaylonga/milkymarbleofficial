@@ -71,11 +71,10 @@
                 <div class="welcome-banner-content">
                     <div class="welcome-text-col">
                         <div class="banner-badge-row">
-                            <span class="release-window-pill">Restock Ops: Tue &amp; Thu Production Support</span>
                             <span class="shift-subtag">DOA Matrix Active (≤₱300 Direct Buy)</span>
                         </div>
                         <h1 class="welcome-title" id="welcomeTitle">Glad to have you here!</h1>
-                        <p class="welcome-sub">Manage kitchen requisitions, vendor purchases, and warehouse thresholds before brew days.</p>
+                        <p class="welcome-sub">Manage purchase requisitions, vendor records, and warehouse reorder points.</p>
                     </div>
                     <div class="banner-action-col">
                         <button type="button" class="btn-primary" onclick="openModal('addRequestModal')">
@@ -191,23 +190,16 @@
                     </div>
                 </div>
 
-                <!-- KANANG CARD: VENDOR & PRE-RELEASE RESTOCK TIMETABLE -->
+                <!-- KANANG CARD: VENDOR DIRECTORY -->
                 <div class="directory-card">
                     <div class="panel-header-bar">
                         <div>
                             <h2 class="section-title">Supplier Desk</h2>
-                            <p class="section-sub-text">Mon/Wed Pre-Release Restock Window</p>
+                            <p class="section-sub-text">Suppliers on file for purchase requests</p>
                         </div>
                         <button class="circle-arrow-btn" onclick="window.location.href='procurement.html'" title="Open Procurement Directory">
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
-                    </div>
-
-                    <div class="insight-box-sm warning-style" style="margin-bottom: 12px;">
-                        <span class="insight-icon">📅</span>
-                        <p class="insight-text">
-                            <strong>Pre-Release Procurement Cut-off:</strong> All Tuesday supplies must be purchased by Monday 4:00 PM; Thursday supplies by Wednesday 4:00 PM.
-                        </p>
                     </div>
 
                     <div id="vendorList" class="vendor-list">
