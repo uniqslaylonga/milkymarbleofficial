@@ -39,7 +39,7 @@ async function fetchStockControlData() {
             response = await fetch('/api/procurement-officer/stock-control', { headers });
         }
 
-        if (!response.ok) throw new Error('API unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -62,125 +62,8 @@ async function fetchStockControlData() {
         renderLowStockAlerts(allLowStockAlerts);
 
     } catch (error) {
-        console.warn('Backend offline, loading realistic fallback data reflecting Tue/Thu prep and DOA matrix:', error);
-
-        document.getElementById('userFullName').textContent = 'Rhodalyn D. Leodones';
-
-        // Fallback KPI counts
-        document.getElementById('openRequests').textContent = '02';
-        document.getElementById('activeVendors').textContent = '03';
-        document.getElementById('itemsMonitored').textContent = '08';
-        document.getElementById('reservedStocks').textContent = '22.5 kg';
-
-        // Fallback realistic milk tea inventory movement trail
-        allMovementLogs = [
-            {
-                id: 1,
-                item_name: 'Tapioca Pearls (Raw Boba)',
-                item_id: 1,
-                change_type: 'DEDUCT',
-                quantity_changed: 5,
-                unit: 'kg',
-                dateGroup: 'today',
-                employee_name: 'Clarisse (Kitchen)',
-                displayTime: 'Today · 07:45 AM (Tuesday Prep Run)'
-            },
-            {
-                id: 2,
-                item_name: 'Assam Black Tea Leaves',
-                item_id: 2,
-                change_type: 'DEDUCT',
-                quantity_changed: 1,
-                unit: 'kg',
-                dateGroup: 'today',
-                employee_name: 'Clarisse (Kitchen)',
-                displayTime: 'Today · 08:15 AM (Urn 1 Brewing)'
-            },
-            {
-                id: 3,
-                item_name: '16oz Milky Marble PP Cups',
-                item_id: 5,
-                change_type: 'ADD',
-                quantity_changed: 250,
-                unit: 'pcs',
-                dateGroup: 'yesterday',
-                employee_name: 'Rhodalyn (Procurement)',
-                displayTime: 'Yesterday · 03:30 PM (Direct Restock)'
-            },
-            {
-                id: 4,
-                item_name: 'Full Cream Milk (1L Cartons)',
-                item_id: 3,
-                change_type: 'DEDUCT',
-                quantity_changed: 6,
-                unit: 'liters',
-                dateGroup: 'today',
-                employee_name: 'Barista Counter',
-                displayTime: 'Today · 09:30 AM (Preset Mixing)'
-            },
-            {
-                id: 5,
-                item_name: 'Branded Sealing Film Roll',
-                item_id: 7,
-                change_type: 'ADJUST',
-                quantity_changed: 1,
-                unit: 'roll',
-                dateGroup: 'older',
-                employee_name: 'Rhodalyn (Procurement)',
-                displayTime: 'Sep 18 · Machine Calibration'
-            },
-            {
-                id: 6,
-                item_name: 'Brown Sugar Syrup (1L Bottle)',
-                item_id: 9,
-                change_type: 'DEDUCT',
-                quantity_changed: 2,
-                unit: 'bottles',
-                dateGroup: 'yesterday',
-                employee_name: 'Clarisse (Kitchen)',
-                displayTime: 'Yesterday · Melting Preparation'
-            }
-        ];
-
-        // Fallback realistic low stock alerts with DOA calculation
-        allLowStockAlerts = [
-            {
-                id: 1,
-                name: 'Tapioca Pearls (Raw Black Boba)',
-                item_type: 'ingredients',
-                on_hand: 3.5,
-                reorder_level: 6.0,
-                unit: 'kg',
-                est_cost: 260.00,
-                doa_route: 'procure',
-                doa_text: '🟢 Direct Buy (≤ ₱300)'
-            },
-            {
-                id: 2,
-                name: 'Assam Black Tea Leaves (Sacks)',
-                item_type: 'ingredients',
-                on_hand: 2.0,
-                reorder_level: 4.0,
-                unit: 'kg',
-                est_cost: 500.00,
-                doa_route: 'finance',
-                doa_text: '🟠 Finance Clearance (₱301–₱500)'
-            },
-            {
-                id: 6,
-                name: '22oz Large PP Cups (Box of 1000)',
-                item_type: 'packaging',
-                on_hand: 95,
-                reorder_level: 200,
-                unit: 'pcs',
-                est_cost: 1400.00,
-                doa_route: 'ceo',
-                doa_text: '🔴 CEO Approval (> ₱500)'
-            }
-        ];
-
-        applyMovementFilters();
-        renderLowStockAlerts(allLowStockAlerts);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

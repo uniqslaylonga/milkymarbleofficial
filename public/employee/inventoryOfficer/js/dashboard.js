@@ -73,7 +73,7 @@ async function fetchProcurementDashboardData() {
             response = await fetch('/api/procurement-officer/dashboard', { headers });
         }
 
-        if (!response.ok) throw new Error('API unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -92,115 +92,8 @@ async function fetchProcurementDashboardData() {
         renderInventoryStats(data.inventoryCategory);
 
     } catch (error) {
-        console.warn('Loading realistic fallback data with DOA matrix thresholds for Rhodalyn:', error);
-
-        // Fallback user profile
-        document.getElementById('userName').textContent = 'Rhodalyn D. Leodones';
-        document.getElementById('userFirstName').textContent = 'Rhodalyn';
-
-        // Fallback realistic milk tea requisitions reflecting the DOA Matrix
-        allRequests = [
-            {
-                id: 1,
-                pr_code: 'PR-1001',
-                name: 'Tapioca Pearls (2x 1kg packs)',
-                department: 'Production Kitchen',
-                supplier: 'Caloocan Boba Hub',
-                quantity: '2 packs',
-                total_price: 260.00,
-                route: 'procure',
-                status: 'PROCUREMENT_APPROVED'
-            },
-            {
-                id: 2,
-                pr_code: 'PR-1002',
-                name: 'Brown Sugar Syrup (2x 1L Bottles)',
-                department: 'Production Kitchen',
-                supplier: 'Sweet Flavors Wholesale',
-                quantity: '2 bottles',
-                total_price: 290.00,
-                route: 'procure',
-                status: 'DIRECT_BUY_AUTHORIZED'
-            },
-            {
-                id: 3,
-                pr_code: 'PR-1003',
-                name: 'Full Cream Milk (6x 1L Fresh Box)',
-                department: 'Production Kitchen',
-                supplier: 'Metro Dairy Distributors',
-                quantity: '1 box (6L)',
-                total_price: 450.00,
-                route: 'finance',
-                status: 'PENDING_FINANCE'
-            },
-            {
-                id: 4,
-                pr_code: 'PR-1004',
-                name: 'Store Promotional Banners & Flyers',
-                department: 'Sales Counter',
-                supplier: 'North Caloocan Press',
-                quantity: '1 lot',
-                total_price: 480.00,
-                route: 'finance',
-                status: 'FINANCE_APPROVED'
-            },
-            {
-                id: 5,
-                pr_code: 'PR-1005',
-                name: 'Quarterly Bulk Sealing Film & 22oz Cups',
-                department: 'Warehouse Store',
-                supplier: 'EcoCup Packaging Corp',
-                quantity: '5 boxes (2500 pcs)',
-                total_price: 3200.00,
-                route: 'ceo',
-                status: 'PENDING_CEO'
-            },
-            {
-                id: 6,
-                pr_code: 'PR-1006',
-                name: 'Assam Black Tea & Jasmine Green Sacks',
-                department: 'Production Kitchen',
-                supplier: 'Golden Leaves Imports',
-                quantity: '4 sacks (20kg)',
-                total_price: 4800.00,
-                route: 'ceo',
-                status: 'PENDING_CEO'
-            }
-        ];
-
-        // Fallback Vendors
-        const fallbackVendors = [
-            {
-                id: 1,
-                vendor_name: 'Metro Dairy Wholesale',
-                category_desc: 'Fresh Milk & Cream Foam',
-                status: 'ACTIVE PARTNER'
-            },
-            {
-                id: 2,
-                vendor_name: 'Caloocan Boba Hub',
-                category_desc: 'Raw Tapioca Pearls & Syrups',
-                status: 'ACTIVE PARTNER'
-            },
-            {
-                id: 3,
-                vendor_name: 'EcoCup Packaging Corp',
-                category_desc: 'PP Cups, Straws & Sealing Film',
-                status: 'ACTIVE PARTNER'
-            }
-        ];
-
-        // Fallback Inventory breakdown
-        const fallbackInventory = {
-            totalAvailableUnits: 1240,
-            ingUnits: 680,
-            pkgUnits: 510,
-            eqpUnits: 50
-        };
-
-        applyRequestsFilter();
-        renderVendorsList(fallbackVendors);
-        renderInventoryStats(fallbackInventory);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

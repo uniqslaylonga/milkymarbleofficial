@@ -60,7 +60,7 @@ async function fetchOrderListData() {
             response = await fetch('/api/production-supervisor/order-list', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load order list data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -84,137 +84,8 @@ async function fetchOrderListData() {
         renderPresetBatchAllocator();
 
     } catch (error) {
-        console.warn('Backend unavailable, rendering fallback demo data for Tue/Thu model:', error);
-
-        // Fallback user profile
-        document.getElementById('userFullName').textContent = 'Angeline (Supervisor)';
-
-        // Fallback KPI numbers
-        document.getElementById('preordersTargetCount').textContent = '57';
-        document.getElementById('presetsQuotaCount').textContent = '38';
-        document.getElementById('sealedReadyCount').textContent = '72';
-        document.getElementById('inQueueCount').textContent = '23';
-
-        // Fallback Queue Table with real milk tea customization (No money/amount)
-        allOrders = [
-            {
-                id: 101,
-                order_number: 'MM-PRE-081',
-                customer_name: 'Clarisse Santos',
-                type: 'preorder',
-                cleanTitle: 'Classic Pearl Milk Tea',
-                specs: '16oz Regular • 25% Sugar • Less Ice • Standard Boba',
-                quantity: 2,
-                claim_slot: 'Tue 10:00 AM – 11:30 AM',
-                shelf_tag: 'Shelf A-04',
-                statusClass: 'ready',
-                statusLabel: '✓ Sealed & Shelf-Ready'
-            },
-            {
-                id: 102,
-                order_number: 'BATCH-PRESET-01',
-                customer_name: 'Walk-in Counter Presets',
-                type: 'preset',
-                cleanTitle: 'Classic Pearl (Batch 1)',
-                specs: '16oz Regular • 50% Preset Sugar • Normal Ice • Fixed Boba',
-                quantity: 40,
-                claim_slot: 'Walk-in (10 AM – 3 PM)',
-                shelf_tag: 'Chiller Rack 1',
-                statusClass: 'ready',
-                statusLabel: '✓ 40/40 Sealed'
-            },
-            {
-                id: 103,
-                order_number: 'MM-PRE-082',
-                customer_name: 'Mark Reyes',
-                type: 'preorder',
-                cleanTitle: 'Brown Sugar Marble Latte',
-                specs: '22oz Large • 100% Fixed Syrup • Regular Ice • Extra Pearls',
-                quantity: 1,
-                claim_slot: 'Tue 11:00 AM – 1:00 PM',
-                shelf_tag: 'Shelf B-02',
-                statusClass: 'ready',
-                statusLabel: '✓ Sealed & Shelf-Ready'
-            },
-            {
-                id: 104,
-                order_number: 'MM-PRE-083',
-                customer_name: 'Jocelyn Garcia',
-                type: 'preorder',
-                cleanTitle: 'Taro Cream Cheese',
-                specs: '16oz Regular • 50% Sugar • No Ice • Egg Pudding',
-                quantity: 3,
-                claim_slot: 'Tue 1:00 PM – 2:30 PM',
-                shelf_tag: 'Station 2',
-                statusClass: 'inprep',
-                statusLabel: '⏳ In Prep Queue'
-            },
-            {
-                id: 105,
-                order_number: 'BATCH-PRESET-02',
-                customer_name: 'Walk-in Counter Presets',
-                type: 'preset',
-                cleanTitle: 'Brown Sugar Marble (Batch 2)',
-                specs: '22oz Large • Preset Sweetness • Normal Ice • Fixed Boba',
-                quantity: 25,
-                claim_slot: 'Walk-in (10 AM – 3 PM)',
-                shelf_tag: 'Chiller Rack 2',
-                statusClass: 'inprep',
-                statusLabel: '⏳ 12/25 In Assembly'
-            },
-            {
-                id: 106,
-                order_number: 'MM-PRE-084',
-                customer_name: 'Kevin Dizon',
-                type: 'preorder',
-                cleanTitle: 'Matcha Cream Marble',
-                specs: '22oz Large • 50% Sugar • Less Ice • Cream Foam',
-                quantity: 1,
-                claim_slot: 'Tue 1:30 PM – 3:00 PM',
-                shelf_tag: 'Station 1',
-                statusClass: 'inprep',
-                statusLabel: '⏳ In Prep Queue'
-            }
-        ];
-
-        // Fallback Walk-in Presets Allocator
-        allPresets = [
-            {
-                id: 1,
-                name: 'Classic Pearl Milk Tea (Preset)',
-                target_batch: 40,
-                sealed_count: 40,
-                specs: '16oz Regular • 50% Sugar • Standard Tapioca',
-                chiller_rack: 'Display Chiller A1'
-            },
-            {
-                id: 2,
-                name: 'Brown Sugar Marble Latte (Preset)',
-                target_batch: 25,
-                sealed_count: 20,
-                specs: '22oz Large • Fixed Brown Sugar Syrup • Pearls',
-                chiller_rack: 'Display Chiller A2'
-            },
-            {
-                id: 3,
-                name: 'Matcha Cream Marble (Preset)',
-                target_batch: 20,
-                sealed_count: 18,
-                specs: '16oz Regular • 50% Sugar • Matcha Base',
-                chiller_rack: 'Display Chiller B1'
-            },
-            {
-                id: 4,
-                name: 'Wintermelon Milk Tea (Preset)',
-                target_batch: 30,
-                sealed_count: 22,
-                specs: '22oz Large • 75% Sugar • Grass Jelly & Pearls',
-                chiller_rack: 'Display Chiller B2'
-            }
-        ];
-
-        applyOrderFilters();
-        renderPresetBatchAllocator();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

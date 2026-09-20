@@ -62,7 +62,7 @@ async function fetchProductionDashboardData() {
             response = await fetch('/api/production-supervisor/dashboard', { headers });
         }
 
-        if (!response.ok) throw new Error('Backend route unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -92,109 +92,8 @@ async function fetchProductionDashboardData() {
         renderScheduleList(data.scheduleList);
 
     } catch (error) {
-        console.warn('Loading fallback data for Tue/Thu 10 AM - 3 PM production:', error);
-
-        // Fallback profile
-        document.getElementById('userFullName').textContent = 'Angeline (Supervisor)';
-        document.getElementById('userFirstName').textContent = 'Angeline';
-
-        // Fallback KPI
-        document.getElementById('completedToday').textContent = '95';
-        document.getElementById('inProduction').textContent = '38';
-        document.getElementById('pendingOrders').textContent = '14 / 57';
-        document.getElementById('reservedStocks').textContent = '02';
-
-        // Fallback Queue
-        allQueueOrders = [
-            {
-                id: 1,
-                cleanTitle: 'Classic Pearl Milk Tea (16oz)',
-                order_number: 'MM-PRE-081',
-                type: 'preorder',
-                quantity: 2,
-                scheduleText: 'Tue 10:00 AM – 11:30 AM',
-                total_amount: 220.00,
-                statusClass: 'ready',
-                statusLabel: '✓ Brewed & Sealed'
-            },
-            {
-                id: 2,
-                cleanTitle: 'Brown Sugar Marble Latte (22oz)',
-                order_number: 'MM-PRE-082',
-                type: 'preorder',
-                quantity: 1,
-                scheduleText: 'Tue 11:00 AM – 1:00 PM',
-                total_amount: 140.00,
-                statusClass: 'ready',
-                statusLabel: '✓ Brewed & Sealed'
-            },
-            {
-                id: 3,
-                cleanTitle: 'Classic Pearl (Counter Stock Batch 1)',
-                order_number: 'BATCH-PRESET-01',
-                type: 'preset',
-                quantity: 40,
-                scheduleText: 'Counter Walk-in (10 AM - 3 PM)',
-                total_amount: 4400.00,
-                statusClass: 'ready',
-                statusLabel: '✓ Brewed & Sealed'
-            },
-            {
-                id: 4,
-                cleanTitle: 'Taro Cream Cheese (16oz)',
-                order_number: 'MM-PRE-083',
-                type: 'preorder',
-                quantity: 3,
-                scheduleText: 'Tue 1:00 PM – 2:30 PM',
-                total_amount: 435.00,
-                statusClass: 'inprep',
-                statusLabel: '⏳ In Prep Batch'
-            },
-            {
-                id: 5,
-                cleanTitle: 'Matcha Cream Marble (22oz)',
-                order_number: 'MM-PRE-084',
-                type: 'preorder',
-                quantity: 1,
-                scheduleText: 'Tue 1:30 PM – 3:00 PM',
-                total_amount: 155.00,
-                statusClass: 'inprep',
-                statusLabel: '⏳ In Prep Batch'
-            }
-        ];
-
-        // Fallback Restock Pitches
-        allRestockPitches = [
-            {
-                id: 1,
-                item_name: 'Tapioca Pearls (1kg pack)',
-                quantity: 2,
-                total_cost: 260.00,
-                status: 'PROCUREMENT_APPROVED',
-                route_text: '🟢 Direct Buy: Procurement'
-            },
-            {
-                id: 2,
-                item_name: 'Full Cream Milk (6x 1L Box)',
-                quantity: 1,
-                total_cost: 450.00,
-                status: 'PENDING_FINANCE',
-                route_text: '🟠 Requires Finance Approval'
-            },
-            {
-                id: 3,
-                item_name: 'Sealing Film Rolls (Bulk Pack)',
-                quantity: 1,
-                total_cost: 1250.00,
-                status: 'PENDING_CEO',
-                route_text: '🔴 Escalated to CEO'
-            }
-        ];
-
-        filteredQueueOrders = [...allQueueOrders];
-        renderQueueTable();
-        renderRestockPitches();
-        renderScheduleList([]);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

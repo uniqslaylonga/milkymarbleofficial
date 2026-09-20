@@ -1644,15 +1644,7 @@ router.get('/production-supervisor/order-production', async (req, res) => {
       if (fallback && fallback.id) requestedOrderId = fallback.id;
     }
 
-    let orderData = {
-      id: requestedOrderId || 0,
-      orderCode: requestedOrderId ? `MM-${requestedOrderId}` : 'MM-0000',
-      orderClient: 'Customer',
-      orderStatus: 'PENDING',
-      itemLabel: 'Chocolatey Coffee Noodly Jelly',
-      flavorTag: 'Coffee',
-      variationTag: 'Spaghetti'
-    };
+    let orderData = null;
 
     if (requestedOrderId > 0) {
       const { data: order } = await supabase
@@ -1683,6 +1675,10 @@ router.get('/production-supervisor/order-production', async (req, res) => {
       }
     }
 
+    if (!orderData) {
+      return res.status(404).json({ status: 'error', message: 'No order found to display.' });
+    }
+
     const { data: invRows } = await supabase.from('inventory_items').select('*').order('id', { ascending: true });
     let materials;
     if (invRows && invRows.length > 0) {
@@ -1695,12 +1691,7 @@ router.get('/production-supervisor/order-production', async (req, res) => {
         unit: inv.unit_of_measure
       }));
     } else {
-      materials = [
-        { id: 1, name: '8oz Plastic Cups & Lids', amount: 1.0, step: 1, min: 1, max: 50, unit: 'pcs' },
-        { id: 2, name: 'Coffee Jelly Powder', amount: 200.0, step: 10, min: 10, max: 1000, unit: 'grams' },
-        { id: 3, name: 'Condensed Milk', amount: 1.5, step: 0.5, min: 0.5, max: 10, unit: 'cans' },
-        { id: 4, name: 'Evaporated Milk', amount: 2.0, step: 0.5, min: 0.5, max: 10, unit: 'cans' }
-      ];
+      materials = []; // nothing in inventory_items yet - do not invent stock
     }
 
     return res.json({ status: 'success', user: userProfile, order: orderData, materials });

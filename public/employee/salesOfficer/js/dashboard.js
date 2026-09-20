@@ -114,10 +114,10 @@ function initCharts() {
         revenueDonutChartInstance = new Chart(revCtx.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: ['Registered', 'Guest'],
+                labels: ['No revenue yet'],
                 datasets: [{
-                    data: [50, 50],
-                    backgroundColor: ['#F69299', '#E89E80'],
+                    data: [1],
+                    backgroundColor: ['#E8E0DC'],
                     borderWidth: 0
                 }]
             },
@@ -126,7 +126,8 @@ function initCharts() {
                 maintainAspectRatio: false,
                 cutout: '74%',
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: { enabled: false }
                 }
             }
         });
@@ -225,8 +226,20 @@ async function loadPageData() {
 
             if (revenueDonutChartInstance) {
                 const total = regRev + guestRev;
-                revenueDonutChartInstance.data.datasets[0].data = total === 0 ? [50, 50] : [regRev, guestRev];
-                revenueDonutChartInstance.update();
+                const chart = revenueDonutChartInstance;
+                if (total === 0) {
+                    // No completed orders yet: show a neutral empty ring, not a made-up 50/50 split.
+                    chart.data.labels = ['No revenue yet'];
+                    chart.data.datasets[0].data = [1];
+                    chart.data.datasets[0].backgroundColor = ['#E8E0DC'];
+                    chart.options.plugins.tooltip.enabled = false;
+                } else {
+                    chart.data.labels = ['Registered', 'Guest'];
+                    chart.data.datasets[0].data = [regRev, guestRev];
+                    chart.data.datasets[0].backgroundColor = ['#F69299', '#E89E80'];
+                    chart.options.plugins.tooltip.enabled = true;
+                }
+                chart.update();
             }
 
             if (barRegLabel) barRegLabel.textContent = `${regPct}%`;

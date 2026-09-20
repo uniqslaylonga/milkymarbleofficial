@@ -42,7 +42,7 @@ async function fetchRevenueData() {
             response = await fetch('/api/finance-officer/revenue', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load revenue data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -67,77 +67,8 @@ async function fetchRevenueData() {
         initChannelDonutChart(data.channelShares);
 
     } catch (error) {
-        console.warn('Backend unavailable, loading realistic Tuesday/Thursday release revenue dataset:', error);
-
-        document.getElementById('userName').textContent = 'Financial Officer';
-
-        // Fallback Realistic Product Sales Mix for Milky Marble
-        allRevenueItems = [
-            {
-                id: 1,
-                flavor_name: 'Classic Pearl Milk Tea (16oz)',
-                category: 'pearl',
-                category_label: 'Pearl Milk Tea',
-                cups_sold: 45,
-                unit_price: 110.00,
-                gross_sales: 4950.00,
-                unit_cogs: 58.00,
-                net_margin_pct: 47.2,
-                perf_status: 'Top Performer'
-            },
-            {
-                id: 2,
-                flavor_name: 'Brown Sugar Marble Latte (22oz)',
-                category: 'specialty',
-                category_label: 'Specialty Latte',
-                cups_sold: 32,
-                unit_price: 140.00,
-                gross_sales: 4480.00,
-                unit_cogs: 78.00,
-                net_margin_pct: 44.3,
-                perf_status: 'High Margin'
-            },
-            {
-                id: 3,
-                flavor_name: 'Matcha Cream Marble (16oz)',
-                category: 'specialty',
-                category_label: 'Specialty Latte',
-                cups_sold: 22,
-                unit_price: 135.00,
-                gross_sales: 2970.00,
-                unit_cogs: 82.00,
-                net_margin_pct: 39.2,
-                perf_status: 'Steady Seller'
-            },
-            {
-                id: 4,
-                flavor_name: 'Taro Cream Cheese (16oz)',
-                category: 'pearl',
-                category_label: 'Pearl Milk Tea',
-                cups_sold: 18,
-                unit_price: 145.00,
-                gross_sales: 2610.00,
-                unit_cogs: 88.00,
-                net_margin_pct: 39.3,
-                perf_status: 'Steady Seller'
-            },
-            {
-                id: 5,
-                flavor_name: 'Wintermelon Boba Tea (22oz)',
-                category: 'pearl',
-                category_label: 'Pearl Milk Tea',
-                cups_sold: 15,
-                unit_price: 120.00,
-                gross_sales: 1800.00,
-                unit_cogs: 62.00,
-                net_margin_pct: 48.3,
-                perf_status: 'High Margin'
-            }
-        ];
-
-        applyRevenueFilters();
-        initWeeklyReleaseChart();
-        initChannelDonutChart();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

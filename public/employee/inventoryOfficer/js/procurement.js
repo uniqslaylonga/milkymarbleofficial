@@ -74,7 +74,7 @@ async function fetchProcurementData() {
             response = await fetch('/api/procurement-officer/purchasing-vendor', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -89,126 +89,8 @@ async function fetchProcurementData() {
         populateVendorDropdowns(allVendors);
 
     } catch (error) {
-        console.warn('Backend offline, loading fallback dataset reflecting DOA Matrix for Rhodalyn:', error);
-
-        document.getElementById('userFullName').textContent = 'Rhodalyn D. Leodones';
-
-        // Fallback realistic milk tea requisitions reflecting DOA Matrix
-        allRequests = [
-            {
-                id: 1,
-                pr_code: 'PR-1001',
-                name: 'Tapioca Pearls (2x 1kg packs)',
-                requester_name: 'Clarisse (Kitchen)',
-                department: 'Production Kitchen',
-                vendor_name: 'Caloocan Boba Hub',
-                total_price: 260.00,
-                route: 'procure',
-                status: 'DIRECT_BUY_AUTHORIZED'
-            },
-            {
-                id: 2,
-                pr_code: 'PR-1002',
-                name: 'Brown Sugar Syrup (2x 1L Bottles)',
-                requester_name: 'Kitchen Staff',
-                department: 'Production Kitchen',
-                vendor_name: 'Sweet Flavors Wholesale',
-                total_price: 290.00,
-                route: 'procure',
-                status: 'DIRECT_BUY_AUTHORIZED'
-            },
-            {
-                id: 3,
-                pr_code: 'PR-1003',
-                name: 'Full Cream Milk (6x 1L Fresh Box)',
-                requester_name: 'Kitchen Lead',
-                department: 'Production Kitchen',
-                vendor_name: 'Metro Dairy Distributors',
-                total_price: 450.00,
-                route: 'finance',
-                status: 'PENDING_FINANCE'
-            },
-            {
-                id: 4,
-                pr_code: 'PR-1004',
-                name: 'Promotional Store Banners (Tue/Thu Release)',
-                requester_name: 'Sales Counter',
-                department: 'Sales Counter',
-                vendor_name: 'North Caloocan Press',
-                total_price: 480.00,
-                route: 'finance',
-                status: 'APPROVED'
-            },
-            {
-                id: 5,
-                pr_code: 'PR-1005',
-                name: 'Commercial Sealing Film & 22oz Cups (Bulk)',
-                requester_name: 'Rhodalyn (Warehouse)',
-                department: 'Warehouse Store',
-                vendor_name: 'EcoCup Packaging Corp',
-                total_price: 3200.00,
-                route: 'ceo',
-                status: 'PENDING_CEO'
-            },
-            {
-                id: 6,
-                pr_code: 'PR-1006',
-                name: 'Imported Assam Black Tea Leaves (4 Sacks)',
-                requester_name: 'Clarisse (Kitchen)',
-                department: 'Production Kitchen',
-                vendor_name: 'Golden Leaves Imports',
-                total_price: 4800.00,
-                route: 'ceo',
-                status: 'PENDING_CEO'
-            }
-        ];
-
-        // Fallback realistic vendor catalog
-        allVendors = [
-            {
-                id: 1,
-                vendor_name: 'Caloocan Boba Hub',
-                category_desc: 'Raw Tapioca Pearls & Flavor Powders',
-                contact_email: 'orders@cal-bobahub.ph',
-                status: 'Active',
-                total_spent: 12400.00
-            },
-            {
-                id: 2,
-                vendor_name: 'Metro Dairy Distributors',
-                category_desc: 'Fresh Whole Milk, Creams & Dairy',
-                contact_email: 'supply@metrodairy.com',
-                status: 'Active',
-                total_spent: 8650.00
-            },
-            {
-                id: 3,
-                vendor_name: 'EcoCup Packaging Corp',
-                category_desc: 'PP Cups, Straws & Sealing Films',
-                contact_email: 'sales@ecocup.ph',
-                status: 'Active',
-                total_spent: 18200.00
-            },
-            {
-                id: 4,
-                vendor_name: 'Golden Leaves Imports',
-                category_desc: 'Assam Black & Jasmine Green Tea Leaves',
-                contact_email: 'trade@goldenleaves.com',
-                status: 'Active',
-                total_spent: 9800.00
-            },
-            {
-                id: 5,
-                vendor_name: 'North Caloocan Press',
-                category_desc: 'Menu Boards, Banners & Cup Stickers',
-                contact_email: 'print@northcaloocan.ph',
-                status: 'Review',
-                total_spent: 2400.00
-            }
-        ];
-
-        applyCurrentFilters();
-        populateVendorDropdowns(allVendors);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

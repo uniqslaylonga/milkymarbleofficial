@@ -30,14 +30,14 @@ async function fetchOrderProductionDetails(orderId) {
     try {
         let response;
         if (typeof employeeFetch === 'function') {
-            response = await employeeFetch(`/api/production-supervisor/order-details?order_id=${encodeURIComponent(orderId)}`);
+            response = await employeeFetch(`/api/production-supervisor/order-production?order_id=${encodeURIComponent(orderId)}`);
         } else {
             const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
             const headers = userId ? { 'x-user-id': userId } : {};
-            response = await fetch(`/api/production-supervisor/order-details?order_id=${encodeURIComponent(orderId)}`, { headers });
+            response = await fetch(`/api/production-supervisor/order-production?order_id=${encodeURIComponent(orderId)}`, { headers });
         }
 
-        if (!response.ok) throw new Error('API route unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -53,70 +53,8 @@ async function fetchOrderProductionDetails(orderId) {
         renderMaterialInventoryCheck(data.materials);
 
     } catch (error) {
-        console.warn('Backend unavailable, rendering realistic fallback milk tea recipe for order:', orderId);
-
-        // Fallback User Profile
-        const userFullNameEl = document.getElementById('userFullName') || document.getElementById('userName');
-        if (userFullNameEl) userFullNameEl.textContent = 'Angeline (Supervisor)';
-
-        // Fallback Order Assembly Details batay sa napiling ID
-        const fallbackOrder = {
-            id: orderId,
-            order_number: String(orderId).startsWith('MM-') ? orderId : `MM-PRE-${orderId}`,
-            customer_name: 'Clarisse Santos',
-            flavor_name: 'Classic Pearl Milk Tea',
-            type: 'PRE-ORDER',
-            cup_size: '16oz Regular Cup',
-            sugar_level: '25% Sugar (Less Sweet)',
-            ice_level: 'Less Ice',
-            toppings: ['Standard Tapioca Pearls', 'Brown Sugar Syrup Drizzle'],
-            claim_window: 'Tuesday 10:00 AM – 11:30 AM',
-            shelf_location: 'Shelf Rack A-04',
-            status: 'IN_PREP'
-        };
-
-        // Fallback Recipe Ingredients & Material Inventory Check
-        const fallbackMaterials = [
-            {
-                item_name: 'Assam Black Tea Base (Freshly Brewed)',
-                required_qty: '200 ml',
-                stock_on_hand: '4.8 Liters',
-                status: 'SUFFICIENT'
-            },
-            {
-                item_name: 'Milky Marble Fresh Milk Blend',
-                required_qty: '60 ml',
-                stock_on_hand: '3.2 Liters',
-                status: 'SUFFICIENT'
-            },
-            {
-                item_name: 'Cooked Golden Brown Tapioca Pearls',
-                required_qty: '50 g (1 scoop)',
-                stock_on_hand: '1.8 kg (Warmer)',
-                status: 'SUFFICIENT'
-            },
-            {
-                item_name: 'Liquid Cane Sugar (25% calibration)',
-                required_qty: '10 ml',
-                stock_on_hand: '2.5 Liters',
-                status: 'SUFFICIENT'
-            },
-            {
-                item_name: '16oz Milky Marble PP Cup & Straw',
-                required_qty: '1 pc',
-                stock_on_hand: '240 pcs',
-                status: 'SUFFICIENT'
-            },
-            {
-                item_name: 'Branded Cup Sealing Film Roll',
-                required_qty: '1 seal cycle',
-                stock_on_hand: '850 seals left',
-                status: 'SUFFICIENT'
-            }
-        ];
-
-        renderOrderDetails(fallbackOrder);
-        renderMaterialInventoryCheck(fallbackMaterials);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 
@@ -166,28 +104,23 @@ function renderMaterialInventoryCheck(materials) {
 }
 
 async function handleCompleteOrder(orderId) {
-    const confirmAction = confirm(`Mark order "${orderId}" as SEALED & READY for Tuesday/Thursday pickup?`);
+    const confirmAction = confirm(`Mark order "${orderId}" as SEALED & READY for pickup?`);
     if (!confirmAction) return;
 
     try {
-        let response;
-        if (typeof employeeFetch === 'function') {
-            response = await employeeFetch('/api/production-supervisor/order-complete', {
-                method: 'POST',
-                body: JSON.stringify({ order_id: orderId, stage: 'READY' })
-            });
-        } else {
-            response = await fetch('/api/production-supervisor/order-complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ order_id: orderId, stage: 'READY' })
-            });
-        }
+        const response = await employeeFetch('/api/production-supervisor/complete-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: orderId, stage: 'READY' })
+        });
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
     } catch (err) {
-        console.warn('Offline mode: Saved completion locally.', err);
+        console.error('Complete order failed:', err);
+        alert('Could not mark this order as ready: ' + (err.message || 'unknown error') + '. Nothing was changed.');
+        return;
     }
 
-    alert(`Order ${orderId} has been successfully sealed and assigned to the pickup rack! Notification sent to Sales Counter.`);
+    alert(`Order ${orderId} is now marked Ready for Pickup.`);
     window.location.href = 'orderList.html';
 }
 

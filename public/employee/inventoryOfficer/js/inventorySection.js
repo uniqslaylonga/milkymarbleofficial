@@ -50,7 +50,7 @@ async function fetchInventorySectionData() {
             response = await fetch('/api/procurement-officer/inventory-section', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load inventory section data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -65,114 +65,8 @@ async function fetchInventorySectionData() {
         populateVendorDropdowns(allVendors);
 
     } catch (error) {
-        console.warn('Backend offline, loading fallback milk tea inventory reflecting Tuesday/Thursday buffers:', error);
-
-        document.getElementById('userFullName').textContent = 'Rhodalyn D. Leodones';
-
-        // Fallback realistic milk tea inventory dataset
-        allItems = [
-            {
-                id: 1,
-                sku_code: 'SKU-ING-01',
-                name: 'Tapioca Pearls (Raw Black Boba)',
-                item_type: 'ingredients',
-                on_hand: 3.5,
-                unit_of_measure: 'kg',
-                reserved_qty: 5.0,
-                reorder_point: 6.0,
-                est_unit_cost: 130.00,
-                vendor_name: 'Caloocan Boba Hub'
-            },
-            {
-                id: 2,
-                sku_code: 'SKU-ING-02',
-                name: 'Assam Black Tea Leaves (Loose Leaf)',
-                item_type: 'ingredients',
-                on_hand: 2.0,
-                unit_of_measure: 'kg',
-                reserved_qty: 3.0,
-                reorder_point: 4.0,
-                est_unit_cost: 250.00,
-                vendor_name: 'Golden Leaves Imports'
-            },
-            {
-                id: 3,
-                sku_code: 'SKU-ING-03',
-                name: 'Full Cream Whole Milk (1L Cartons)',
-                item_type: 'ingredients',
-                on_hand: 14.0,
-                unit_of_measure: 'liters',
-                reserved_qty: 12.0,
-                reorder_point: 8.0,
-                est_unit_cost: 75.00,
-                vendor_name: 'Metro Dairy Distributors'
-            },
-            {
-                id: 4,
-                sku_code: 'SKU-ING-04',
-                name: 'Jasmine Green Tea Leaves',
-                item_type: 'ingredients',
-                on_hand: 4.5,
-                unit_of_measure: 'kg',
-                reserved_qty: 2.5,
-                reorder_point: 3.0,
-                est_unit_cost: 280.00,
-                vendor_name: 'Golden Leaves Imports'
-            },
-            {
-                id: 5,
-                sku_code: 'SKU-PKG-01',
-                name: '16oz Milky Marble PP Cups',
-                item_type: 'packaging',
-                on_hand: 350,
-                unit_of_measure: 'pcs',
-                reserved_qty: 120,
-                reorder_point: 200,
-                est_unit_cost: 2.20,
-                vendor_name: 'EcoCup Packaging Corp'
-            },
-            {
-                id: 6,
-                sku_code: 'SKU-PKG-02',
-                name: '22oz Milky Marble PP Cups',
-                item_type: 'packaging',
-                on_hand: 95,
-                unit_of_measure: 'pcs',
-                reserved_qty: 80,
-                reorder_point: 150,
-                est_unit_cost: 2.80,
-                vendor_name: 'EcoCup Packaging Corp'
-            },
-            {
-                id: 7,
-                sku_code: 'SKU-PKG-03',
-                name: 'Branded Sealing Film Roll (3000 seals)',
-                item_type: 'packaging',
-                on_hand: 1,
-                unit_of_measure: 'rolls',
-                reserved_qty: 1,
-                reorder_point: 2,
-                est_unit_cost: 650.00,
-                vendor_name: 'EcoCup Packaging Corp'
-            },
-            {
-                id: 8,
-                sku_code: 'SKU-EQP-01',
-                name: 'Commercial Automatic Cup Sealing Machine',
-                item_type: 'equipment',
-                on_hand: 2,
-                unit_of_measure: 'pcs',
-                reserved_qty: 0,
-                reorder_point: 1,
-                est_unit_cost: 8500.00,
-                vendor_name: 'Caloocan Equipment Hub'
-            }
-        ];
-
-        allVendors = ['Caloocan Boba Hub', 'Metro Dairy Distributors', 'EcoCup Packaging Corp', 'Golden Leaves Imports'];
-
-        applyInventoryFilters();
-        populateVendorDropdowns(allVendors);
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

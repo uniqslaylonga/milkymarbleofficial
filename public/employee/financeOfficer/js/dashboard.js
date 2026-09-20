@@ -46,7 +46,7 @@ async function fetchFinanceDashboardData() {
             response = await fetch('/api/finance-officer/dashboard', { headers });
         }
 
-        if (!response.ok) throw new Error('Finance API unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -73,74 +73,8 @@ async function fetchFinanceDashboardData() {
         initCogsDonutChart(data.cogsBreakdown);
 
     } catch (error) {
-        console.warn('Backend offline, rendering realistic financial governance fallback data:', error);
-
-        document.getElementById('userName').textContent = 'Financial Officer';
-        document.getElementById('userFirstName').textContent = 'Finance Officer';
-        document.getElementById('totalRevenue').textContent = '₱12,850.00';
-        document.getElementById('netMarginVal').textContent = '38.5%';
-
-        // Stream 1: ₱301 - ₱500 Pre-Approval Queue (Kailangan ng clearance bago bilhin)
-        allPreApprovals = [
-            {
-                id: 101,
-                pr_code: 'PR-1003',
-                item_name: 'Full Cream Milk (6x 1L Fresh Box)',
-                department: 'Production Kitchen',
-                total_cost: 450.00,
-                requester: 'Clarisse (Kitchen Lead)',
-                vendor: 'Metro Dairy Distributors',
-                status: 'PENDING_FINANCE'
-            },
-            {
-                id: 102,
-                pr_code: 'PR-1004',
-                item_name: 'Store Promotional Banners (Tue/Thu)',
-                department: 'Sales Counter',
-                total_cost: 480.00,
-                requester: 'Sales Officer',
-                vendor: 'North Caloocan Press',
-                status: 'PENDING_FINANCE'
-            }
-        ];
-
-        // Stream 2: ≤ ₱300 Direct Buy Liquidation & Audit Log (Nabili na ni Rhodalyn; i-audit para ma-replenish ang petty cash)
-        allLiquidations = [
-            {
-                id: 201,
-                pr_code: 'PR-1001',
-                item_name: 'Tapioca Pearls (2x 1kg packs)',
-                department: 'Production Kitchen',
-                total_cost: 260.00,
-                requester: 'Rhodalyn (Procurement)',
-                or_number: 'OR-88219 (Caloocan Boba Hub)',
-                status: 'PURCHASED_PENDING_AUDIT'
-            },
-            {
-                id: 202,
-                pr_code: 'PR-1002',
-                item_name: 'Brown Sugar Syrup (2x 1L Bottles)',
-                department: 'Production Kitchen',
-                total_cost: 290.00,
-                requester: 'Rhodalyn (Procurement)',
-                or_number: 'OR-88220 (Sweet Flavors)',
-                status: 'PURCHASED_PENDING_AUDIT'
-            },
-            {
-                id: 203,
-                pr_code: 'PR-1007',
-                item_name: 'Food-Grade Ice Bags & Sanitizing Soap',
-                department: 'Barista Counter',
-                total_cost: 140.00,
-                requester: 'Counter Barista',
-                or_number: 'OR-55412 (Local Mart)',
-                status: 'PURCHASED_PENDING_AUDIT'
-            }
-        ];
-
-        applyFinanceFilters();
-        initReleaseDayChart();
-        initCogsDonutChart();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

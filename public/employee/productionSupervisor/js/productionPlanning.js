@@ -83,7 +83,7 @@ async function fetchProductionPlanningData() {
             response = await fetch('/api/production-supervisor/production-planning', { headers });
         }
 
-        if (!response.ok) throw new Error('API unavailable');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -99,77 +99,8 @@ async function fetchProductionPlanningData() {
         renderAllViews();
 
     } catch (error) {
-        console.warn('Backend unavailable, rendering realistic batch cooking runs for Tue/Thu model:', error);
-
-        // Fallback user profile
-        document.getElementById('userFullName').textContent = 'Angeline (Supervisor)';
-
-        // Fallback realistic milk tea batch runs (Tapioca, Gulaman, Tea Bases)
-        allPlans = [
-            {
-                id: 1,
-                order_code: 'BATCH-B01',
-                operation: 'Tapioca Pearls (Morning Pot 1)',
-                yield_volume: '2.5 kg (50 cups)',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '07:30 AM',
-                status: 'COMPLETED',
-                holding_note: 'Warmer Station 1 (Holding 10 AM - 3 PM)'
-            },
-            {
-                id: 2,
-                order_code: 'BATCH-B02',
-                operation: 'Assam Black Tea Base (Urn 1)',
-                yield_volume: '6.0 Liters',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '08:00 AM',
-                status: 'COMPLETED',
-                holding_note: 'Tea Dispenser #1'
-            },
-            {
-                id: 3,
-                order_code: 'BATCH-B03',
-                operation: 'Jasmine Green Tea Base (Urn 2)',
-                yield_volume: '5.0 Liters',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '08:30 AM',
-                status: 'IN PROGRESS',
-                holding_note: 'Steeping leaves (15 mins remaining)'
-            },
-            {
-                id: 4,
-                order_code: 'BATCH-B04',
-                operation: 'Tapioca Pearls (Afternoon Pot 2)',
-                yield_volume: '2.5 kg (50 cups)',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '09:00 AM',
-                status: 'IN PROGRESS',
-                holding_note: 'Boiling on High Heat'
-            },
-            {
-                id: 5,
-                order_code: 'BATCH-B05',
-                operation: 'Grass Jelly / Gulaman Tray Setting',
-                yield_volume: '2 Mold Trays',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '06:30 AM',
-                status: 'PLANNED',
-                holding_note: 'Prep day chilling mold'
-            },
-            {
-                id: 6,
-                order_code: 'BATCH-B06',
-                operation: 'Roasted Oolong Tea Base (Urn 3)',
-                yield_volume: '3.5 Liters',
-                due_date: new Date().toISOString().split('T')[0],
-                schedule_time: '09:30 AM',
-                status: 'PLANNED',
-                holding_note: 'Pre-heating water boiler'
-            }
-        ];
-
-        filteredPlans = [...allPlans];
-        renderAllViews();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

@@ -41,7 +41,7 @@ async function fetchPaymentsData() {
             response = await fetch('/api/finance-officer/payments', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load payments data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -56,99 +56,8 @@ async function fetchPaymentsData() {
         applyPaymentsFilter();
 
     } catch (error) {
-        console.warn('Backend offline, loading realistic fallback payment transactions for Milky Marble:', error);
-
-        document.getElementById('userName').textContent = 'Financial Officer';
-
-        // Realistic Tuesday/Thursday settlement and payment records
-        allPaymentsData = [
-            {
-                id: 1,
-                date: 'Sep 22, 2026 · 10:15 AM',
-                customer_name: 'Clarisse Santos',
-                order_number: 'MM-PRE-081',
-                channel: 'gcash',
-                channel_label: 'GCash',
-                ref_id: 'GC-881920311',
-                amount: 220.00,
-                status: 'VERIFIED',
-                status_label: '✓ Verified & Claimed'
-            },
-            {
-                id: 2,
-                date: 'Sep 22, 2026 · 10:45 AM',
-                customer_name: 'Mark Reyes',
-                order_number: 'MM-PRE-082',
-                channel: 'maya',
-                channel_label: 'Maya',
-                ref_id: 'MY-449120934',
-                amount: 140.00,
-                status: 'VERIFIED',
-                status_label: '✓ Verified & Claimed'
-            },
-            {
-                id: 3,
-                date: 'Sep 22, 2026 · 11:30 AM',
-                customer_name: 'Walk-in Presets Drawer Turn-over',
-                order_number: 'BATCH-CASH-TUE1',
-                channel: 'cash',
-                channel_label: 'Cash Drawer',
-                ref_id: 'POS-DRAWER-01',
-                amount: 4400.00,
-                status: 'VERIFIED',
-                status_label: '✓ Drawer Reconciled'
-            },
-            {
-                id: 4,
-                date: 'Sep 22, 2026 · 01:10 PM',
-                customer_name: 'Jocelyn Garcia',
-                order_number: 'MM-PRE-083',
-                channel: 'gcash',
-                channel_label: 'GCash',
-                ref_id: 'GC-551982103',
-                amount: 435.00,
-                status: 'VERIFIED',
-                status_label: '✓ Verified & Claimed'
-            },
-            {
-                id: 5,
-                date: 'Sep 22, 2026 · 01:45 PM',
-                customer_name: 'Kevin Dizon',
-                order_number: 'MM-PRE-084',
-                channel: 'cash',
-                channel_label: 'Cash on Pickup',
-                ref_id: 'COD-COUNTER-84',
-                amount: 135.00,
-                status: 'VERIFIED',
-                status_label: '✓ Paid at Counter'
-            },
-            {
-                id: 6,
-                date: 'Sep 24, 2026 · 10:20 AM',
-                customer_name: 'Walk-in Presets Drawer Turn-over',
-                order_number: 'BATCH-CASH-THU1',
-                channel: 'cash',
-                channel_label: 'Cash Drawer',
-                ref_id: 'POS-DRAWER-02',
-                amount: 1850.00,
-                status: 'VERIFIED',
-                status_label: '✓ Drawer Reconciled'
-            },
-            {
-                id: 7,
-                date: 'Sep 24, 2026 · 11:15 AM',
-                customer_name: 'Aileen Ramos',
-                order_number: 'MM-PRE-085',
-                channel: 'gcash',
-                channel_label: 'GCash',
-                ref_id: 'GC-338192019',
-                amount: 280.00,
-                status: 'VERIFIED',
-                status_label: '✓ Verified & Claimed'
-            }
-        ];
-
-        applyPaymentsFilter();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

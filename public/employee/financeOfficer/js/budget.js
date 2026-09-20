@@ -41,7 +41,7 @@ async function fetchBudgetRecords() {
             response = await fetch('/api/finance-officer/budget', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load budget data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -56,70 +56,8 @@ async function fetchBudgetRecords() {
         applyBudgetFilters();
 
     } catch (error) {
-        console.warn('Backend offline, loading realistic fallback budget cycles for Milky Marble:', error);
-
-        document.getElementById('userName').textContent = 'Financial Officer';
-
-        // Fallback realistic budget cycles matching the Tuesday/Thursday model and DOA petty cash buffer
-        allBudgetRecords = [
-            {
-                id: 1,
-                date: 'Sep 22 & 24, 2026 (Week 4)',
-                month_group: 'september',
-                capital: 6500.00,
-                raw_material: 3200.00,
-                petty_cash_fund: 800.00,
-                emergency_funds: 1000.00,
-                manpower_cost: 1500.00,
-                status: 'ACTIVE'
-            },
-            {
-                id: 2,
-                date: 'Sep 15 & 17, 2026 (Week 3)',
-                month_group: 'september',
-                capital: 6200.00,
-                raw_material: 2950.00,
-                petty_cash_fund: 750.00,
-                emergency_funds: 1000.00,
-                manpower_cost: 1500.00,
-                status: 'CLOSED'
-            },
-            {
-                id: 3,
-                date: 'Sep 08 & 10, 2026 (Week 2)',
-                month_group: 'september',
-                capital: 6100.00,
-                raw_material: 2800.00,
-                petty_cash_fund: 800.00,
-                emergency_funds: 1000.00,
-                manpower_cost: 1500.00,
-                status: 'CLOSED'
-            },
-            {
-                id: 4,
-                date: 'Sep 01 & 03, 2026 (Week 1)',
-                month_group: 'september',
-                capital: 6200.00,
-                raw_material: 2450.00,
-                petty_cash_fund: 750.00,
-                emergency_funds: 1200.00,
-                manpower_cost: 1500.00,
-                status: 'CLOSED'
-            },
-            {
-                id: 5,
-                date: 'Aug 25 & 27, 2026 (Month-End)',
-                month_group: 'august',
-                capital: 5800.00,
-                raw_material: 2600.00,
-                petty_cash_fund: 600.00,
-                emergency_funds: 1100.00,
-                manpower_cost: 1500.00,
-                status: 'CLOSED'
-            }
-        ];
-
-        applyBudgetFilters();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 

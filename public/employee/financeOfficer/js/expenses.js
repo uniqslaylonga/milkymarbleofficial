@@ -41,7 +41,7 @@ async function fetchExpenseRecords() {
             response = await fetch('/api/finance-officer/expenses', { headers });
         }
 
-        if (!response.ok) throw new Error('Failed to load expense data');
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
@@ -56,106 +56,8 @@ async function fetchExpenseRecords() {
         applyExpenseFilters();
 
     } catch (error) {
-        console.warn('Backend offline, loading realistic fallback expenses & DOA liquidation dataset:', error);
-
-        document.getElementById('userName').textContent = 'Financial Officer';
-
-        // Fallback realistic milk tea operating expenses adhering to the DOA matrix
-        allExpenseRecords = [
-            {
-                id: 1,
-                voucher_num: 'DV-2026-081',
-                particulars: 'Raw Tapioca Pearls (2x 1kg packs)',
-                category: 'direct',
-                category_label: 'Direct Buy Liquidation',
-                cycle_date: 'Sep 22, 2026 (Tue Prep)',
-                vendor_name: 'Caloocan Boba Hub',
-                or_number: 'OR-88219',
-                amount: 260.00,
-                doa_tier: 'procure',
-                doa_badge_text: '🟢 Direct Buy Liquidated'
-            },
-            {
-                id: 2,
-                voucher_num: 'DV-2026-082',
-                particulars: 'Brown Sugar Syrup (2x 1L Bottles)',
-                category: 'direct',
-                category_label: 'Direct Buy Liquidation',
-                cycle_date: 'Sep 22, 2026 (Tue Prep)',
-                vendor_name: 'Sweet Flavors Wholesale',
-                or_number: 'OR-88220',
-                amount: 290.00,
-                doa_tier: 'procure',
-                doa_badge_text: '🟢 Direct Buy Liquidated'
-            },
-            {
-                id: 3,
-                voucher_num: 'DV-2026-083',
-                particulars: 'Full Cream Milk (6x 1L Fresh Box)',
-                category: 'cogs',
-                category_label: 'COGS - Raw Materials',
-                cycle_date: 'Sep 22, 2026 (Tue Release)',
-                vendor_name: 'Metro Dairy Distributors',
-                or_number: 'OR-55410',
-                amount: 450.00,
-                doa_tier: 'finance',
-                doa_badge_text: '🟠 Finance Endorsed'
-            },
-            {
-                id: 4,
-                voucher_num: 'DV-2026-084',
-                particulars: 'Release Promo Flyers & Menu Boards',
-                category: 'marketing',
-                category_label: 'Marketing & Admin',
-                cycle_date: 'Sep 21, 2026 (Pre-Release)',
-                vendor_name: 'North Caloocan Press',
-                or_number: 'OR-41290',
-                amount: 480.00,
-                doa_tier: 'finance',
-                doa_badge_text: '🟠 Finance Endorsed'
-            },
-            {
-                id: 5,
-                voucher_num: 'DV-2026-085',
-                particulars: 'Bulk Sealing Film Roll & 16oz PP Cups',
-                category: 'cogs',
-                category_label: 'COGS - Packaging',
-                cycle_date: 'Sep 18, 2026 (Bulk Restock)',
-                vendor_name: 'EcoCup Packaging Corp',
-                or_number: 'SI-99214',
-                amount: 3200.00,
-                doa_tier: 'ceo',
-                doa_badge_text: '🔴 CEO Cleared'
-            },
-            {
-                id: 6,
-                voucher_num: 'DV-2026-086',
-                particulars: 'Assam Black & Jasmine Green Tea Sacks',
-                category: 'cogs',
-                category_label: 'COGS - Raw Materials',
-                cycle_date: 'Sep 15, 2026 (Bulk Restock)',
-                vendor_name: 'Golden Leaves Imports',
-                or_number: 'SI-88312',
-                amount: 4800.00,
-                doa_tier: 'ceo',
-                doa_badge_text: '🔴 CEO Cleared'
-            },
-            {
-                id: 7,
-                voucher_num: 'DV-2026-087',
-                particulars: 'Food-Grade Ice Bags & Station Soap',
-                category: 'direct',
-                category_label: 'Direct Buy Liquidation',
-                cycle_date: 'Sep 24, 2026 (Thu Prep)',
-                vendor_name: 'Caloocan Local Mart',
-                or_number: 'OR-55412',
-                amount: 140.00,
-                doa_tier: 'procure',
-                doa_badge_text: '🟢 Direct Buy Liquidated'
-            }
-        ];
-
-        applyExpenseFilters();
+        console.error('Could not load live data from the server:', error);
+        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
     }
 }
 
