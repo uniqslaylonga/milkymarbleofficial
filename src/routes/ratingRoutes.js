@@ -56,8 +56,8 @@ router.get('/', async (req, res) => {
       const user = rev.customers?.users;
       const reviewerName = user?.username || user?.full_name || 'Marble Sips Fan';
 
-      let reviewerAvatar = user?.avatar || null;
-      if (reviewerAvatar && !reviewerAvatar.startsWith('http') && !reviewerAvatar.startsWith('/') && !reviewerAvatar.startsWith('data:image')) {
+      let reviewerAvatar = user?.avatar || '/customer/images/account.png';
+      if (!reviewerAvatar.startsWith('http') && !reviewerAvatar.startsWith('/') && !reviewerAvatar.startsWith('data:image')) {
         reviewerAvatar = '/' + reviewerAvatar;
       }
 
