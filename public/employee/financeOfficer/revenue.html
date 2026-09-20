@@ -3,124 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Revenue</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Urbanist:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <title>Milky Marble — Financial Revenue &amp; Sales Audit</title>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/revenue.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="dashboard-container">
+    <div class="app-container">
+        <!-- STICKY SIDEBAR (UNIFIED SA BUONG SYSTEM) -->
         <aside class="sidebar">
             <div class="brand-section">
                 <div class="brand-logo-wrap">
-                    <img src="../images/logo.png" alt="Milky Marble Logo" class="brand-logo-img" style="max-width: 70px; max-height: 70px; width: 100%; object-fit: contain;">
+                    <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
                 </div>
-                <h2 class="brand-title">Milky Marble</h2>
+                <div class="brand-title">Milky Marble</div>
             </div>
 
             <nav class="nav-menu">
-                <a href="dashboard.html" class="nav-item">
-                    <i class="fa-solid fa-border-all"></i>
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fa-solid fa-border-all nav-fa"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="revenue.html" class="nav-item active">
-                    <i class="fa-solid fa-chart-line"></i>
+                <a href="revenue.html" class="nav-link active">
+                    <i class="fa-solid fa-chart-line nav-fa"></i>
                     <span>Revenue</span>
                 </a>
-                <a href="budget.html" class="nav-item">
-                    <i class="fa-solid fa-wallet"></i>
+                <a href="budget.html" class="nav-link">
+                    <i class="fa-solid fa-wallet nav-fa"></i>
                     <span>Budget</span>
                 </a>
-                <a href="expenses.html" class="nav-item">
-                    <i class="fa-solid fa-pen-to-square"></i>
+                <a href="expenses.html" class="nav-link">
+                    <i class="fa-solid fa-pen-to-square nav-fa"></i>
                     <span>Expenses</span>
                 </a>
-                <a href="payments.html" class="nav-item">
-                    <i class="fa-solid fa-money-bill-transfer"></i>
+                <a href="payments.html" class="nav-link">
+                    <i class="fa-solid fa-money-bill-transfer nav-fa"></i>
                     <span>Payments</span>
                 </a>
             </nav>
 
-            <div class="logout-item">
-                <a href="../login.html" class="nav-item">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <div class="sidebar-bottom">
+                <a href="../login.html" class="nav-link logout-btn">
+                    <i class="fa-solid fa-arrow-right-from-bracket nav-fa"></i>
                     <span>Log out</span>
                 </a>
             </div>
         </aside>
 
+        <!-- MAIN SCROLLABLE CONTENT -->
         <main class="main-content">
+            <!-- TOPBAR -->
             <header class="topbar">
                 <div class="search-box">
-                    <input type="text" placeholder="Search for anything...">
-                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="revenueSearchInput" placeholder="Search flavor, order batches, dates, or payment channels...">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 </div>
+
                 <div class="topbar-right">
+                    <button class="notif-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
                     <div class="user-profile">
                         <div class="user-avatar">
-                            <img id="userAvatar" src="../images/account.png" alt="User Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
+                            <img id="userAvatar" src="../images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
                         </div>
-                        <span id="userName" class="user-name">Loading...</span>
+                        <span id="userName" class="user-name">Financial Officer</span>
                     </div>
                 </div>
             </header>
 
-            <section class="top-metrics-row">
-                <div class="metric-gauge-card">
-                    <div class="metric-info">
-                        <span class="metric-label">Total Budget</span>
-                        <h2 id="totalBudget" class="metric-amount">₱0.00</h2>
+            <!-- WELCOME BANNER -->
+            <section class="welcome-banner">
+                <div class="welcome-banner-content">
+                    <div class="welcome-text-col">
+                        <div class="banner-badge-row">
+                            <span class="release-window-pill">Release Cycle Revenue Hub</span>
+                            <span class="shift-subtag">Tuesday &amp; Thursday (10:00 AM – 3:00 PM Window)</span>
+                        </div>
+                        <h1 class="welcome-title">Revenue &amp; Sales Audit</h1>
+                        <p class="welcome-sub">Analyze gross sales receipts, pre-order collections, and net product margins across releases.</p>
                     </div>
-                    <div class="gauge-wrapper">
-                        <canvas id="budgetGauge"></canvas>
-                        <span id="budgetPct" class="gauge-percentage">0%</span>
-                    </div>
-                </div>
-
-                <div class="metric-gauge-card">
-                    <div class="metric-info">
-                        <span class="metric-label">Total Revenue</span>
-                        <h2 id="totalRevenue" class="metric-amount">₱0.00</h2>
-                    </div>
-                    <div class="gauge-wrapper">
-                        <canvas id="revenueGauge"></canvas>
-                        <span id="revenuePct" class="gauge-percentage">0%</span>
-                    </div>
-                </div>
-
-                <div class="metric-gauge-card">
-                    <div class="metric-info">
-                        <span class="metric-label">Total Expenses</span>
-                        <h2 id="totalExpenses" class="metric-amount">₱0.00</h2>
-                    </div>
-                    <div class="gauge-wrapper">
-                        <canvas id="expensesGauge"></canvas>
-                        <span id="expensesPct" class="gauge-percentage">0%</span>
-                    </div>
-                </div>
-
-                <div class="metric-gauge-card">
-                    <div class="metric-info">
-                        <span class="metric-label">Total Payments</span>
-                        <h2 id="totalPayments" class="metric-amount">₱0.00</h2>
-                    </div>
-                    <div class="gauge-wrapper">
-                        <canvas id="paymentsGauge"></canvas>
-                        <span id="paymentsPct" class="gauge-percentage">0%</span>
+                    <div class="banner-action-col">
+                        <button type="button" class="btn-primary" onclick="triggerReconciliationAudit()">
+                            <i class="fa-solid fa-file-invoice-dollar"></i> Reconcile Collections
+                        </button>
                     </div>
                 </div>
             </section>
 
-            <section class="chart-card revenue-chart-card">
-                <div class="chart-container">
-                    <canvas id="revenueLineChart"></canvas>
+            <!-- 4 REVENUE METRICS ROW -->
+            <section class="section">
+                <div class="overview-grid four-col-grid">
+                    <!-- 1. Gross Release Revenue -->
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Gross Revenue (Week)</span>
+                            <i class="fa-solid fa-sack-dollar stat-icon"></i>
+                        </div>
+                        <div class="stat-body"><span id="totalRevenue" class="stat-value">₱14,850.00</span></div>
+                        <div class="stat-footer">Tuesday + Thursday Cycles</div>
+                    </div>
+
+                    <!-- 2. Pre-orders Inflow -->
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Pre-Orders Inflow</span>
+                            <i class="fa-solid fa-receipt stat-icon" style="color: #68B0AB;"></i>
+                        </div>
+                        <div class="stat-body"><span id="preordersInflow" class="stat-value">₱8,600.00</span></div>
+                        <div class="stat-footer">58% of Total Volume</div>
+                    </div>
+
+                    <!-- 3. Walk-in Presets Inflow -->
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Walk-in Presets Inflow</span>
+                            <i class="fa-solid fa-store stat-icon" style="color: #EAA342;"></i>
+                        </div>
+                        <div class="stat-body"><span id="presetsInflow" class="stat-value">₱6,250.00</span></div>
+                        <div class="stat-footer">42% Counter Chiller Sales</div>
+                    </div>
+
+                    <!-- 4. Average Revenue Per Cup (AOV) -->
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Avg. Margin per Cup</span>
+                            <i class="fa-solid fa-cup-togo stat-icon" style="color: #2E7D32;"></i>
+                        </div>
+                        <div class="stat-body"><span id="avgCupMargin" class="stat-value">₱48.50</span></div>
+                        <div class="stat-footer">Net Profit Margin: 41.2%</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SPLIT CHARTS: TUE/THU TREND (LEFT) + CHANNEL MIX (RIGHT) -->
+            <div class="split-revenue-layout">
+                <!-- Chart 1: Tuesday vs. Thursday Revenue Performance -->
+                <div class="directory-card chart-panel-card">
+                    <div class="panel-header-bar">
+                        <div>
+                            <h2 class="section-title">Release Days Sales Velocity</h2>
+                            <p class="section-sub-text">Comparison of Tuesday vs. Thursday gross volume across operating cycles</p>
+                        </div>
+                        <span class="section-badge-pink">Cycles Trend</span>
+                    </div>
+                    <div class="chart-box-container">
+                        <canvas id="weeklyReleaseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Channel Contribution Donut -->
+                <div class="directory-card chart-panel-card">
+                    <div class="panel-header-bar">
+                        <div>
+                            <h2 class="section-title">Channel Inflow Mix</h2>
+                            <p class="section-sub-text">Pre-orders vs. Counter Presets</p>
+                        </div>
+                        <span class="section-badge-pink">10 AM – 3 PM Window</span>
+                    </div>
+                    <div class="channel-donut-wrapper">
+                        <div class="donut-canvas-box">
+                            <canvas id="channelDonutChart"></canvas>
+                        </div>
+                        <div class="channel-legend-list">
+                            <div class="channel-legend-item">
+                                <span class="legend-color-sq" style="background:#f28b95;"></span>
+                                <div>
+                                    <div class="channel-name">Pre-Orders (Custom)</div>
+                                    <strong class="channel-val">₱8,600.00 (58%)</strong>
+                                </div>
+                            </div>
+                            <div class="channel-legend-item">
+                                <span class="legend-color-sq" style="background:#EAA342;"></span>
+                                <div>
+                                    <div class="channel-name">Walk-in Presets</div>
+                                    <strong class="channel-val">₱6,250.00 (42%)</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUCT & FLAVOR REVENUE CONTRIBUTION TABLE -->
+            <section class="directory-card" style="margin-top: 22px;">
+                <div class="panel-header-bar">
+                    <div>
+                        <h2 class="section-title">Flavor Sales &amp; Unit Contribution Margin</h2>
+                        <p class="section-sub-text">Detailed audit of cups sold, raw material cost (COGS), and net profit margin.</p>
+                    </div>
+                    <div class="filter-controls-group">
+                        <div class="custom-select-wrap">
+                            <i class="fa-solid fa-filter filter-icon"></i>
+                            <select id="flavorFilter">
+                                <option value="all" selected>All Menu Items</option>
+                                <option value="pearl">Pearl Milk Teas</option>
+                                <option value="specialty">Specialty / Lattes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="cust-table" id="revenueTable">
+                        <thead>
+                            <tr>
+                                <th>Menu Item &amp; Size</th>
+                                <th>Category</th>
+                                <th>Cups Sold</th>
+                                <th>Selling Price</th>
+                                <th>Gross Sales</th>
+                                <th>Est. COGS</th>
+                                <th>Net Margin (%)</th>
+                                <th style="text-align: right;">Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="revenueTableBody">
+                            <tr>
+                                <td colspan="8" class="loading-state-text">Loading sales contribution data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PERMANENT NUMBERED PAGINATION BAR -->
+                <div class="tx-pagination-bar" id="revenuePaginationBar">
+                    <span class="tx-page-info" id="revenuePageInfo">Showing 0 of 0 items</span>
+                    <div class="tx-pager-buttons">
+                        <button type="button" class="pager-btn" id="prevRevBtn" title="Previous Page" disabled>
+                            <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <div class="pager-numbers" id="revPagerNumbers">
+                            <button type="button" class="pager-num-btn active" disabled>1</button>
+                        </div>
+                        <button type="button" class="pager-btn" id="nextRevBtn" title="Next Page" disabled>
+                            <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
                 </div>
             </section>
         </main>
