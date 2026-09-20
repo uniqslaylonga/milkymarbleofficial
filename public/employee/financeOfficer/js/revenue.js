@@ -269,38 +269,110 @@ function initChannelDonutChart(customData) {
     });
 }
 
-async function triggerReconciliationAudit() {
-    const countedInput = window.prompt('Enter the amount physically counted in the cash drawer (₱):');
-    if (countedInput === null) return; // cancelled
+let reconcilePreviewData = null;
 
-    const counted_amount = parseFloat(countedInput);
+async function triggerReconciliationAudit() {
+    const modal = document.getElementById('reconcileModal');
+    const summaryBody = document.getElementById('reconcileSummaryBody');
+    const form = document.getElementById('reconcileForm');
+    if (!modal) return;
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    summaryBody.style.display = '';
+    form.style.display = 'none';
+    summaryBody.innerHTML = '<p class="loading-state-text">Loading real sales data…</p>';
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = {};
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/finance-officer/reconciliation/preview', { headers });
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
+        const data = await response.json();
+
+        reconcilePreviewData = data;
+
+        const periodStartFmt = new Date(data.periodStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const periodEndFmt = new Date(data.periodEnd).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        let lastReconHtml = '';
+        if (data.lastReconciliation) {
+            lastReconHtml = `
+                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                    Last reconciliation: counted ₱${formatAmount(data.lastReconciliation.counted_amount)},
+                    variance ₱${formatAmount(data.lastReconciliation.variance)}
+                    on ${new Date(data.lastReconciliation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                </p>`;
+        }
+
+        summaryBody.innerHTML = `
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">Covering ${periodStartFmt} → ${periodEndFmt}</p>
+            <div class="form-grid">
+                <div class="metric-cell"><small>GCash E-Wallet</small><strong>₱${formatAmount(data.gcashTotal)}</strong></div>
+                <div class="metric-cell"><small>Maya E-Wallet</small><strong>₱${formatAmount(data.mayaTotal)}</strong></div>
+                <div class="metric-cell"><small>Digital Subtotal</small><strong>₱${formatAmount(data.digitalSubtotal)}</strong></div>
+                <div class="metric-cell"><small>Walk-in Cash Sales</small><strong>₱${formatAmount(data.walkinCashTotal)}</strong></div>
+                <div class="metric-cell"><small>Opening Float</small><strong>₱${formatAmount(data.openingFloat)}</strong></div>
+                <div class="metric-cell highlight-cell"><small>Expected in Drawer</small><strong>₱${formatAmount(data.expectedDrawer)}</strong></div>
+            </div>
+            <p style="font-size: 13px; margin-top: 12px;"><strong>Gross Total (this period):</strong> ₱${formatAmount(data.grossTotal)} &nbsp;|&nbsp; ${data.preordersCount} pre-order claims, ${data.presetsCount} presets</p>
+            ${lastReconHtml}
+        `;
+
+        form.style.display = '';
+    } catch (error) {
+        console.error('Could not load reconciliation preview:', error);
+        summaryBody.innerHTML = `<p class="loading-state-text">Could not load real sales data: ${error.message}</p>`;
+    }
+}
+
+function closeReconcileModal() {
+    const modal = document.getElementById('reconcileModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('reconcileForm')?.reset();
+}
+
+async function handleReconcileSubmit(e) {
+    e.preventDefault();
+    const counted_amount = parseFloat(document.getElementById('reconcileCountedAmount')?.value);
+    const notes = document.getElementById('reconcileNotes')?.value || '';
+
     if (isNaN(counted_amount) || counted_amount < 0) {
-        alert('Enter a valid non-negative number.');
+        alert('Enter a valid counted amount.');
         return;
     }
 
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
         const response = await fetch('/api/finance-officer/reconciliation', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(userId ? { 'x-user-id': userId } : {})
-            },
-            body: JSON.stringify({ counted_amount })
+            headers,
+            body: JSON.stringify({ counted_amount, notes })
         });
-
         const data = await response.json();
         if (!response.ok || data.status !== 'success') {
-            throw new Error(data.message || 'Could not save the drawer count.');
+            throw new Error(data.message || 'Could not save the reconciliation.');
         }
 
-        const r = data.record;
-        alert(`Reconciliation saved.\nExpected (system): ₱${formatAmount(r.expected_amount)}\nCounted (physical): ₱${formatAmount(r.counted_amount)}\nVariance: ₱${formatAmount(r.variance)}`);
+        closeReconcileModal();
+        alert(`Reconciliation saved.\nExpected: ₱${formatAmount(data.record.expected_amount)}\nCounted: ₱${formatAmount(data.record.counted_amount)}\nVariance: ₱${formatAmount(data.record.variance)}`);
+        fetchRevenueData();
     } catch (error) {
-        alert(error.message || 'Could not save the drawer count.');
+        alert(error.message || 'Could not save the reconciliation.');
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('reconcileForm')?.addEventListener('submit', handleReconcileSubmit);
+});
 
 function formatAmount(val) {
     return Number(val || 0).toLocaleString('en-US', {

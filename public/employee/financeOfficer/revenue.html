@@ -244,6 +244,40 @@
         </main>
     </div>
 
+    <!-- MODAL: RECONCILE COLLECTIONS -->
+    <div class="modal-overlay" id="reconcileModal">
+        <div class="profile-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h3 class="modal-title">Reconcile Collections</h3>
+                    <p class="modal-subtitle">Real sales breakdown since the last reconciliation. Compare this against what was physically handed over before entering your count.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeReconcileModal()">✕</button>
+            </div>
+
+            <div class="modal-body" id="reconcileSummaryBody">
+                <p class="loading-state-text">Loading real sales data…</p>
+            </div>
+
+            <form id="reconcileForm" class="modal-body" style="display:none;">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="reconcileCountedAmount">Amount Physically Counted / Received (₱) *</label>
+                        <input type="number" step="0.01" id="reconcileCountedAmount" placeholder="e.g. 4250.00" min="0" required>
+                    </div>
+                    <div class="form-group full">
+                        <label for="reconcileNotes">Notes (optional)</label>
+                        <input type="text" id="reconcileNotes" placeholder="e.g. Received from Sales Officer Juan D.">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeReconcileModal()">Cancel</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Confirm & Save Reconciliation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="../js/employeeAuth.js"></script>
     <script src="js/revenue.js"></script>
 </body>

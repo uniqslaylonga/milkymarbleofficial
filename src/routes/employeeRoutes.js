@@ -1272,6 +1272,73 @@ router.get('/finance-officer/payments', async (req, res) => {
   }
 });
 
+// Shared by Finance Officer's reconciliation preview/save and matches the
+// Sales Officer's X/Z-Reading methodology exactly, so both roles are always
+// comparing the same numbers: e-wallet payments (GCash/Maya) never touch the
+// physical drawer, so only walk-in cash + the opening float count as
+// "expected cash in the drawer."
+async function computeDrawerBreakdown(periodStart, periodEnd) {
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select('total_amount, payment_method')
+    .gte('placed_at', periodStart)
+    .lte('placed_at', periodEnd)
+    .in('status', ['PAID_VERIFIED', 'COMPLETED']);
+  if (error) throw error;
+
+  let gcashTotal = 0, mayaTotal = 0, walkinCashTotal = 0, preordersCount = 0, presetsCount = 0;
+  (orders || []).forEach(o => {
+    const amt = parseFloat(o.total_amount) || 0;
+    const method = String(o.payment_method || '').toLowerCase();
+    if (method.includes('gcash')) { gcashTotal += amt; preordersCount++; }
+    else if (method.includes('maya')) { mayaTotal += amt; preordersCount++; }
+    else { walkinCashTotal += amt; presetsCount++; }
+  });
+
+  const openingFloat = 1000.00;
+  const digitalSubtotal = gcashTotal + mayaTotal;
+  const expectedDrawer = openingFloat + walkinCashTotal;
+  const grossTotal = digitalSubtotal + walkinCashTotal;
+
+  return { gcashTotal, mayaTotal, digitalSubtotal, walkinCashTotal, openingFloat, expectedDrawer, grossTotal, preordersCount, presetsCount };
+}
+
+// GET /api/finance-officer/reconciliation/preview
+// Shows the Finance Officer the same real breakdown a Sales Officer's
+// X/Z-Reading shows, for the period since the last reconciliation, BEFORE
+// they enter what they actually counted - so they're comparing against a
+// real number, not typing into a blind prompt.
+router.get('/finance-officer/reconciliation/preview', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+
+    const { data: lastRecon, error: lastReconErr } = await supabase
+      .from('drawer_reconciliations')
+      .select('period_end, counted_amount, variance, notes, created_at')
+      .order('period_end', { ascending: false })
+      .limit(1);
+    if (lastReconErr) throw lastReconErr;
+
+    const periodStart = (lastRecon && lastRecon.length)
+      ? lastRecon[0].period_end
+      : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+    const periodEnd = new Date().toISOString();
+
+    const breakdown = await computeDrawerBreakdown(periodStart, periodEnd);
+
+    return res.json({
+      status: 'success',
+      periodStart,
+      periodEnd,
+      lastReconciliation: (lastRecon && lastRecon.length) ? lastRecon[0] : null,
+      ...breakdown
+    });
+  } catch (error) {
+    console.error('[finance-officer/reconciliation/preview] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 router.post('/finance-officer/reconciliation', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1295,17 +1362,10 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
       : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const periodEnd = new Date().toISOString();
 
-    const { data: cashOrders, error: ordersErr } = await supabase
-      .from('orders')
-      .select('total_amount')
-      .eq('status', 'PAID_VERIFIED')
-      .eq('payment_method', 'Cash on Pick-Up')
-      .gte('placed_at', periodStart)
-      .lte('placed_at', periodEnd);
-    if (ordersErr) throw ordersErr;
-
-    const expectedAmount = (cashOrders || []).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    const { expectedDrawer, gcashTotal, mayaTotal, walkinCashTotal } = await computeDrawerBreakdown(periodStart, periodEnd);
+    const expectedAmount = expectedDrawer;
     const variance = Math.round((countedAmount - expectedAmount) * 100) / 100;
+    const autoNote = `GCash: ₱${gcashTotal.toFixed(2)} | Maya: ₱${mayaTotal.toFixed(2)} | Walk-in Cash: ₱${walkinCashTotal.toFixed(2)}`;
 
     const { data: record, error: insertErr } = await supabase
       .from('drawer_reconciliations')
@@ -1315,7 +1375,7 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
         variance,
         period_start: periodStart,
         period_end: periodEnd,
-        notes,
+        notes: notes ? `${notes} | ${autoNote}` : autoNote,
         recorded_by: userId
       })
       .select()
