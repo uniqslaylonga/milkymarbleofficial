@@ -12,7 +12,7 @@
 <body>
 
   <div class="app-container">
-    <!-- STICKY SIDEBAR -->
+    <!-- STICKY / FIXED SIDEBAR (IMMUNE TO PAGE SCROLLING) -->
     <aside class="sidebar">
       <div class="brand-section">
         <div class="brand-logo-wrap">
@@ -103,7 +103,7 @@
 
     <!-- MAIN SCROLLABLE CONTENT -->
     <main class="main-content">
-      <!-- TOPBAR: REGISTER STATUS INTEGRATED IN PLACE OF SEARCH BAR -->
+      <!-- TOPBAR: REGISTER STATUS INTEGRATED WITH CLEAN EMPLOYEE PROFILE (IMG 2) -->
       <header class="topbar">
         <div id="registerStatusBanner" class="topbar-status-strip open">
           <span class="status-pulse-dot"></span>
@@ -112,10 +112,16 @@
 
         <div class="topbar-right">
           <div class="user-profile">
-            <div class="user-avatar">
-              <img id="userAvatar" src="../images/account.png" alt="Profile" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';" />
+            <!-- Exact silhouette avatar matching Img 2 -->
+            <div class="user-avatar" id="userAvatarContainer">
+              <svg class="user-avatar-svg" viewBox="0 0 36 36" fill="none">
+                <circle cx="18" cy="18" r="18" fill="#F69299" />
+                <circle cx="18" cy="14" r="5.5" fill="#FFFFFF" />
+                <path d="M8.5 28.5C8.5 23.8 12.8 21.5 18 21.5C23.2 21.5 27.5 23.8 27.5 28.5" fill="#FFFFFF" />
+              </svg>
             </div>
-            <span class="user-name" id="userName">Loading...</span>
+            <!-- Default text: "Employee" instead of "Loading..." (Img 2) -->
+            <span class="user-name" id="userName">Employee</span>
           </div>
         </div>
       </header>
@@ -124,7 +130,7 @@
       <section class="welcome-banner">
         <div class="welcome-banner-flex">
           <div>
-            <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">...</span>!</h1>
+            <h1 class="welcome-title">Glad to have you here, <span id="userFirstName">Employee</span>!</h1>
             <p class="welcome-sub">Monitor walk-in counter sales, pre-order claims, and generate audit reports.</p>
           </div>
           <div class="shift-action-buttons">
@@ -322,7 +328,6 @@
       </div>
 
       <div class="audit-modal-body">
-        <!-- Status Notification Strip -->
         <div class="audit-status-notice">
           <svg class="notice-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10" />
@@ -332,7 +337,6 @@
           <span>Interim audit only. Register remains <strong>Open &amp; Active</strong> for transactions.</span>
         </div>
 
-        <!-- Section 1: Pre-Orders Settlement Inflow -->
         <div class="audit-block">
           <div class="audit-block-head">
             <span>Pre-Orders Digital Inflow</span>
@@ -354,7 +358,6 @@
           </div>
         </div>
 
-        <!-- Section 2: Walk-in Presets Cash Drawer Position -->
         <div class="audit-block">
           <div class="audit-block-head">
             <span>Cash Drawer Inflow &amp; Float</span>
@@ -376,7 +379,6 @@
           </div>
         </div>
 
-        <!-- Section 3: Shift Gross Inflow Summary -->
         <div class="audit-total-bar">
           <div>
             <span class="total-bar-label">Total Inflow Collected So Far</span>
@@ -415,7 +417,6 @@
       </div>
 
       <div class="audit-modal-body">
-        <!-- Section 1: Pre-Orders Audit Summary -->
         <div class="audit-block">
           <div class="audit-block-head">
             <span>1. Pre-Orders Settlement &amp; Claims</span>
@@ -441,7 +442,6 @@
           </div>
         </div>
 
-        <!-- Section 2: Walk-in Presets & Cash Drawer Count -->
         <div class="audit-block">
           <div class="audit-block-head">
             <span>2. Counter Cash Drawer &amp; Reconciliation</span>
@@ -469,7 +469,7 @@
           </div>
         </div>
 
-        <!-- REFINED MILKY MARBLE LOCKDOWN NOTICE (RESTYLED TO MATCH PALETTE) -->
+        <!-- REFINED MILKY MARBLE LOCKDOWN NOTICE -->
         <div class="audit-warning-box">
           <div class="audit-warning-icon-wrap">
             <svg class="warn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -158,15 +158,16 @@ async function loadPageData() {
 
         const data = await response.json();
 
-        // 1. User Header
-        if (data.user) {
-            const userNameEl = document.getElementById('userName');
-            const userFirstNameEl = document.getElementById('userFirstName');
-            const userAvatarEl = document.getElementById('userAvatar');
+        // 1. User Header (Guaranteed "Employee" fallback if no full name returned)
+        const userNameEl = document.getElementById('userName');
+        const userFirstNameEl = document.getElementById('userFirstName');
 
-            if (userNameEl) userNameEl.textContent = data.user.fullName || 'Reeze Laureen A. Alapide';
-            if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Reeze';
-            if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
+        if (data.user && data.user.fullName) {
+            if (userNameEl) userNameEl.textContent = data.user.fullName;
+            if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || data.user.fullName;
+        } else {
+            if (userNameEl) userNameEl.textContent = 'Employee';
+            if (userFirstNameEl) userFirstNameEl.textContent = 'Employee';
         }
 
         // 2. Today's Performance
@@ -444,7 +445,7 @@ function checkRegisterLockState() {
     if (isRegisterLocked) {
         if (banner) {
             banner.className = 'topbar-status-strip locked';
-            bannerText.innerHTML = '<strong>Shift Closed &amp; Register Locked</strong> — Transmitted to Finance';
+            bannerText.innerHTML = '<span class="status-pulse-dot"></span><strong>Shift Closed &amp; Register Locked</strong> — Transmitted to Finance';
         }
         if (zBtn) {
             zBtn.disabled = true;
@@ -551,7 +552,7 @@ function calculateZVariance() {
 
     if (isNaN(actualInput) || actualInput === 0) {
         varNumEl.textContent = '₱0.00';
-        varNumEl.style.color = '#7d5f5f';
+        varNumEl.style.color = '#8C6D6D';
         varPillEl.className = 'var-status-pill neutral';
         varPillEl.textContent = 'Awaiting Count';
         return;
