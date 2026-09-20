@@ -12,7 +12,7 @@
 <body>
 
   <div class="app-container">
-    <!-- STICKY / FIXED SIDEBAR (IMMUNE TO PAGE SCROLLING) -->
+    <!-- STICKY / FIXED SIDEBAR -->
     <aside class="sidebar">
       <div class="brand-section">
         <div class="brand-logo-wrap">
@@ -103,7 +103,7 @@
 
     <!-- MAIN SCROLLABLE CONTENT -->
     <main class="main-content">
-      <!-- TOPBAR: REGISTER STATUS INTEGRATED WITH CLEAN EMPLOYEE PROFILE (IMG 2) -->
+      <!-- TOPBAR: REGISTER STATUS INTEGRATED WITH CLEAN EMPLOYEE PROFILE -->
       <header class="topbar">
         <div id="registerStatusBanner" class="topbar-status-strip open">
           <span class="status-pulse-dot"></span>
@@ -112,7 +112,6 @@
 
         <div class="topbar-right">
           <div class="user-profile">
-            <!-- Exact silhouette avatar matching Img 2 -->
             <div class="user-avatar" id="userAvatarContainer">
               <svg class="user-avatar-svg" viewBox="0 0 36 36" fill="none">
                 <circle cx="18" cy="18" r="18" fill="#F69299" />
@@ -120,7 +119,6 @@
                 <path d="M8.5 28.5C8.5 23.8 12.8 21.5 18 21.5C23.2 21.5 27.5 23.8 27.5 28.5" fill="#FFFFFF" />
               </svg>
             </div>
-            <!-- Default text: "Employee" instead of "Loading..." (Img 2) -->
             <span class="user-name" id="userName">Employee</span>
           </div>
         </div>
@@ -176,12 +174,11 @@
         </div>
       </section>
 
-      <!-- ROW 2: SIDE-BY-SIDE ANALYTICS (LEFT) & TRANSACTIONS (RIGHT) -->
+      <!-- ROW 2: SIDE-BY-SIDE ANALYTICS & TRANSACTIONS -->
       <div class="split-dashboard-layout">
         
-        <!-- LEFT COLUMN (GRAPHS & ANALYTICS) -->
+        <!-- LEFT COLUMN: GRAPHS & ANALYTICS -->
         <div class="analytics-column">
-          
           <!-- Card 1: Customer Acquisition -->
           <div class="stat-card compact-panel">
             <div class="card-head-row">
@@ -243,7 +240,6 @@
               </div>
             </div>
 
-            <!-- Mini Progress Track -->
             <div class="ratio-track-sm">
               <div class="ratio-fill-reg" id="barRegFill" style="width: 50%;"></div>
               <div class="ratio-fill-guest" id="barGuestFill" style="width: 50%;"></div>
@@ -253,7 +249,6 @@
               <span>Guest: <strong id="barGuestLabel">0%</strong></span>
             </div>
 
-            <!-- Decision Support Note -->
             <div class="insight-box-sm">
               <svg class="insight-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
@@ -261,10 +256,9 @@
               <p class="insight-text" id="insightMessage">Analyzing revenue trends to formulate promotional strategy...</p>
             </div>
           </div>
-
         </div>
 
-        <!-- RIGHT COLUMN (RECENT TRANSACTIONS CARD) -->
+        <!-- RIGHT COLUMN: RECENT TRANSACTIONS WITH DYNAMIC PAGINATION -->
         <div class="transactions-column">
           <div class="stat-card transactions-card">
             <div class="card-head-row tx-head-row">
@@ -273,7 +267,6 @@
                 <span class="section-badge-pink">LIVE UPDATES</span>
               </div>
 
-              <!-- Date Filter Controls -->
               <div class="tx-filter-wrapper">
                 <select id="txDateFilter" class="custom-select-sm">
                   <option value="today" selected>Today</option>
@@ -290,7 +283,7 @@
               <p class="loading-state-text">Loading transactions...</p>
             </div>
 
-            <!-- Permanent Pagination Controls -->
+            <!-- SMART SLIDING PAGINATION BAR -->
             <div class="tx-pagination-bar" id="txPaginationBar">
               <span class="tx-page-info" id="txPageInfo">Showing 0 of 0 orders</span>
               <div class="tx-pager-buttons">
@@ -454,13 +447,11 @@
               <strong id="zExpectedCash" class="cash-num-highlight">₱4,560.00</strong>
             </div>
 
-            <!-- Blind Cash Count Input -->
             <div class="cash-input-group">
               <label for="zActualCashInput">Actual Physical Cash Counted in Drawer (₱) *</label>
               <input type="number" step="0.5" id="zActualCashInput" class="custom-cash-input" placeholder="Enter total physical bills and coins counted..." required />
             </div>
 
-            <!-- Variance Box -->
             <div class="variance-display-box" id="zVarianceBox">
               <span class="var-label">Variance (Over / Short):</span>
               <strong id="zVarianceValue" class="var-value">₱0.00</strong>
@@ -469,7 +460,6 @@
           </div>
         </div>
 
-        <!-- REFINED MILKY MARBLE LOCKDOWN NOTICE -->
         <div class="audit-warning-box">
           <div class="audit-warning-icon-wrap">
             <svg class="warn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -486,13 +476,60 @@
 
       <div class="audit-modal-footer">
         <button type="button" class="btn-secondary-audit" onclick="closeZReadingModal()">Cancel</button>
-        <button type="button" class="btn-danger-lock" onclick="submitFinalZReading()">
+        <button type="button" class="btn-danger-lock" onclick="promptZReadingConfirmation()">
           <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           <span>Lock Register &amp; Transmit Z-Report</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CUSTOM THEMED NOTIFICATION MODAL -->
+  <div class="modal-overlay" id="customAlertModal">
+    <div class="dialog-modal-card" onclick="event.stopPropagation()">
+      <div class="dialog-icon-circle" id="alertDialogIconWrap">
+        <svg id="alertDialogIcon" class="dialog-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <h3 class="dialog-title" id="alertModalTitle">Notice</h3>
+      <p class="dialog-message" id="alertModalMessage">Please enter the actual physical cash counted in the drawer before locking.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-primary" onclick="closeCustomAlert()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: CUSTOM THEMED CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="customConfirmModal">
+    <div class="dialog-modal-card" onclick="event.stopPropagation()">
+      <div class="dialog-icon-circle warning">
+        <svg class="dialog-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+      <h3 class="dialog-title">Confirm End-of-Shift Z-Reading?</h3>
+      
+      <div class="dialog-summary-box">
+        <div class="d-row"><span>System Expected Cash:</span> <strong id="confirmExpectedCash">₱4,560.00</strong></div>
+        <div class="d-row"><span>Actual Drawer Count:</span> <strong id="confirmActualCash">₱0.00</strong></div>
+        <div class="d-row"><span>Computed Variance:</span> <strong id="confirmVariance">₱0.00</strong></div>
+      </div>
+
+      <p class="dialog-warning-note">
+        <strong>Warning:</strong> The sales register will be locked and cannot accept further orders.
+      </p>
+
+      <div class="dialog-actions split">
+        <button type="button" class="btn-dialog-secondary" onclick="closeCustomConfirm()">Cancel</button>
+        <button type="button" class="btn-dialog-danger" id="btnExecuteLockAndTransmit">OK</button>
       </div>
     </div>
   </div>

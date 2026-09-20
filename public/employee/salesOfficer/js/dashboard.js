@@ -78,6 +78,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         cashInput.addEventListener('input', calculateZVariance);
     }
 
+    // Listener for custom confirmation modal execution button
+    const btnExecute = document.getElementById('btnExecuteLockAndTransmit');
+    if (btnExecute) {
+        btnExecute.addEventListener('click', executeLockdown);
+    }
+
     await loadPageData();
 });
 
@@ -158,7 +164,7 @@ async function loadPageData() {
 
         const data = await response.json();
 
-        // 1. User Header (Guaranteed "Employee" fallback if no full name returned)
+        // 1. User Header
         const userNameEl = document.getElementById('userName');
         const userFirstNameEl = document.getElementById('userFirstName');
 
@@ -386,16 +392,40 @@ function renderPaginatedTransactions() {
     }).join('');
 }
 
-// Render dynamic numbered page buttons
+// --------------------------------------------------------------------------
+// SMART SLIDING PAGINATION WITH ELLIPSIS (...)
+// --------------------------------------------------------------------------
 function renderPaginationControls(totalPages, activePage) {
     const pagerNumbers = document.getElementById('pagerNumbers');
     if (!pagerNumbers) return;
 
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === activePage ? 'active' : '';
-        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerNumbers.innerHTML = `<button type="button" class="pager-num-btn active" data-page="1">1</button>`;
+        return;
     }
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (activePage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (activePage >= totalPages - 3) {
+            pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            pages.push(1, '...', activePage - 1, activePage, activePage + 1, '...', totalPages);
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="pager-ellipsis">&hellip;</span>`;
+        } else {
+            const isActive = p === activePage ? 'active' : '';
+            html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${p}">${p}</button>`;
+        }
+    });
     pagerNumbers.innerHTML = html;
 
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
@@ -511,7 +541,7 @@ function closeXReadingModal() {
 // --------------------------------------------------------------------------
 function openZReadingModal() {
     if (isRegisterLocked) {
-        alert("This operational shift has already been concluded with a final Z-Reading.");
+        showCustomAlert("Shift Already Closed", "This operational shift has already been concluded with a final Z-Reading.", "warning");
         return;
     }
 
@@ -578,23 +608,66 @@ function calculateZVariance() {
     }
 }
 
-async function submitFinalZReading() {
+// --------------------------------------------------------------------------
+// CUSTOM DIALOG & CONFIRMATION HANDLERS (REPLACING NATIVE ALERTS)
+// --------------------------------------------------------------------------
+function showCustomAlert(title, message, type = "notice") {
+    const modal = document.getElementById('customAlertModal');
+    if (!modal) return;
+
+    document.getElementById('alertModalTitle').textContent = title;
+    document.getElementById('alertModalMessage').textContent = message;
+
+    const iconWrap = document.getElementById('alertDialogIconWrap');
+    if (iconWrap) {
+        iconWrap.className = 'dialog-icon-circle ' + (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : ''));
+    }
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCustomAlert() {
+    const modal = document.getElementById('customAlertModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+function promptZReadingConfirmation() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
     if (isNaN(actualCash) || actualCash < 0) {
-        alert("Please enter the actual physical cash counted in the drawer before locking.");
+        showCustomAlert("Incomplete Cash Count", "Please enter the actual physical cash counted in the drawer before locking.", "warning");
         return;
     }
 
     const variance = actualCash - expectedCounterCash;
-    const confirmLock = confirm(
-        `Confirm End-of-Shift Z-Reading?\n\n` +
-        `• System Expected Cash: ₱${expectedCounterCash.toFixed(2)}\n` +
-        `• Actual Drawer Count: ₱${actualCash.toFixed(2)}\n` +
-        `• Variance: ${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}\n\n` +
-        `Warning: The sales register will be locked and cannot accept further orders.`
-    );
 
-    if (!confirmLock) return;
+    document.getElementById('confirmExpectedCash').textContent = '₱' + expectedCounterCash.toFixed(2);
+    document.getElementById('confirmActualCash').textContent = '₱' + actualCash.toFixed(2);
+    document.getElementById('confirmVariance').textContent = `${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}`;
+
+    const confirmModal = document.getElementById('customConfirmModal');
+    if (confirmModal) {
+        confirmModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeCustomConfirm() {
+    const confirmModal = document.getElementById('customConfirmModal');
+    if (confirmModal) {
+        confirmModal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+async function executeLockdown() {
+    closeCustomConfirm();
+
+    const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
+    const variance = actualCash - expectedCounterCash;
 
     try {
         const payload = {
@@ -625,9 +698,10 @@ async function submitFinalZReading() {
     closeZReadingModal();
     checkRegisterLockState();
 
-    alert(
-        "Z-READING TRANSMITTED!\n\n" +
-        "The sales counter has been locked for this shift. The finalized collection summary has been transmitted to the Financial Officer for collection reconciliation."
+    showCustomAlert(
+        "Z-READING TRANSMITTED!",
+        "The sales counter has been locked for this shift. The finalized collection summary has been transmitted to the Financial Officer for collection reconciliation.",
+        "success"
     );
 }
 
