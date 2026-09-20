@@ -510,7 +510,7 @@ async function openXReadingModal() {
 
     // Show a loading state while we fetch the real numbers, rather than
     // flashing fabricated ones first.
-    ['xPreOrdersCount', 'xGcashAmount', 'xMayaAmount', 'xDigitalSubtotal', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
+    ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = 'Loading…';
     });
@@ -532,9 +532,7 @@ async function openXReadingModal() {
         latestXReading = data;
 
         document.getElementById('xPreOrdersCount').textContent = `${data.preordersCount} Claims`;
-        document.getElementById('xGcashAmount').textContent = '₱' + data.gcashTotal.toFixed(2);
-        document.getElementById('xMayaAmount').textContent = '₱' + data.mayaTotal.toFixed(2);
-        document.getElementById('xDigitalSubtotal').textContent = '₱' + data.digitalSubtotal.toFixed(2);
+        document.getElementById('xEwalletAmount').textContent = '₱' + data.eWalletTotal.toFixed(2);
 
         document.getElementById('xPresetsCount').textContent = `${data.presetsCount} Presets Sold`;
         document.getElementById('xWalkinCash').textContent = '₱' + data.walkinCashTotal.toFixed(2);
@@ -542,7 +540,7 @@ async function openXReadingModal() {
         document.getElementById('xGrossTotal').textContent = '₱' + data.grossTotal.toFixed(2);
     } catch (error) {
         console.error('Could not load X-Reading data:', error);
-        ['xPreOrdersCount', 'xGcashAmount', 'xMayaAmount', 'xDigitalSubtotal', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
+        ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '—';
         });
@@ -583,7 +581,7 @@ async function openZReadingModal() {
 
     // Show a loading state while we fetch the real numbers, rather than
     // flashing whatever static placeholder is baked into the HTML.
-    const zFieldIds = ['zPreOrdersCount', 'zClaimedAmount', 'zGcashAmount', 'zMayaAmount', 'zUnclaimedAmount', 'zPresetsCount', 'zExpectedCash'];
+    const zFieldIds = ['zPreOrdersCount', 'zClaimedAmount', 'zEwalletAmount', 'zUnclaimedAmount', 'zPresetsCount', 'zExpectedCash'];
     zFieldIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = 'Loading…';
@@ -605,8 +603,7 @@ async function openZReadingModal() {
 
         document.getElementById('zPreOrdersCount').textContent = `${data.preordersCount} Orders`;
         document.getElementById('zClaimedAmount').textContent = '₱' + data.claimedAmount.toFixed(2);
-        document.getElementById('zGcashAmount').textContent = '₱' + data.gcashTotal.toFixed(2);
-        document.getElementById('zMayaAmount').textContent = '₱' + data.mayaTotal.toFixed(2);
+        document.getElementById('zEwalletAmount').textContent = '₱' + data.eWalletTotal.toFixed(2);
         document.getElementById('zUnclaimedAmount').textContent = '₱' + data.unclaimedAmount.toFixed(2);
         document.getElementById('zPresetsCount').textContent = `${data.cupsSold} Cups Sold`;
         document.getElementById('zExpectedCash').textContent = '₱' + data.expectedDrawer.toFixed(2);
@@ -740,7 +737,7 @@ async function executeLockdown() {
             actual_cash: actualCash,
             expected_cash: expectedCounterCash,
             variance: variance,
-            notes: `Z-Reading | GCash: ₱${(latestXReading?.gcashTotal ?? 0).toFixed(2)} | Maya: ₱${(latestXReading?.mayaTotal ?? 0).toFixed(2)} | Walk-in Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
+            notes: `Z-Reading | E-Wallet/QR Ph: ₱${(latestXReading?.eWalletTotal ?? 0).toFixed(2)} | Walk-in Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
         };
 
         const response = await fetch('/api/sales-officer/z-reading', {

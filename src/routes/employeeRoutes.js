@@ -267,17 +267,17 @@ router.get('/sales-officer/x-reading', async (req, res) => {
 
     if (error) throw error;
 
-    let gcashTotal = 0;
-    let mayaTotal = 0;
+    let eWalletTotal = 0;
     let walkinCashTotal = 0;
     let preordersCount = 0;
     let presetsCount = 0;
     let cupsSold = 0;
-    // "Claimed" = digital (GCash/Maya) pre-orders already picked up (COMPLETED).
-    // "Unclaimed / No-show" = digital pre-orders still not picked up as of
-    // this Z-Reading cut-off (i.e. not COMPLETED and not already CANCELLED -
-    // CANCELLED orders are excluded upstream by NOT_SALES, so anything left
-    // in a non-terminal status here is still awaiting claim).
+    // "Claimed" = e-wallet (QR Ph - GCash/Maya/bank apps, indistinguishable
+    // from each other in this integration) pre-orders already picked up
+    // (COMPLETED). "Unclaimed / No-show" = e-wallet pre-orders still not
+    // picked up as of this cut-off (not COMPLETED; CANCELLED orders are
+    // already excluded upstream by NOT_SALES, so anything left in a
+    // non-terminal status here is still awaiting claim).
     let claimedCount = 0;
     let claimedAmount = 0;
     let unclaimedCount = 0;
@@ -288,19 +288,18 @@ router.get('/sales-officer/x-reading', async (req, res) => {
       const method = String(o.payment_method || '').toLowerCase();
       const itemQty = (o.order_items || []).reduce((s, it) => s + (parseInt(it.quantity, 10) || 0), 0);
 
-      const isDigital = method.includes('gcash') || method.includes('maya');
+      // Checkout only ever stores 'Cash on Pick-Up' or 'E-Wallet' (the
+      // e-wallet checkout uses PayMongo's QR Ph, which doesn't tell us
+      // whether the customer scanned with GCash, Maya, or a bank app -
+      // so those genuinely cannot be split apart here).
+      const isCash = method.includes('cash');
 
-      if (method.includes('gcash')) {
-        gcashTotal += amt;
-      } else if (method.includes('maya')) {
-        mayaTotal += amt;
-      } else {
+      if (isCash) {
         walkinCashTotal += amt;
         presetsCount++;
         cupsSold += itemQty;
-      }
-
-      if (isDigital) {
+      } else {
+        eWalletTotal += amt;
         preordersCount++;
         if (o.status === 'COMPLETED') {
           claimedCount++;
@@ -314,16 +313,14 @@ router.get('/sales-officer/x-reading', async (req, res) => {
 
     const openingFloat = 1000.00;
     const expectedDrawer = openingFloat + walkinCashTotal;
-    const grossTotal = gcashTotal + mayaTotal + walkinCashTotal;
+    const grossTotal = eWalletTotal + walkinCashTotal;
 
     return res.json({
       status: 'success',
       preordersCount,
       presetsCount,
       cupsSold,
-      gcashTotal,
-      mayaTotal,
-      digitalSubtotal: gcashTotal + mayaTotal,
+      eWalletTotal,
       walkinCashTotal,
       claimedCount,
       claimedAmount,
@@ -1302,9 +1299,12 @@ router.get('/finance-officer/payments', async (req, res) => {
 
 // Shared by Finance Officer's reconciliation preview/save and matches the
 // Sales Officer's X/Z-Reading methodology exactly, so both roles are always
-// comparing the same numbers: e-wallet payments (GCash/Maya) never touch the
-// physical drawer, so only walk-in cash + the opening float count as
-// "expected cash in the drawer."
+// comparing the same numbers: e-wallet payments never touch the physical
+// drawer, so only walk-in cash + the opening float count as "expected cash
+// in the drawer." Checkout only ever stores 'Cash on Pick-Up' or 'E-Wallet'
+// - the e-wallet checkout uses PayMongo's QR Ph, which doesn't reveal
+// whether the customer paid via GCash, Maya, or a bank app, so that split
+// isn't something this integration can report.
 async function computeDrawerBreakdown(periodStart, periodEnd) {
   const { data: orders, error } = await supabase
     .from('orders')
@@ -1314,21 +1314,20 @@ async function computeDrawerBreakdown(periodStart, periodEnd) {
     .in('status', ['PAID_VERIFIED', 'COMPLETED']);
   if (error) throw error;
 
-  let gcashTotal = 0, mayaTotal = 0, walkinCashTotal = 0, preordersCount = 0, presetsCount = 0;
+  let eWalletTotal = 0, walkinCashTotal = 0, preordersCount = 0, presetsCount = 0;
   (orders || []).forEach(o => {
     const amt = parseFloat(o.total_amount) || 0;
     const method = String(o.payment_method || '').toLowerCase();
-    if (method.includes('gcash')) { gcashTotal += amt; preordersCount++; }
-    else if (method.includes('maya')) { mayaTotal += amt; preordersCount++; }
-    else { walkinCashTotal += amt; presetsCount++; }
+    const isCash = method.includes('cash');
+    if (isCash) { walkinCashTotal += amt; presetsCount++; }
+    else { eWalletTotal += amt; preordersCount++; }
   });
 
   const openingFloat = 1000.00;
-  const digitalSubtotal = gcashTotal + mayaTotal;
   const expectedDrawer = openingFloat + walkinCashTotal;
-  const grossTotal = digitalSubtotal + walkinCashTotal;
+  const grossTotal = eWalletTotal + walkinCashTotal;
 
-  return { gcashTotal, mayaTotal, digitalSubtotal, walkinCashTotal, openingFloat, expectedDrawer, grossTotal, preordersCount, presetsCount };
+  return { eWalletTotal, walkinCashTotal, openingFloat, expectedDrawer, grossTotal, preordersCount, presetsCount };
 }
 
 // GET /api/finance-officer/reconciliation/preview
@@ -1390,10 +1389,10 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
       : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
     const periodEnd = new Date().toISOString();
 
-    const { expectedDrawer, gcashTotal, mayaTotal, walkinCashTotal } = await computeDrawerBreakdown(periodStart, periodEnd);
+    const { expectedDrawer, eWalletTotal, walkinCashTotal } = await computeDrawerBreakdown(periodStart, periodEnd);
     const expectedAmount = expectedDrawer;
     const variance = Math.round((countedAmount - expectedAmount) * 100) / 100;
-    const autoNote = `GCash: ₱${gcashTotal.toFixed(2)} | Maya: ₱${mayaTotal.toFixed(2)} | Walk-in Cash: ₱${walkinCashTotal.toFixed(2)}`;
+    const autoNote = `E-Wallet/QR Ph: ₱${eWalletTotal.toFixed(2)} | Walk-in Cash: ₱${walkinCashTotal.toFixed(2)}`;
 
     const { data: record, error: insertErr } = await supabase
       .from('drawer_reconciliations')
