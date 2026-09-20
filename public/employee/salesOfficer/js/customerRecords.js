@@ -154,14 +154,15 @@ async function fetchCustomerRecords() {
 
 // Segmentation Display & Pure English Strategic Recommendation
 function updateSegmentationDisplay(seg) {
-    const memRevPct = Math.round(Number(seg.memberRevenuePercent || 0));
-    const guestRevPct = Math.round(Number(seg.guestRevenuePercent || 0));
+    const split = SalesCommon.splitPercents(seg.memberRevenue, seg.guestRevenue);
+    const memRevPct = split.a;
+    const guestRevPct = split.b;
 
     document.getElementById('memberCountDisplay').textContent = `${Number(seg.memberCount || 0).toLocaleString()} customers`;
     document.getElementById('guestCountDisplay').textContent = `${Number(seg.guestCount || 0).toLocaleString()} guests`;
 
-    document.getElementById('memberRevenuePercent').textContent = `${memRevPct}% Revenue`;
-    document.getElementById('guestRevenuePercent').textContent = `${guestRevPct}% Revenue`;
+    document.getElementById('memberRevenuePercent').textContent = `${split.aText} Revenue`;
+    document.getElementById('guestRevenuePercent').textContent = `${split.bText} Revenue`;
 
     document.getElementById('memberOrdersTotal').textContent = `${Number(seg.memberOrders || 0).toLocaleString()} orders`;
     document.getElementById('guestOrdersTotal').textContent = `${Number(seg.guestOrders || 0).toLocaleString()} guest checkouts`;
@@ -174,14 +175,14 @@ function updateSegmentationDisplay(seg) {
 
     if (barMemFill) barMemFill.style.width = `${memRevPct}%`;
     if (barGuestFill) barGuestFill.style.width = `${guestRevPct}%`;
-    if (barMemLabel) barMemLabel.textContent = `${memRevPct}%`;
-    if (barGuestLabel) barGuestLabel.textContent = `${guestRevPct}%`;
+    if (barMemLabel) barMemLabel.textContent = split.aText;
+    if (barGuestLabel) barGuestLabel.textContent = split.bText;
 
     if (insightBox) {
         if (guestRevPct > memRevPct) {
-            insightBox.innerHTML = `<strong>Strategic Alert:</strong> Guest Checkouts represent a larger revenue share (<strong>${guestRevPct}%</strong>). This indicates active purchasing volume without customer account retention. <em>Actionable Advice:</em> Launch a 10% first-registration voucher in the "Promotions" desk to convert guest traffic into loyal registered members.`;
+            insightBox.innerHTML = `<strong>Strategic Alert:</strong> Guest Checkouts represent a larger revenue share (<strong>${split.bText}</strong>). This indicates active purchasing volume without customer account retention. <em>Actionable Advice:</em> Launch a 10% first-registration voucher in the "Promotions" desk to convert guest traffic into loyal registered members.`;
         } else {
-            insightBox.innerHTML = `<strong>Healthy Customer Loyalty:</strong> Registered Members generate the primary share of gross revenue (<strong>${memRevPct}%</strong>). High repeat purchase engagement is confirmed. Maintain current loyalty rewards to foster sustained retention.`;
+            insightBox.innerHTML = `<strong>Healthy Customer Loyalty:</strong> Registered Members generate the primary share of gross revenue (<strong>${split.aText}</strong>). High repeat purchase engagement is confirmed. Maintain current loyalty rewards to foster sustained retention.`;
         }
     }
 }

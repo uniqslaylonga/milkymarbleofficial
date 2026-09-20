@@ -54,5 +54,23 @@
         });
     }
 
-    window.SalesCommon = { localDate: localDate, errorMessage: errorMessage, showError: showError, failTables: failTables };
+    // Split two amounts into percentages for display.
+    //  * one decimal place, and the two always add up to exactly 100
+    //  * a real, non-zero share is never shown as "0%" (it shows "<0.1%")
+    function splitPercents(a, b) {
+        a = Number(a) || 0; b = Number(b) || 0;
+        const total = a + b;
+        if (total <= 0) return { a: 0, b: 0, aText: '0%', bText: '0%' };
+        let aP = Math.round((a / total) * 1000) / 10;
+        let bP = Math.round((100 - aP) * 10) / 10;
+        let aText, bText;
+        if (b > 0 && bP < 0.1) { bP = 0.1; aP = 99.9; }
+        if (a > 0 && aP < 0.1) { aP = 0.1; bP = 99.9; }
+        const fmt = v => (Number.isInteger(v) ? String(v) : v.toFixed(1)) + '%';
+        aText = (a > 0 && aP <= 0.1) ? '<0.1%' : fmt(aP);
+        bText = (b > 0 && bP <= 0.1) ? '<0.1%' : fmt(bP);
+        return { a: aP, b: bP, aText: aText, bText: bText };
+    }
+
+    window.SalesCommon = { localDate: localDate, splitPercents: splitPercents, errorMessage: errorMessage, showError: showError, failTables: failTables };
 })();

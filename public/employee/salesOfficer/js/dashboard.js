@@ -215,14 +215,15 @@ async function loadPageData() {
 
             const regRev = Number(data.revenueSplit.registeredRevenue || 0);
             const guestRev = Number(data.revenueSplit.guestRevenue || 0);
-            const regPct = Math.round(Number(data.revenueSplit.registeredPercent || 0));
-            const guestPct = Math.round(Number(data.revenueSplit.guestPercent || 0));
+            const split = SalesCommon.splitPercents(regRev, guestRev);
+            const regPct = split.a;
+            const guestPct = split.b;
 
             if (regAmountEl) regAmountEl.textContent = '₱' + regRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (regPctEl) regPctEl.textContent = `${regPct}%`;
+            if (regPctEl) regPctEl.textContent = split.aText;
 
             if (guestAmountEl) guestAmountEl.textContent = '₱' + guestRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (guestPctEl) guestPctEl.textContent = `${guestPct}%`;
+            if (guestPctEl) guestPctEl.textContent = split.bText;
 
             if (revenueDonutChartInstance) {
                 const total = regRev + guestRev;
@@ -242,16 +243,16 @@ async function loadPageData() {
                 chart.update();
             }
 
-            if (barRegLabel) barRegLabel.textContent = `${regPct}%`;
-            if (barGuestLabel) barGuestLabel.textContent = `${guestPct}%`;
+            if (barRegLabel) barRegLabel.textContent = split.aText;
+            if (barGuestLabel) barGuestLabel.textContent = split.bText;
             if (barRegFill) barRegFill.style.width = `${regPct}%`;
             if (barGuestFill) barGuestFill.style.width = `${guestPct}%`;
 
             if (insightMessage) {
                 if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas mataas ang kita mula sa Guest Checkouts (<strong>${guestPct}%</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
+                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Mas mataas ang kita mula sa Guest Checkouts (<strong>${split.bText}</strong>). Mag-alok ng 10% voucher para sa first-time sign-ups upang ma-convert sila.`;
                 } else if (regPct > 0 || guestPct > 0) {
-                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${regPct}%</strong>). Maganda ang customer loyalty retention.`;
+                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Pinangungunahan ng Registered Members ang benta (<strong>${split.aText}</strong>). Maganda ang customer loyalty retention.`;
                 } else {
                     insightMessage.textContent = 'Wala pang sapat na sales record upang makagawa ng ratio insight.';
                 }
