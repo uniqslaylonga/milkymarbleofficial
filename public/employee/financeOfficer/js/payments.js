@@ -2,6 +2,7 @@ let allPaymentsData = [];
 let filteredPaymentsData = [];
 let currentPaymentChannel = 'all';
 let currentPaymentPage = 1;
+let latestReconciliation = null;
 const PAYMENTS_PAGE_SIZE = 5;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Form submission
     document.getElementById('paymentForm')?.addEventListener('submit', handleAddPaymentRecord);
+    document.getElementById('drawerCountForm')?.addEventListener('submit', handleDrawerCount);
 
     // Pagination buttons
     document.getElementById('prevPayBtn')?.addEventListener('click', () => {
@@ -53,7 +55,9 @@ async function fetchPaymentsData() {
         if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
         allPaymentsData = data.payments || [];
+        latestReconciliation = data.latestReconciliation || null;
         applyPaymentsFilter();
+        renderUnreconciledKpi();
 
     } catch (error) {
         console.error('Could not load live data from the server:', error);
@@ -99,7 +103,6 @@ function applyPaymentsFilter() {
     document.getElementById('kpiTotalPayments').textContent = '₱' + formatAmount(totalPayments);
     document.getElementById('kpiEwallet').textContent = '₱' + formatAmount(ewalletSum);
     document.getElementById('kpiCashDrawer').textContent = '₱' + formatAmount(cashSum);
-    document.getElementById('kpiUnreconciled').textContent = '—';
 
     currentPaymentPage = 1;
     renderPaymentsTable();
@@ -188,6 +191,80 @@ function renderPayPagerButtons(totalPages, activePage) {
             }
         });
     });
+}
+
+// Shows the real variance from the most recent drawer count on file - or an
+// honest "not counted yet" state if no reconciliation has ever been
+// submitted. Never fabricates a number.
+function renderUnreconciledKpi() {
+    const el = document.getElementById('kpiUnreconciled');
+    if (!el) return;
+
+    if (!latestReconciliation) {
+        el.textContent = 'Not counted yet';
+        el.style.color = '';
+        return;
+    }
+
+    const variance = Number(latestReconciliation.variance || 0);
+    const sign = variance > 0 ? '+' : (variance < 0 ? '−' : '');
+    el.textContent = `${sign}₱${formatAmount(Math.abs(variance))}`;
+    el.style.color = variance === 0 ? 'var(--success, #2e7d32)' : 'var(--danger, #c0392b)';
+}
+
+async function handleDrawerCount(e) {
+    e.preventDefault();
+
+    const amountInput = document.getElementById('drawerCountedAmount');
+    const notesInput = document.getElementById('drawerCountNotes');
+    const counted_amount = parseFloat(amountInput?.value);
+
+    if (isNaN(counted_amount) || counted_amount < 0) {
+        alert('Enter a valid counted amount.');
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const response = await fetch('/api/finance-officer/reconciliation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(userId ? { 'x-user-id': userId } : {})
+            },
+            body: JSON.stringify({ counted_amount, notes: notesInput?.value || '' })
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Could not save the drawer count.');
+        }
+
+        latestReconciliation = data.record;
+        renderUnreconciledKpi();
+        closeDrawerCountModal();
+        alert(`Drawer count saved.\nExpected: ₱${formatAmount(data.record.expected_amount)}\nCounted: ₱${formatAmount(data.record.counted_amount)}\nVariance: ₱${formatAmount(data.record.variance)}`);
+    } catch (error) {
+        alert(error.message || 'Could not save the drawer count.');
+    }
+}
+
+function openDrawerCountModal() {
+    const m = document.getElementById('drawerCountModal');
+    if (m) {
+        m.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeDrawerCountModal() {
+    const m = document.getElementById('drawerCountModal');
+    if (m) {
+        m.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    const form = document.getElementById('drawerCountForm');
+    if (form) form.reset();
 }
 
 function viewTransactionAudit(id) {

@@ -82,6 +82,9 @@
                         <p class="welcome-sub">Verify online e-wallet payments and reconcile cashier drawer cash from walk-in preset sales.</p>
                     </div>
                     <div class="banner-action-col">
+                        <button type="button" class="btn-secondary" onclick="openDrawerCountModal()">
+                            <i class="fa-solid fa-scale-balanced"></i> Count Drawer
+                        </button>
                         <button type="button" class="btn-primary" onclick="openPaymentModal()">
                             <i class="fa-solid fa-cash-register"></i> Manual Payment Log
                         </button>
@@ -129,7 +132,7 @@
                             <i class="fa-solid fa-scale-balanced stat-icon" style="color: #EAA342;"></i>
                         </div>
                         <div class="stat-body"><span id="kpiUnreconciled" class="stat-value">—</span></div>
-                        <div class="stat-footer">Not tracked yet (no physical cash-count entry exists)</div>
+                        <div class="stat-footer">From most recent drawer count</div>
                     </div>
                 </div>
             </section>
@@ -241,6 +244,38 @@
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closePaymentModal()">Cancel</button>
                     <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Reconcile &amp; Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: COUNT CASH DRAWER (REAL RECONCILIATION) -->
+    <div class="modal-overlay" id="drawerCountModal">
+        <div class="profile-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h3 class="modal-title">Count Cash Drawer</h3>
+                    <p class="modal-subtitle">Enter what you physically counted. We'll compare it against verified cash orders since the last count and save the variance.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeDrawerCountModal()">✕</button>
+            </div>
+
+            <form id="drawerCountForm" class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="drawerCountedAmount">Amount Physically Counted (₱) *</label>
+                        <input type="number" step="0.01" id="drawerCountedAmount" placeholder="e.g. 4250.00" min="0" required>
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="drawerCountNotes">Notes (optional)</label>
+                        <input type="text" id="drawerCountNotes" placeholder="e.g. Counted with shift supervisor">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeDrawerCountModal()">Cancel</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Count</button>
                 </div>
             </form>
         </div>

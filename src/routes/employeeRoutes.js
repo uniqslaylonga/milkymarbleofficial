@@ -1079,14 +1079,95 @@ router.get('/finance-officer/payments', async (req, res) => {
       };
     });
 
+    // Real cash-drawer reconciliation: pull the most recent count a Finance
+    // Officer has actually submitted, and report its saved variance. We do
+    // not recompute this on every page load - the variance is a snapshot of
+    // what the counted cash vs. expected cash was AT THE TIME of that count,
+    // not a live figure (more cash orders may have come in since).
+    let latestReconciliation = null;
+    const { data: reconRows, error: reconErr } = await supabase
+      .from('drawer_reconciliations')
+      .select('id, counted_amount, expected_amount, variance, period_start, period_end, notes, created_at')
+      .order('period_end', { ascending: false })
+      .limit(1);
+    if (reconErr) throw reconErr;
+    if (reconRows && reconRows.length) latestReconciliation = reconRows[0];
+
     return res.json({
       status: 'success',
       user: userProfile,
       summary: { monthlyTotal, quarterlyTotal, yearlyTotal },
-      payments
+      payments,
+      latestReconciliation
     });
   } catch (error) {
     console.error('[finance-officer/payments] error:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ==========================================
+// POST /api/finance-officer/reconciliation
+// A Finance Officer physically counts the cash drawer and submits the
+// total. We compute what SHOULD be in the drawer - the sum of
+// PAID_VERIFIED, "Cash on Pick-Up" orders placed since the last
+// reconciliation (or since the start of today, if none exists yet) - and
+// save the difference as the variance. This is real data, not a guess.
+// ==========================================
+router.post('/finance-officer/reconciliation', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const userId = req.headers['x-user-id'] || req.query.user_id || req.body?.user_id || null;
+
+    const countedAmount = parseFloat(req.body?.counted_amount);
+    if (isNaN(countedAmount) || countedAmount < 0) {
+      return res.status(400).json({ status: 'error', message: 'counted_amount is required and must be a non-negative number.' });
+    }
+    const notes = (req.body?.notes || '').toString().trim() || null;
+
+    // Find where the last reconciliation left off.
+    const { data: lastRecon, error: lastReconErr } = await supabase
+      .from('drawer_reconciliations')
+      .select('period_end')
+      .order('period_end', { ascending: false })
+      .limit(1);
+    if (lastReconErr) throw lastReconErr;
+
+    const periodStart = (lastRecon && lastRecon.length)
+      ? lastRecon[0].period_end
+      : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+    const periodEnd = new Date().toISOString();
+
+    const { data: cashOrders, error: ordersErr } = await supabase
+      .from('orders')
+      .select('total_amount')
+      .eq('status', 'PAID_VERIFIED')
+      .eq('payment_method', 'Cash on Pick-Up')
+      .gte('placed_at', periodStart)
+      .lte('placed_at', periodEnd);
+    if (ordersErr) throw ordersErr;
+
+    const expectedAmount = (cashOrders || []).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    const variance = Math.round((countedAmount - expectedAmount) * 100) / 100;
+
+    const { data: record, error: insertErr } = await supabase
+      .from('drawer_reconciliations')
+      .insert({
+        counted_amount: countedAmount,
+        expected_amount: expectedAmount,
+        variance,
+        period_start: periodStart,
+        period_end: periodEnd,
+        notes,
+        recorded_by: userId
+      })
+      .select()
+      .single();
+    if (insertErr) throw insertErr;
+
+    return res.json({ status: 'success', record });
+  } catch (error) {
+    console.error('[finance-officer/reconciliation] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 });
