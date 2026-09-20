@@ -3,148 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble - Order List</title>
+    <title>Milky Marble — Order List & Shelf Organization</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/orderlist.css">
-    <link rel="stylesheet" href="css/sidebar.css">
 </head>
 <body>
-<div class="dashboard-wrapper">
+<div class="app-container">
+    <!-- STICKY SIDEBAR (MATCHING DASHBOARD & SALES OFFICER) -->
     <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="brand-container">
+        <div class="brand-section">
+            <div class="brand-logo-wrap">
                 <img src="../images/logo.png" alt="Milky Marble" class="brand-logo-img">
-                <div class="brand-title">Milky Marble</div>
             </div>
-
-            <ul class="nav-links">
-                <li>
-                    <a href="dashboard.html" class="nav-link">
-                        <i class="fa-solid fa-table-cells-large"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="orderList.html" class="nav-link active">
-                        <i class="fa-solid fa-list-check"></i>
-                        <span>Order List</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="orderProduction.html" class="nav-link">
-                        <i class="fa-solid fa-industry"></i>
-                        <span>Order Production</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="productionPlanning.html" class="nav-link">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        <span>Production Planning</span>
-                    </a>
-                </li>
-            </ul>
+            <div class="brand-title">Milky Marble</div>
         </div>
 
-        <a href="../login.html" class="logout-btn">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-            <span>Log out</span>
-        </a>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-link">
+                <i class="fa-solid fa-table-cells-large nav-fa"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="orderList.html" class="nav-link active">
+                <i class="fa-solid fa-list-check nav-fa"></i>
+                <span>Order List</span>
+            </a>
+            <a href="orderProduction.html" class="nav-link">
+                <i class="fa-solid fa-industry nav-fa"></i>
+                <span>Order Production</span>
+            </a>
+            <a href="productionPlanning.html" class="nav-link">
+                <i class="fa-solid fa-calendar-days nav-fa"></i>
+                <span>Production Planning</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="../login.html" class="nav-link logout-btn">
+                <i class="fa-solid fa-arrow-right-from-bracket nav-fa"></i>
+                <span>Log out</span>
+            </a>
+        </div>
     </aside>
 
+    <!-- MAIN SCROLLABLE CONTENT -->
     <main class="main-content">
-        <header class="top-bar">
+        <!-- TOPBAR -->
+        <header class="topbar">
             <div class="search-box">
-                <input type="text" id="orderSearchInput" placeholder="Search for anything...">
-                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="orderSearchInput" placeholder="Search by order #, customer, flavor, or specs...">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
             </div>
 
-            <div class="top-actions">
-                <button class="notification-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
+            <div class="topbar-right">
+                <button class="notif-btn" title="Alerts"><i class="fa-regular fa-bell"></i></button>
                 <div class="user-profile">
-                    <span class="user-avatar" style="overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;">
-                        <img id="userAvatar" src="/employee/images/account.png" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/employee/images/account.png';">
-                    </span>
-                    <span id="userFullName">Loading...</span>
+                    <div class="user-avatar">
+                        <img id="userAvatar" src="/employee/images/account.png" alt="Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='../images/account.png';">
+                    </div>
+                    <span id="userFullName" class="user-name">Loading...</span>
                 </div>
             </div>
         </header>
 
+        <!-- PAGE HEADER -->
         <section class="page-header">
-            <div class="header-crumb">Order List</div>
+            <div class="page-eyebrow">Production Queue &amp; Shelving Desk</div>
             <div class="header-row">
-                <h1>Keep the shelves organized</h1>
-                <a href="productionPlanning.html" class="request-btn" style="text-decoration: none;">Add Plan <i class="fa-solid fa-arrow-right"></i></a>
-            </div>
-        </section>
-
-        <section class="kpi-grid">
-            <article class="kpi-card">
-                <div class="kpi-top">
-                    <span>Pending Orders</span>
-                    <i class="fa-solid fa-clipboard-list"></i>
-                </div>
-                <div id="pendingCount" class="kpi-value">00</div>
-            </article>
-
-            <article class="kpi-card">
-                <div class="kpi-top">
-                    <span>In progress</span>
-                    <i class="fa-solid fa-store"></i>
-                </div>
-                <div id="inProgressCount" class="kpi-value">00</div>
-            </article>
-
-            <article class="kpi-card">
-                <div class="kpi-top">
-                    <span>Completed Orders</span>
-                    <i class="fa-solid fa-warehouse"></i>
-                </div>
-                <div id="completedCount" class="kpi-value">00</div>
-            </article>
-        </section>
-
-        <section class="pending-panel">
-            <div class="panel-header">
                 <div>
-                    <h2>Orders Queue</h2>
-                    <p>Click any row to open and execute order production.</p>
+                    <h1 class="page-title">Keep the shelves organized</h1>
+                    <p class="header-sub">Manage micro-customized pre-orders and macro walk-in preset batches for release days (Tue/Thu).</p>
                 </div>
-            </div>
-
-            <div class="table-wrap">
-                <table class="orders-table" id="ordersTable">
-                    <thead>
-                        <tr>
-                            <th>Order / Size</th>
-                            <th>Name</th>
-                            <th>Qty</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordersTableBody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 24px; color: #888;">Loading orders list...</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <a href="productionPlanning.html" class="btn-primary" style="text-decoration: none;">
+                    <i class="fa-solid fa-calendar-plus"></i> Batch Planning
+                </a>
             </div>
         </section>
 
-        <section class="saved-panel">
-            <div class="saved-header">
-                <h3>Saved Presets</h3>
-                <p>Repeatable flavors configured in your database catalog</p>
-            </div>
+        <!-- 4 OPERATIONAL KPI CARDS -->
+        <section class="section">
+            <div class="overview-grid four-col-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Pre-orders Target</span>
+                        <i class="fa-solid fa-clipboard-list stat-icon"></i>
+                    </div>
+                    <div class="stat-body"><span id="preordersTargetCount" class="stat-value">57</span></div>
+                    <div class="stat-footer">Scheduled for 10 AM – 3 PM</div>
+                </div>
 
-            <div id="presetGrid" class="preset-grid">
-                <!-- Preset cards rendered dynamically -->
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Walk-in Presets Quota</span>
+                        <i class="fa-solid fa-store stat-icon"></i>
+                    </div>
+                    <div class="stat-body"><span id="presetsQuotaCount" class="stat-value">38</span></div>
+                    <div class="stat-footer">Prepared for counter shelf</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Sealed &amp; Shelf-Ready</span>
+                        <i class="fa-solid fa-warehouse stat-icon"></i>
+                    </div>
+                    <div class="stat-body"><span id="sealedReadyCount" class="stat-value">72</span></div>
+                    <div class="stat-footer">Stored in holding racks</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">In Prep Queue</span>
+                        <i class="fa-solid fa-hourglass-half stat-icon"></i>
+                    </div>
+                    <div class="stat-body"><span id="inQueueCount" class="stat-value">23</span></div>
+                    <div class="stat-footer">Cups pending assembly</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ORDERS QUEUE (REPLACING AMOUNT WITH DRINK SPECS) -->
+        <section class="section">
+            <div class="directory-card">
+                <div class="panel-header-bar">
+                    <div>
+                        <h2 class="section-title">Orders Queue</h2>
+                        <p class="section-sub-text">Click any order to open mixing recipe in Order Production workstation.</p>
+                    </div>
+
+                    <!-- Queue Filter Tabs -->
+                    <div class="order-filter-tabs">
+                        <button type="button" class="tab-btn active" data-filter="all">All Orders</button>
+                        <button type="button" class="tab-btn" data-filter="preorder">Pre-Orders (Custom)</button>
+                        <button type="button" class="tab-btn" data-filter="preset">Walk-in Presets</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="cust-table" id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>Order # &amp; Customer</th>
+                                <th>Item &amp; Custom Specs (Sugar / Ice / Topping)</th>
+                                <th>Qty</th>
+                                <th>Claim Slot (Tue/Thu)</th>
+                                <th>Shelf Tag</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading-state-text">Loading orders list...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PERMANENT NUMBERED PAGINATION BAR -->
+                <div class="tx-pagination-bar" id="orderPaginationBar">
+                    <span class="tx-page-info" id="orderPageInfo">Showing 0 of 0 orders</span>
+                    <div class="tx-pager-buttons">
+                        <button type="button" class="pager-btn" id="prevOrderBtn" title="Previous Page" disabled>
+                            <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <div class="pager-numbers" id="orderPagerNumbers">
+                            <button type="button" class="pager-num-btn active" disabled>1</button>
+                        </div>
+                        <button type="button" class="pager-btn" id="nextOrderBtn" title="Next Page" disabled>
+                            <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WALK-IN PRESET BATCH ALLOCATOR (REPLACING GENERIC SAVED PRESETS) -->
+        <section class="section">
+            <div class="directory-card">
+                <div class="saved-header">
+                    <div class="saved-title-group">
+                        <h2 class="section-title">Walk-in Preset Batch Allocator</h2>
+                        <span class="section-badge-pink">Macro Production Status</span>
+                    </div>
+                    <p class="section-sub-text">Standardized fixed recipes prepared in bulk for Tuesday/Thursday counter chiller display.</p>
+                </div>
+
+                <div id="presetGrid" class="preset-grid">
+                    <!-- Preset cards rendered dynamically -->
+                </div>
             </div>
         </section>
     </main>
