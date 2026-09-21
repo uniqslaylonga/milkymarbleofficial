@@ -302,11 +302,15 @@ async function triggerReconciliationAudit() {
 
         let lastReconHtml = '';
         if (data.lastReconciliation) {
+            const notesHtml = data.lastReconciliation.notes
+                ? `<br><span style="color: var(--text-muted);">${escapeHtml(data.lastReconciliation.notes)}</span>`
+                : '';
             lastReconHtml = `
                 <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
                     Last reconciliation: counted ₱${formatAmount(data.lastReconciliation.counted_amount)},
                     variance ₱${formatAmount(data.lastReconciliation.variance)}
                     on ${new Date(data.lastReconciliation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                    ${notesHtml}
                 </p>`;
         }
 
