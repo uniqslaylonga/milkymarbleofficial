@@ -1,79 +1,84 @@
-let currentFinanceTab = 'preapproval'; // 'preapproval' (₱301-₱500) o 'liquidation' (≤ ₱300)
-let allPreApprovals = [];
-let allLiquidations = [];
-let filteredQueue = [];
-let currentFinPage = 1;
-const FIN_PAGE_SIZE = 4;
+let allRevenueItems = [];
+let filteredRevenueItems = [];
+let currentRevPage = 1;
+const REV_PAGE_SIZE = 5;
 
-let releaseDayChartInstance = null;
-let cogsChartInstance = null;
+let weeklyChartInstance = null;
+let channelDonutInstance = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     Chart.defaults.font.family = "'Urbanist', sans-serif";
-    fetchFinanceDashboardData();
+    fetchRevenueData();
 
-    // Search filter listener
-    document.getElementById('financeSearchInput')?.addEventListener('input', applyFinanceFilters);
-
-    // Form submission
-    document.getElementById('disbursementForm')?.addEventListener('submit', handleDisbursementSubmit);
+    // Filter listeners
+    document.getElementById('revenueSearchInput')?.addEventListener('input', applyRevenueFilters);
+    document.getElementById('flavorFilter')?.addEventListener('change', applyRevenueFilters);
 
     // Pagination buttons
-    document.getElementById('prevFinBtn')?.addEventListener('click', () => {
-        if (currentFinPage > 1) {
-            currentFinPage--;
-            renderFinanceTable();
+    document.getElementById('prevRevBtn')?.addEventListener('click', () => {
+        if (currentRevPage > 1) {
+            currentRevPage--;
+            renderRevenueTable();
         }
     });
 
-    document.getElementById('nextFinBtn')?.addEventListener('click', () => {
-        const totalPages = Math.ceil(filteredQueue.length / FIN_PAGE_SIZE) || 1;
-        if (currentFinPage < totalPages) {
-            currentFinPage++;
-            renderFinanceTable();
+    document.getElementById('nextRevBtn')?.addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredRevenueItems.length / REV_PAGE_SIZE) || 1;
+        if (currentRevPage < totalPages) {
+            currentRevPage++;
+            renderRevenueTable();
         }
     });
 });
 
-async function fetchFinanceDashboardData() {
+async function fetchRevenueData() {
     try {
         let response;
         if (typeof employeeFetch === 'function') {
-            response = await employeeFetch('/api/finance-officer/dashboard');
+            response = await employeeFetch('/api/finance-officer/revenue');
         } else {
             const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
             const headers = userId ? { 'x-user-id': userId } : {};
-            response = await fetch('/api/finance-officer/dashboard', { headers });
+            response = await fetch('/api/finance-officer/revenue', { headers });
         }
 
         if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
 
         const data = await response.json();
 
-        // Populate User Info
+        // User Profile
         const userNameEl = document.getElementById('userName');
-        const userFirstNameEl = document.getElementById('userFirstName');
         const userAvatarEl = document.getElementById('userAvatar');
-
         if (userNameEl) userNameEl.textContent = data.user.fullName || 'Financial Officer';
-        if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Officer';
         if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // Metrics
+        // Metrics setup
         if (data.metrics) {
-            document.getElementById('totalRevenue').textContent = '₱' + formatAmount(data.metrics.totalRevenue);
-            const netMargin = (data.metrics.totalRevenue > 0)
-                ? (((data.metrics.totalRevenue - data.metrics.totalExpenses) / data.metrics.totalRevenue) * 100).toFixed(1)
-                : null;
-            document.getElementById('netMarginVal').textContent = netMargin !== null ? netMargin + '%' : '—';
+            const totalRevenueEl = document.getElementById('totalRevenue');
+            const preordersInflowEl = document.getElementById('preordersInflow');
+            const presetsInflowEl = document.getElementById('presetsInflow');
+            if (totalRevenueEl) totalRevenueEl.textContent = '₱' + formatAmount(data.metrics.totalRevenue);
+            if (preordersInflowEl) preordersInflowEl.textContent = '₱' + formatAmount(data.metrics.preordersInflow);
+            if (presetsInflowEl) presetsInflowEl.textContent = '₱' + formatAmount(data.metrics.presetsInflow);
+        }
+        const avgCupMarginEl = document.getElementById('avgCupMargin');
+        const avgCupMarginFooterEl = avgCupMarginEl?.closest('.stat-card')?.querySelector('.stat-footer');
+        if (data.metrics && data.metrics.avgCupMargin !== null && data.metrics.avgCupMargin !== undefined) {
+            if (avgCupMarginEl) avgCupMarginEl.textContent = '₱' + formatAmount(data.metrics.avgCupMargin);
+            if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = `Net Profit Margin: ${data.metrics.netProfitMarginPct}%`;
+        } else {
+            // Honest fallback: either no cups sold yet, or no COGS expenses
+            // have been recorded on the Expenses page yet to compute a real
+            // margin against.
+            if (avgCupMarginEl) avgCupMarginEl.textContent = '—';
+            if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = 'Needs recorded COGS expenses to calculate';
         }
 
-        allPreApprovals = data.preApprovals || [];
-        allLiquidations = data.liquidations || [];
+        allRevenueItems = data.flavorContributions || [];
+        applyRevenueFilters();
 
-        applyFinanceFilters();
-        initReleaseDayChart(data.releaseCashFlow);
-        initCogsDonutChart(data.cogsBreakdown);
+        initWeeklyReleaseChart(data.weeklyComparison);
+        initChannelDonutChart(data.channelShares);
 
     } catch (error) {
         console.error('Could not load live data from the server:', error);
@@ -81,147 +86,85 @@ async function fetchFinanceDashboardData() {
     }
 }
 
-// Tab Switcher between ₱301-₱500 and ≤ ₱300
-function switchFinanceTab(tab) {
-    currentFinanceTab = tab;
-    const tabPreApp = document.getElementById('tabPreApproval');
-    const tabLiq = document.getElementById('tabLiquidation');
+// Filter Function
+function applyRevenueFilters() {
+    const q = document.getElementById('revenueSearchInput')?.value.toLowerCase().trim() || '';
+    const catFilter = document.getElementById('flavorFilter')?.value || 'all';
 
-    if (tab === 'preapproval') {
-        tabPreApp?.classList.add('active');
-        tabLiq?.classList.remove('active');
-    } else {
-        tabLiq?.classList.add('active');
-        tabPreApp?.classList.remove('active');
-    }
-
-    applyFinanceFilters();
-}
-
-function applyFinanceFilters() {
-    const q = document.getElementById('financeSearchInput')?.value.toLowerCase().trim() || '';
-    const rawList = (currentFinanceTab === 'preapproval') ? allPreApprovals : allLiquidations;
-
-    filteredQueue = rawList.filter(item => {
+    filteredRevenueItems = allRevenueItems.filter(item => {
+        if (catFilter !== 'all' && item.category !== catFilter) return false;
         if (q) {
-            const name = (item.item_name || '').toLowerCase();
-            const code = (item.pr_code || '').toLowerCase();
-            const dept = (item.department || '').toLowerCase();
-            const orNum = (item.or_number || '').toLowerCase();
-            if (!name.includes(q) && !code.includes(q) && !dept.includes(q) && !orNum.includes(q)) return false;
+            const name = (item.flavor_name || '').toLowerCase();
+            const cat = (item.category_label || '').toLowerCase();
+            if (!name.includes(q) && !cat.includes(q)) return false;
         }
         return true;
     });
 
-    // Update Counter Badges
-    document.getElementById('pendingApprovalCount').textContent = String(allPreApprovals.length).padStart(2, '0');
-    document.getElementById('pendingLiquidationCount').textContent = String(allLiquidations.length).padStart(2, '0');
-    document.getElementById('badgePreApp').textContent = allPreApprovals.length;
-    document.getElementById('badgeLiq').textContent = allLiquidations.length;
-
-    currentFinPage = 1;
-    renderFinanceTable();
+    currentRevPage = 1;
+    renderRevenueTable();
 }
 
-function renderFinanceTable() {
-    const tbody = document.getElementById('financeTableBody');
-    const pageInfo = document.getElementById('financePageInfo');
-    const prevBtn = document.getElementById('prevFinBtn');
-    const nextBtn = document.getElementById('nextFinBtn');
-    const headerRow = document.getElementById('tableHeaderRow');
+// Render Revenue Table with Numbered Pagination
+function renderRevenueTable() {
+    const tbody = document.getElementById('revenueTableBody');
+    const pageInfo = document.getElementById('revenuePageInfo');
+    const prevBtn = document.getElementById('prevRevBtn');
+    const nextBtn = document.getElementById('nextRevBtn');
 
     if (!tbody) return;
 
-    // Dynamically adjust headers based on tab
-    if (headerRow) {
-        if (currentFinanceTab === 'preapproval') {
-            headerRow.innerHTML = `
-                <th>PR Code &amp; Item</th>
-                <th>Requesting Dept</th>
-                <th>Estimated Cost</th>
-                <th>DOA Status</th>
-                <th style="text-align: right;">Authorization</th>
-            `;
-        } else {
-            headerRow.innerHTML = `
-                <th>PR Code &amp; Direct Buy Item</th>
-                <th>Official Receipt (OR)</th>
-                <th>Liquidated Amount</th>
-                <th>Audit Status</th>
-                <th style="text-align: right;">Action</th>
-            `;
-        }
-    }
-
-    if (filteredQueue.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="loading-state-text">No items pending in ${currentFinanceTab === 'preapproval' ? '₱301–₱500 Pre-Approval' : '≤ ₱300 Liquidation Audit'}.</td></tr>`;
+    if (filteredRevenueItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading-state-text">No flavor contribution items match your filter criteria.</td></tr>';
         if (pageInfo) pageInfo.textContent = 'Showing 0 of 0 items';
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
-        renderFinPagerButtons(1, 1);
+        renderRevPagerButtons(1, 1);
         return;
     }
 
-    const totalPages = Math.ceil(filteredQueue.length / FIN_PAGE_SIZE) || 1;
-    const startIndex = (currentFinPage - 1) * FIN_PAGE_SIZE;
-    const pageItems = filteredQueue.slice(startIndex, startIndex + FIN_PAGE_SIZE);
+    const totalPages = Math.ceil(filteredRevenueItems.length / REV_PAGE_SIZE) || 1;
+    const startIndex = (currentRevPage - 1) * REV_PAGE_SIZE;
+    const pageItems = filteredRevenueItems.slice(startIndex, startIndex + REV_PAGE_SIZE);
 
     if (pageInfo) {
         const startNum = startIndex + 1;
-        const endNum = Math.min(startIndex + FIN_PAGE_SIZE, filteredQueue.length);
-        pageInfo.textContent = `Showing ${startNum}-${endNum} of ${filteredQueue.length} records`;
+        const endNum = Math.min(startIndex + REV_PAGE_SIZE, filteredRevenueItems.length);
+        pageInfo.textContent = `Showing ${startNum}-${endNum} of ${filteredRevenueItems.length} items`;
     }
-    if (prevBtn) prevBtn.disabled = currentFinPage <= 1;
-    if (nextBtn) nextBtn.disabled = currentFinPage >= totalPages;
+    if (prevBtn) prevBtn.disabled = currentRevPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentRevPage >= totalPages;
 
-    renderFinPagerButtons(totalPages, currentFinPage);
+    renderRevPagerButtons(totalPages, currentRevPage);
 
     tbody.innerHTML = pageItems.map(item => {
-        const costStr = '₱' + formatAmount(item.total_cost);
+        const isHighMargin = item.net_margin_pct >= 42;
+        const perfClass = isHighMargin ? 'perf-high' : 'perf-mid';
 
-        if (currentFinanceTab === 'preapproval') {
-            return `
-                <tr>
-                    <td>
-                        <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(item.item_name)}</strong>
-                        <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.pr_code)} • ${escapeHtml(item.vendor || 'Supplier')}</div>
-                    </td>
-                    <td><span style="font-weight: 700; color: var(--text-dark);">${escapeHtml(item.department)}</span></td>
-                    <td><strong style="color: var(--brown-soft); font-family: var(--font-family-heading); font-size: 13.5px;">${costStr}</strong></td>
-                    <td><span class="badge-route route-finance">🟠 Endorsed to Finance</span></td>
-                    <td style="text-align: right;">
-                        <button type="button" class="btn-approve-finance" onclick="approvePrePurchase(${item.id}, '${escapeHtml(item.item_name)}', ${item.total_cost})">
-                            <i class="fa-solid fa-check"></i> Approve &amp; Release
-                        </button>
-                    </td>
-                </tr>
-            `;
-        } else {
-            return `
-                <tr>
-                    <td>
-                        <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(item.item_name)}</strong>
-                        <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.pr_code)} • Direct Buy (Rhodalyn)</div>
-                    </td>
-                    <td>
-                        <span style="font-size: 11.5px; font-weight: 700; color: var(--brown-soft);">${escapeHtml(item.or_number || 'OR Attached')}</span>
-                    </td>
-                    <td><strong style="color: var(--brown-soft); font-family: var(--font-family-heading); font-size: 13.5px;">${costStr}</strong></td>
-                    <td><span class="badge-route route-procure">🟢 Direct Buy Liquidation</span></td>
-                    <td style="text-align: right;">
-                        <button type="button" class="btn-liquidate-direct" onclick="verifyAndLiquidate(${item.id}, '${escapeHtml(item.item_name)}', ${item.total_cost})">
-                            <i class="fa-solid fa-stamp"></i> Verify &amp; Liquidate
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }
+        return `
+            <tr>
+                <td>
+                    <strong style="color: var(--brown-soft); font-size: 13px;">${escapeHtml(item.flavor_name)}</strong>
+                </td>
+                <td><span style="font-size: 12px; color: var(--text-dark);">${escapeHtml(item.category_label)}</span></td>
+                <td><strong>${item.cups_sold} cups</strong></td>
+                <td>₱${formatAmount(item.unit_price)}</td>
+                <td><strong style="color: var(--brown-soft); font-family: var(--font-family-heading); font-size: 13.5px;">₱${formatAmount(item.gross_sales)}</strong></td>
+                <td><span style="color: var(--text-muted);">₱${formatAmount(item.unit_cogs * item.cups_sold)}</span></td>
+                <td>
+                    <strong style="color: ${isHighMargin ? '#2E7D32' : '#B26A00'};">${item.net_margin_pct}%</strong>
+                </td>
+                <td style="text-align: right;">
+                    <span class="badge-perf ${perfClass}">${escapeHtml(item.perf_status)}</span>
+                </td>
+            </tr>
+        `;
     }).join('');
 }
 
-// Numbered Pager
-function renderFinPagerButtons(totalPages, activePage) {
-    const pagerNumbers = document.getElementById('finPagerNumbers');
+// Numbered Pager Buttons
+function renderRevPagerButtons(totalPages, activePage) {
+    const pagerNumbers = document.getElementById('revPagerNumbers');
     if (!pagerNumbers) return;
 
     let html = '';
@@ -234,63 +177,43 @@ function renderFinPagerButtons(totalPages, activePage) {
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const page = parseInt(e.currentTarget.getAttribute('data-page'), 10);
-            if (page && page !== currentFinPage) {
-                currentFinPage = page;
-                renderFinanceTable();
+            if (page && page !== currentRevPage) {
+                currentRevPage = page;
+                renderRevenueTable();
             }
         });
     });
 }
 
-// Action: Approve Pre-Purchase (₱301-₱500)
-function approvePrePurchase(id, itemName, cost) {
-    const confirmApprove = confirm(`Approve and Release Funds for "${itemName}" (₱${cost.toFixed(2)})?\nThis clears Procurement to purchase.`);
-    if (!confirmApprove) return;
-
-    allPreApprovals = allPreApprovals.filter(i => i.id !== id);
-    applyFinanceFilters();
-    alert(`Funds released for "${itemName}"! Notification sent to Rhodalyn.`);
-}
-
-// Action: Verify Receipt & Liquidate (≤ ₱300)
-function verifyAndLiquidate(id, itemName, cost) {
-    const confirmLiq = confirm(`Verify Official Receipt and replenish ₱${cost.toFixed(2)} to Petty Cash Fund for "${itemName}"?`);
-    if (!confirmLiq) return;
-
-    allLiquidations = allLiquidations.filter(i => i.id !== id);
-    applyFinanceFilters();
-    alert(`Disbursement audited and liquidated! ₱${cost.toFixed(2)} added to petty cash replenishment schedule.`);
-}
-
-// Chart 1: Tuesday vs Thursday Cash Flow
-function initReleaseDayChart(customData) {
-    const ctx = document.getElementById('releaseDayBarChart')?.getContext('2d');
+// Chart 1: Tuesday vs. Thursday Revenue Performance across Operating Cycles
+function initWeeklyReleaseChart(customData) {
+    const ctx = document.getElementById('weeklyReleaseChart')?.getContext('2d');
     if (!ctx) return;
 
-    if (releaseDayChartInstance) releaseDayChartInstance.destroy();
+    if (weeklyChartInstance) weeklyChartInstance.destroy();
 
-    const labels = ['Tue (10 AM - 3 PM)', 'Thu (10 AM - 3 PM)'];
-    const revenueData = (customData && customData.revenue) || [0, 0];
-    const outflowData = (customData && customData.outflow) || [0, 0];
+    const labels = ['Week -3', 'Week -2', 'Week -1', 'This Week'];
+    const tuesdayData = (customData && customData.tuesday) || [0, 0, 0, 0];
+    const thursdayData = (customData && customData.thursday) || [0, 0, 0, 0];
 
-    releaseDayChartInstance = new Chart(ctx, {
+    weeklyChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
             datasets: [
                 {
-                    label: 'Gross Sales (Inflow)',
-                    data: revenueData,
+                    label: 'Tuesday Release (10 AM - 3 PM)',
+                    data: tuesdayData,
                     backgroundColor: '#f28b95',
                     borderRadius: 6,
-                    barThickness: 24
+                    barThickness: 18
                 },
                 {
-                    label: 'Procurement COGS (Outflow)',
-                    data: outflowData,
+                    label: 'Thursday Release (10 AM - 3 PM)',
+                    data: thursdayData,
                     backgroundColor: '#7C4F38',
                     borderRadius: 6,
-                    barThickness: 24
+                    barThickness: 18
                 }
             ]
         },
@@ -301,87 +224,156 @@ function initReleaseDayChart(customData) {
                 legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 700 } } }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(246, 146, 153, 0.15)' }, ticks: { font: { size: 10 } } },
-                x: { grid: { display: false }, ticks: { font: { size: 11, weight: 700 } } }
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(246, 146, 153, 0.15)' },
+                    ticks: { font: { size: 10 }, callback: val => '₱' + val.toLocaleString() }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11, weight: 700 }, color: '#7C4F38' }
+                }
             }
         }
     });
 }
 
-// Chart 2: COGS Donut
-function initCogsDonutChart(customData) {
-    const ctx = document.getElementById('cogsDonutChart')?.getContext('2d');
-    const canvas = document.getElementById('cogsDonutChart');
+// Chart 2: Channel Inflow Mix Donut (Pre-orders vs. Presets)
+function initChannelDonutChart(customData) {
+    const ctx = document.getElementById('channelDonutChart')?.getContext('2d');
     if (!ctx) return;
 
-    if (cogsChartInstance) cogsChartInstance.destroy();
+    if (channelDonutInstance) channelDonutInstance.destroy();
 
-    // There is no real per-ingredient cost tracking in the database
-    // (no tea/milk/cups cost breakdown exists anywhere), so we don't
-    // fabricate one. Show an honest "no data" state instead.
-    if (!customData || !Array.isArray(customData) || customData.length === 0) {
-        if (canvas) {
-            const wrapper = canvas.parentElement;
-            if (wrapper && !wrapper.querySelector('.cogs-empty-note')) {
-                const note = document.createElement('div');
-                note.className = 'cogs-empty-note';
-                note.style.cssText = 'text-align:center; font-size:12px; color: var(--text-muted); padding: 20px 10px;';
-                note.textContent = 'No ingredient cost-breakdown data available yet.';
-                wrapper.appendChild(note);
-            }
-        }
-        return;
-    }
+    const dataPoints = customData || [0, 0];
+    const total = dataPoints[0] + dataPoints[1];
+    const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0;
+    const preordersLegendEl = document.getElementById('preordersLegendVal');
+    const presetsLegendEl = document.getElementById('presetsLegendVal');
+    if (preordersLegendEl) preordersLegendEl.textContent = `₱${formatAmount(dataPoints[0])} (${pct(dataPoints[0])}%)`;
+    if (presetsLegendEl) presetsLegendEl.textContent = `₱${formatAmount(dataPoints[1])} (${pct(dataPoints[1])}%)`;
 
-    const dataPoints = customData;
-
-    cogsChartInstance = new Chart(ctx, {
+    channelDonutInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Tea & Boba', 'Milk Blend', 'Cups & Film'],
+            labels: ['Pre-Orders (Custom)', 'Walk-in Presets'],
             datasets: [{
                 data: dataPoints,
-                backgroundColor: ['#f28b95', '#68B0AB', '#EAA342'],
+                backgroundColor: ['#f28b95', '#EAA342'],
                 borderWidth: 0
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%',
+            cutout: '68%',
             plugins: { legend: { display: false } }
         }
     });
 }
 
-// Modal Handlers
-function openDisbursementModal() {
-    const m = document.getElementById('disbursementModal');
-    if (m) {
-        m.classList.add('open');
-        document.body.style.overflow = 'hidden';
+let reconcilePreviewData = null;
+
+async function triggerReconciliationAudit() {
+    const modal = document.getElementById('reconcileModal');
+    const summaryBody = document.getElementById('reconcileSummaryBody');
+    const form = document.getElementById('reconcileForm');
+    if (!modal) return;
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    summaryBody.style.display = '';
+    form.style.display = 'none';
+    summaryBody.innerHTML = '<p class="loading-state-text">Loading real sales data…</p>';
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = {};
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/finance-officer/reconciliation/preview', { headers });
+        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
+        const data = await response.json();
+
+        reconcilePreviewData = data;
+
+        const periodStartFmt = new Date(data.periodStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const periodEndFmt = new Date(data.periodEnd).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        let lastReconHtml = '';
+        if (data.lastReconciliation) {
+            lastReconHtml = `
+                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                    Last reconciliation: counted ₱${formatAmount(data.lastReconciliation.counted_amount)},
+                    variance ₱${formatAmount(data.lastReconciliation.variance)}
+                    on ${new Date(data.lastReconciliation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                </p>`;
+        }
+
+        summaryBody.innerHTML = `
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">Covering ${periodStartFmt} → ${periodEndFmt}</p>
+            <div class="form-grid">
+                <div class="metric-cell"><small>E-Wallet / QR Ph (GCash, Maya &amp; bank apps)</small><strong>₱${formatAmount(data.eWalletTotal)}</strong></div>
+                <div class="metric-cell"><small>Walk-in Cash Sales</small><strong>₱${formatAmount(data.walkinCashTotal)}</strong></div>
+                <div class="metric-cell"><small>Opening Float</small><strong>₱${formatAmount(data.openingFloat)}</strong></div>
+                <div class="metric-cell highlight-cell"><small>Expected in Drawer</small><strong>₱${formatAmount(data.expectedDrawer)}</strong></div>
+            </div>
+            <p style="font-size: 13px; margin-top: 12px;"><strong>Gross Total (this period):</strong> ₱${formatAmount(data.grossTotal)} &nbsp;|&nbsp; ${data.preordersCount} pre-order claims, ${data.presetsCount} presets</p>
+            ${lastReconHtml}
+        `;
+
+        form.style.display = '';
+    } catch (error) {
+        console.error('Could not load reconciliation preview:', error);
+        summaryBody.innerHTML = `<p class="loading-state-text">Could not load real sales data: ${error.message}</p>`;
     }
 }
 
-function closeDisbursementModal() {
-    const m = document.getElementById('disbursementModal');
-    if (m) {
-        m.classList.remove('open');
+function closeReconcileModal() {
+    const modal = document.getElementById('reconcileModal');
+    if (modal) {
+        modal.classList.remove('open');
         document.body.style.overflow = '';
     }
+    document.getElementById('reconcileForm')?.reset();
 }
 
-function handleDisbursementSubmit(e) {
+async function handleReconcileSubmit(e) {
     e.preventDefault();
-    const desc = document.getElementById('disburseDesc').value.trim();
-    const cat = document.getElementById('disburseCategory').value;
-    const amount = parseFloat(document.getElementById('disburseAmount').value || 0);
-    const orNum = document.getElementById('disburseOrNum').value.trim();
+    const counted_amount = parseFloat(document.getElementById('reconcileCountedAmount')?.value);
+    const notes = document.getElementById('reconcileNotes')?.value || '';
 
-    alert(`Disbursement Voucher for "${desc}" (₱${amount.toFixed(2)}) successfully posted to general ledger under ${cat}!`);
-    closeDisbursementModal();
-    e.target.reset();
+    if (isNaN(counted_amount) || counted_amount < 0) {
+        alert('Enter a valid counted amount.');
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/finance-officer/reconciliation', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ counted_amount, notes })
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Could not save the reconciliation.');
+        }
+
+        closeReconcileModal();
+        alert(`Reconciliation saved.\nExpected: ₱${formatAmount(data.record.expected_amount)}\nCounted: ₱${formatAmount(data.record.counted_amount)}\nVariance: ₱${formatAmount(data.record.variance)}`);
+        fetchRevenueData();
+    } catch (error) {
+        alert(error.message || 'Could not save the reconciliation.');
+    }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('reconcileForm')?.addEventListener('submit', handleReconcileSubmit);
+});
 
 function formatAmount(val) {
     return Number(val || 0).toLocaleString('en-US', {
