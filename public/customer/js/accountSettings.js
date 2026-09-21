@@ -83,41 +83,6 @@ function populateSettingsUI(data) { //[cite: 4]
     // Payment Preference
     populatePaymentPreferenceUI(data.payment_preference || null);
 
-    // Metadata Grid[cite: 4]
-    const formattedId = `MM-CUST-${String(data.id || 0).padStart(4, '0')}`; //[cite: 4]
-    document.getElementById('metaCustomerId').textContent = formattedId; //[cite: 4]
-    document.getElementById('metaLoyaltyPoints').textContent = `${Number(data.loyalty_points || 0).toLocaleString()} pts`; //[cite: 4]
-    document.getElementById('metaPhone').textContent = data.phone || data.phone_number || 'Not specified'; //[cite: 4]
-
-    if (user.created_at) { //[cite: 4]
-        document.getElementById('metaMemberSince').textContent = new Date(user.created_at).toLocaleDateString('en-US', { //[cite: 4]
-            month: 'short', //[cite: 4]
-            day: 'numeric', //[cite: 4]
-            year: 'numeric' //[cite: 4]
-        }); //[cite: 4]
-    }
-
-    if (user.last_login_at) { //[cite: 4]
-        document.getElementById('metaLastLogin').textContent = new Date(user.last_login_at).toLocaleString('en-US', { //[cite: 4]
-            month: 'short', //[cite: 4]
-            day: 'numeric', //[cite: 4]
-            year: 'numeric', //[cite: 4]
-            hour: 'numeric', //[cite: 4]
-            minute: 'numeric', //[cite: 4]
-            hour12: true //[cite: 4]
-        }); //[cite: 4]
-    } else { //[cite: 4]
-        document.getElementById('metaLastLogin').textContent = 'Active Now'; //[cite: 4]
-    }
-
-    const statusEl = document.getElementById('metaStatus'); //[cite: 4]
-    if (user.is_active) { //[cite: 4]
-        statusEl.style.color = '#8BB35C'; //[cite: 4]
-        statusEl.innerHTML = '<i class="fa-solid fa-circle-check" style="font-size: 12px;"></i> Active & Verified'; //[cite: 4]
-    } else { //[cite: 4]
-        statusEl.style.color = '#DC3545'; //[cite: 4]
-        statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="font-size: 12px;"></i> Inactive'; //[cite: 4]
-    }
 }
 
 // Toggle password text visibility[cite: 4]

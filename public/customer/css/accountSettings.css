@@ -426,39 +426,6 @@ body {
 }
 
 /* ==========================================
-   METADATA GRID
-   ========================================== */
-.account-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-}
-
-.meta-data-box {
-    background: #FFF9F8;
-    border: 1.5px solid #FCE1DD;
-    border-radius: 16px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.meta-data-label {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.meta-data-value {
-    font-size: 14px;
-    font-weight: 800;
-    color: var(--text-dark);
-}
-
-/* ==========================================
    DEACTIVATE / DANGER ZONE CARD
    ========================================== */
 .settings-section-card.danger-card {
@@ -730,9 +697,6 @@ body {
     .settings-section-card {
         padding: 24px 20px;
         border-radius: 20px;
-    }
-    .account-meta-grid {
-        grid-template-columns: 1fr;
     }
     .account-overview-card {
         flex-direction: column;
