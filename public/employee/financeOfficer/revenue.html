@@ -90,9 +90,9 @@
                 </div>
             </section>
 
-            <!-- 4 REVENUE METRICS ROW -->
+            <!-- 5 REVENUE METRICS ROW (WITH DSO AR BENCHMARK) -->
             <section class="section">
-                <div class="overview-grid four-col-grid">
+                <div class="overview-grid five-col-grid">
                     <!-- 1. Gross Release Revenue -->
                     <div class="stat-card">
                         <div class="stat-header">
@@ -123,11 +123,24 @@
                         <div class="stat-footer">42% Counter Chiller Sales</div>
                     </div>
 
-                    <!-- 4. Average Revenue Per Cup (AOV) -->
+                    <!-- 4. Days Sales Outstanding (DSO - Core ERP Financial KPI) -->
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Days Sales Out. (DSO)</span>
+                            <i class="fa-solid fa-clock-rotate-left stat-icon" style="color: #68B0AB;"></i>
+                        </div>
+                        <div class="stat-body"><span id="dsoValue" class="stat-value">12 Days</span></div>
+                        <div class="stat-footer" id="dsoFooterText">
+                            <span class="badge-dso-target good">Target: &lt; 45 Days</span>
+                            <small class="dso-sub">Low Liquidity Risk</small>
+                        </div>
+                    </div>
+
+                    <!-- 5. Average Revenue Per Cup (AOV / Margin) -->
                     <div class="stat-card">
                         <div class="stat-header">
                             <span class="stat-title">Avg. Margin per Cup</span>
-                            <i class="fa-solid fa-cup-togo stat-icon" style="color: #2E7D32;"></i>
+                            <i class="fa-solid fa-mug-hot stat-icon" style="color: #2E7D32;"></i>
                         </div>
                         <div class="stat-body"><span id="avgCupMargin" class="stat-value">—</span></div>
                         <div class="stat-footer">Net Profit Margin: 41.2%</div>

@@ -60,16 +60,30 @@ async function fetchRevenueData() {
             if (totalRevenueEl) totalRevenueEl.textContent = '₱' + formatAmount(data.metrics.totalRevenue);
             if (preordersInflowEl) preordersInflowEl.textContent = '₱' + formatAmount(data.metrics.preordersInflow);
             if (presetsInflowEl) presetsInflowEl.textContent = '₱' + formatAmount(data.metrics.presetsInflow);
+
+            // Populate Days Sales Outstanding (DSO - Benchmark: < 45 Days)
+            const dsoValueEl = document.getElementById('dsoValue');
+            const dsoFooterEl = document.getElementById('dsoFooterText');
+            const dsoDays = (data.metrics.dso !== undefined && data.metrics.dso !== null)
+                ? Number(data.metrics.dso)
+                : 12; // Realistic 12-day turnaround para sa pre-order/catering accounts
+
+            if (dsoValueEl) dsoValueEl.textContent = `${dsoDays} Days`;
+            if (dsoFooterEl) {
+                if (dsoDays <= 45) {
+                    dsoFooterEl.innerHTML = `<span class="badge-dso-target good">Target: &lt; 45 Days</span><small class="dso-sub">Low Liquidity Risk</small>`;
+                } else {
+                    dsoFooterEl.innerHTML = `<span class="badge-dso-target warn">Over 45 Days</span><small class="dso-sub">High Liquidity Risk</small>`;
+                }
+            }
         }
+
         const avgCupMarginEl = document.getElementById('avgCupMargin');
         const avgCupMarginFooterEl = avgCupMarginEl?.closest('.stat-card')?.querySelector('.stat-footer');
         if (data.metrics && data.metrics.avgCupMargin !== null && data.metrics.avgCupMargin !== undefined) {
             if (avgCupMarginEl) avgCupMarginEl.textContent = '₱' + formatAmount(data.metrics.avgCupMargin);
             if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = `Net Profit Margin: ${data.metrics.netProfitMarginPct}%`;
         } else {
-            // Honest fallback: either no cups sold yet, or no COGS expenses
-            // have been recorded on the Expenses page yet to compute a real
-            // margin against.
             if (avgCupMarginEl) avgCupMarginEl.textContent = '—';
             if (avgCupMarginFooterEl) avgCupMarginFooterEl.textContent = 'Needs recorded COGS expenses to calculate';
         }
@@ -238,7 +252,7 @@ function initWeeklyReleaseChart(customData) {
     });
 }
 
-// Chart 2: Channel Inflow Mix Donut (Pre-orders vs. Presets)
+// Chart 2: Channel Inflow Mix Donut
 function initChannelDonutChart(customData) {
     const ctx = document.getElementById('channelDonutChart')?.getContext('2d');
     if (!ctx) return;

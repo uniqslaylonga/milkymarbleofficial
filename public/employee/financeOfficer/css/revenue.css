@@ -56,7 +56,7 @@
 html, body {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden; /* Pinipigilan ang side scrolling */
+  overflow-x: hidden;
 }
 
 body {
@@ -66,7 +66,7 @@ body {
   min-height: 100vh;
 }
 
-/* ===== APP CONTAINER (STRICT CONSTRAINTS) ===== */
+/* ===== APP CONTAINER ===== */
 .app-container {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -359,12 +359,17 @@ body {
   min-width: 0;
 }
 
-/* OVERVIEW STATS (4 CARDS) */
+/* OVERVIEW STATS */
 .overview-grid {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   width: 100%;
   min-width: 0;
+}
+
+/* 5-Column Grid with DSO Card Included */
+.five-col-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .four-col-grid {
@@ -375,7 +380,7 @@ body {
   background-color: var(--card-bg);
   border: none;
   border-radius: 14px;
-  padding: 16px 20px 14px;
+  padding: 16px 18px 14px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -394,10 +399,10 @@ body {
 
 .stat-title {
   font-family: var(--font-family-heading);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--text-dark);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
@@ -415,18 +420,45 @@ body {
 
 .stat-value {
   font-family: var(--font-family-heading);
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
   color: #4a3434;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
 }
 
 .stat-footer {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* DSO Target Badge Styling */
+.badge-dso-target {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
+
+.badge-dso-target.good {
+  background-color: rgba(46, 125, 50, 0.15);
+  color: #2E7D32;
+}
+
+.badge-dso-target.warn {
+  background-color: rgba(201, 48, 44, 0.15);
+  color: #C9302C;
+}
+
+.dso-sub {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
 }
 
 /* ==========================================================================
@@ -540,7 +572,7 @@ body {
   font-family: var(--font-family-heading);
 }
 
-/* Custom Select Wrap */
+/* Filter Controls */
 .filter-controls-group {
   display: flex;
   align-items: center;
@@ -736,30 +768,8 @@ body {
   cursor: default;
 }
 
-/* RESPONSIVE */
-@media (max-width: 1200px) {
-  .four-col-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .split-revenue-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .app-container {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    display: none;
-  }
-  .main-content {
-    padding: 16px;
-  }
-}
 /* ==========================================================================
-   MODAL OVERLAY (Reconcile Collections) - mirrors payments.css exactly,
-   since this page previously had no modal styling at all.
+   MODAL OVERLAY (Reconcile Collections)
    ========================================================================== */
 .modal-overlay {
   position: fixed;
@@ -876,8 +886,6 @@ body {
   cursor: pointer;
 }
 
-/* Reconcile summary grid cells - matches the metric-cell look used
-   elsewhere in the app (e.g. Sales Officer X-Reading) for consistency. */
 .metric-cell {
   background: var(--bg-main);
   border: 1px solid var(--border-soft);
@@ -906,4 +914,33 @@ body {
 
 .metric-cell.highlight-cell strong {
   color: #B26A00;
+}
+
+/* RESPONSIVE BREAKPOINTS */
+@media (max-width: 1400px) {
+  .five-col-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1200px) {
+  .five-col-grid,
+  .four-col-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .split-revenue-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+  .main-content {
+    padding: 16px;
+  }
 }
