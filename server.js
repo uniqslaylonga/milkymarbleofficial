@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 // Import Routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -118,6 +119,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(compression());
 app.use(cookieParser());
 app.use(express.json({
   limit: '15mb',
@@ -128,12 +130,33 @@ app.use(express.urlencoded({ limit: '15mb', extended: true }));
 // ==========================================
 // 1. STATIC FILE SERVING & ROUTE ALIASES
 // ==========================================
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/customer', express.static(path.join(__dirname, 'public/customer')));
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/images/uploads', express.static(path.join(__dirname, 'public/images/uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'public/images/uploads')));
-app.use('/customer/images', express.static(path.join(__dirname, 'public/images')));
+// Cache-Control tuned per asset type. This is what lets Vercel's Edge
+// Network (and the browser) cache these responses instead of re-invoking
+// this serverless function on every single request -- the main driver of
+// Fast Origin Transfer for a static-asset-heavy app like this one.
+function staticCacheHeaders(res, filePath) {
+  if (/\.(png|jpe?g|gif|webp|svg|ico|ttf|otf|woff2?)$/i.test(filePath)) {
+    // Images/fonts rarely change: cache long at the edge and in the browser,
+    // but allow a background revalidation window instead of marking them
+    // "immutable" (filenames aren't content-hashed, so they *can* change).
+    res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400');
+  } else if (/\.(css|js)$/i.test(filePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600');
+  } else {
+    // HTML and anything else: short cache so edits still show up quickly,
+    // but repeated hits within the window still avoid the origin function.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+  }
+}
+
+const staticOpts = { maxAge: '7d', setHeaders: staticCacheHeaders };
+
+app.use(express.static(path.join(__dirname, 'public'), staticOpts));
+app.use('/customer', express.static(path.join(__dirname, 'public/customer'), staticOpts));
+app.use('/images', express.static(path.join(__dirname, 'public/images'), staticOpts));
+app.use('/images/uploads', express.static(path.join(__dirname, 'public/images/uploads'), staticOpts));
+app.use('/uploads', express.static(path.join(__dirname, 'public/images/uploads'), staticOpts));
+app.use('/customer/images', express.static(path.join(__dirname, 'public/images'), staticOpts));
 
 app.get(['/customerlogin.html', '/customer/customerlogin.html'], (req, res) => {
   const queryStr = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
