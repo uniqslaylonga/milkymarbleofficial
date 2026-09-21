@@ -1202,31 +1202,106 @@ window.proceedCustomOrderSummary = function() {
 // ==========================================
 // ORDER RECENT & CARD HELPERS
 // ==========================================
-function getOrderDrinkMetadata(itemTitle) {
-  const titleClean = (itemTitle || '').toLowerCase();
+function resolveOrderCardAssets(cleanTitle, toppingsStr) {
+  const cleanLower = (cleanTitle || '').toLowerCase();
 
   const found = PRESET_SIGNATURES.find(p => {
     const pTitle = p.title.replace(/\r?\n|\r/g, ' ').toLowerCase();
-    return titleClean.includes(pTitle);
+    return cleanLower.includes(pTitle);
   });
 
   if (found) {
     return {
+      is_custom: false,
       image: found.image,
-      accent: found.accent_color || '#F48A8E',
+      accent_color: found.accent_color || '#F48A8E',
       title: found.title.replace('\n', ' ')
     };
   }
 
-  if (titleClean.includes('pandan')) {
-    return { image: 'images/Cheesy Pandan Cubes.png', accent: '#8bb35c', title: itemTitle };
-  } else if (titleClean.includes('coffee') || titleClean.includes('chocolatey')) {
-    return { image: 'images/Chocolatey Coffee Noodly Jelly.png', accent: '#664638', title: itemTitle };
-  } else if (titleClean.includes('strawberry')) {
-    return { image: 'images/Strawberry String Party.png', accent: '#f48a8e', title: itemTitle };
+  let flavor = 'Pandan';
+  let accent = '#8bb35c';
+  let fallbackImage = 'images/Cheesy Pandan Cubes.png';
+  if (cleanLower.includes('strawberry')) {
+    flavor = 'Strawberry';
+    accent = '#f48a8e';
+    fallbackImage = 'images/Strawberry String Party.png';
+  } else if (cleanLower.includes('coffee') || cleanLower.includes('chocolatey')) {
+    flavor = 'Coffee';
+    accent = '#664638';
+    fallbackImage = 'images/Chocolatey Coffee Noodly Jelly.png';
   }
 
-  return { image: 'images/Cheesy Pandan Cubes.png', accent: '#8bb35c', title: itemTitle || 'Special Blend Cup' };
+  let jelly = 'Cube';
+  if (cleanLower.includes('spaghetti') || cleanLower.includes('string')) {
+    jelly = 'Spaghetti';
+  } else if (cleanLower.includes('whole')) {
+    jelly = 'Whole';
+  }
+
+  const l1Path = `images/Layer 1/Small Flavors/${flavor} ${jelly}.png`;
+  const l3Path = 'images/Layer 3/Small Cup.png';
+
+  let l2Path = '';
+  const topLower = (toppingsStr || '').toLowerCase();
+  const toppingMap = {
+    'cheese': 'Cheese',
+    'tapioca': 'Tapioca',
+    'marshmallow': 'Mashmallow',
+    'nuts': 'Nuts',
+    'assorted sprinkles': 'Assorted Sprinkles',
+    'choco sprinkles': 'Choco Sprinkles',
+    'sprinkles': 'Assorted Sprinkles',
+    'choco chips': 'Choco Chips',
+    'chocolate chip': 'Choco Chips'
+  };
+  for (const [kw, fileBase] of Object.entries(toppingMap)) {
+    if (topLower.includes(kw)) {
+      l2Path = `images/Layer 2/Small Toppings/${fileBase}.png`;
+      break;
+    }
+  }
+
+  return {
+    is_custom: true,
+    image: fallbackImage,
+    flavor_img: l1Path,
+    toppings_img: l2Path,
+    cup_img: l3Path,
+    accent_color: accent,
+    title: cleanTitle
+  };
+}
+
+// Prefer the real layer images saved on the order item itself
+// (flavor_img/toppings_img/cup_img, persisted at checkout for custom
+// builds). Only fall back to guessing them from the title/toppings
+// text for preset drinks or older orders placed before that data
+// was saved.
+function getOrderDrinkMetadata(itemTitle, item) {
+  const cleanTitle = itemTitle || 'Special Blend Cup';
+  const hasResolvedLayers = item && (item.flavor_img || item.toppings_img || item.cup_img);
+
+  if (hasResolvedLayers) {
+    const cl = cleanTitle.toLowerCase();
+    let accent = '#8bb35c';
+    if (cl.includes('strawberry')) accent = '#f48a8e';
+    else if (cl.includes('coffee') || cl.includes('chocolatey')) accent = '#664638';
+
+    return {
+      is_custom: !!(item.is_custom || item.custom_build || item.toppings_img),
+      image: item.image || item.flavor_img,
+      flavor_img: item.flavor_img || item.image,
+      toppings_img: item.toppings_img || '',
+      cup_img: item.cup_img || 'images/Layer 3/Small Cup.png',
+      accent: item.accent_color || accent,
+      accent_color: item.accent_color || accent,
+      title: cleanTitle
+    };
+  }
+
+  const resolved = resolveOrderCardAssets(cleanTitle, item && item.toppings);
+  return { ...resolved, accent: resolved.accent_color, title: resolved.title || cleanTitle };
 }
 
 function formatOrderStatus(status) {
@@ -1346,7 +1421,8 @@ async function loadRecentOrders() {
       const totalCupsDisplay = `${totalCups} ${totalCups === 1 ? 'Cup' : 'Cups'}`;
 
       const rawTitle = order.title || (order.items && order.items[0] && order.items[0].item_label) || 'Special Blend Cup';
-      const meta = getOrderDrinkMetadata(rawTitle);
+      const firstItem = (order.items && order.items[0]) || null;
+      const meta = getOrderDrinkMetadata(rawTitle, firstItem);
 
       const rawStatus = order.status || 'PENDING_PAYMENT';
       const displayStatus = formatOrderStatus(rawStatus);
@@ -1370,7 +1446,15 @@ async function loadRecentOrders() {
         <article class="home-order-card" data-status="${statusClass}" onclick="window.location.href='orders.html'">
           <div class="home-order-card-inner">
             <div class="home-order-thumb-wrapper" style="--card-thumb-bg: ${meta.accent};">
-              <img src="${meta.image}" class="home-order-thumb-img" alt="${meta.title}">
+              ${meta.is_custom ? `
+                <div class="orders-composite-thumb">
+                  <img src="${meta.flavor_img}" alt="Flavor Layer" class="cart-layer-flavor" onerror="this.style.display='none'">
+                  ${meta.toppings_img ? `<img src="${meta.toppings_img}" alt="Toppings Layer" class="cart-layer-toppings" onerror="this.style.display='none'">` : ''}
+                  <img src="${meta.cup_img}" alt="Cup Outline" class="cart-layer-cup">
+                </div>
+              ` : `
+                <img src="${meta.image}" class="home-order-thumb-img" alt="${meta.title}">
+              `}
             </div>
             <div class="home-order-details-col">
               <div class="home-order-header-row">
