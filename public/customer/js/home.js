@@ -1207,7 +1207,7 @@ function getOrderDrinkMetadata(itemTitle) {
 
   const found = PRESET_SIGNATURES.find(p => {
     const pTitle = p.title.replace(/\r?\n|\r/g, ' ').toLowerCase();
-    return titleClean.includes(pTitle) || pTitle.includes(cleanKey => titleClean.includes(cleanKey));
+    return titleClean.includes(pTitle);
   });
 
   if (found) {

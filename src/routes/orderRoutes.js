@@ -330,13 +330,48 @@ router.get('/recent', async (req, res) => {
 
     const { data, error } = await supabase
       .from('orders')
-      .select('id, order_number, status, total_amount, placed_at, pickup_date, pickup_instructions')
+      .select(`
+        id, order_number, status, total_amount, placed_at, pickup_date, pickup_instructions,
+        order_items (id, item_label, quantity, unit_price, line_total, size, is_custom, toppings, addons, flavor_img, toppings_img, cup_img, accent_color)
+      `)
       .eq('customer_id', customer.id)
       .order('placed_at', { ascending: false })
       .limit(3);
 
     if (error) throw error;
-    return res.json({ status: 'success', orders: data || [] });
+
+    const formattedOrders = (data || []).map(o => {
+      let schedule = o.pickup_date || 'N/A';
+      if (schedule === 'N/A' && o.pickup_instructions) {
+        const match = o.pickup_instructions.match(/Pick-up:\s*([^|]+)/i);
+        if (match) schedule = match[1].trim();
+      }
+
+      return {
+        id: o.id,
+        order_number: o.order_number || `#MM-${o.id}`,
+        status: o.status || 'PENDING_PAYMENT',
+        total_amount: o.total_amount || 0,
+        placed_at: o.placed_at,
+        pickup_date: schedule,
+        items: (o.order_items || []).map(it => ({
+          item_label: it.item_label,
+          title: it.item_label,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          size: it.size,
+          is_custom: it.is_custom,
+          toppings: it.toppings,
+          addons: it.addons,
+          flavor_img: it.flavor_img,
+          toppings_img: it.toppings_img,
+          cup_img: it.cup_img,
+          accent_color: it.accent_color
+        }))
+      };
+    });
+
+    return res.json({ status: 'success', orders: formattedOrders });
   } catch {
     return res.json({ status: 'success', orders: [] });
   }
