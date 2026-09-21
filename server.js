@@ -1984,27 +1984,43 @@ app.get('/api/ceo/budget-approval', async (req, res) => {
     const { count: rejectedCount } = await supabase.from('expenses').select('*', { count: 'exact', head: true }).eq('status', 'REJECTED');
 
     // Fetch Pending Requests
-    // Note: If you don't have relationships set up yet between expenses and employees, 
-    // we query expenses and safely format the data.
     const { data: pendingData } = await supabase
       .from('expenses')
-      .select('id, amount, purpose, notes, status, receipt_url, created_at')
+      .select('id, amount, purpose, notes, status, receipt_url, created_at, requested_by')
       .eq('status', 'PENDING')
       .order('created_at', { ascending: false });
 
+    // Resolve the real requester (name + department/role) from the users table.
+    // If a request has no requested_by, or that user can't be found, leave it blank.
+    const requesterIds = [...new Set((pendingData || []).map(e => e.requested_by).filter(Boolean))];
+    let requesterMap = {};
+    if (requesterIds.length) {
+      const { data: requesterUsers } = await supabase
+        .from('users')
+        .select('id, full_name, user_roles(roles(name))')
+        .in('id', requesterIds);
+
+      (requesterUsers || []).forEach(u => {
+        const role = u.user_roles && u.user_roles.length > 0 && u.user_roles[0].roles
+          ? u.user_roles[0].roles.name
+          : '';
+        requesterMap[u.id] = { name: u.full_name || '', role };
+      });
+    }
+
     // Format for the frontend grid
     const formattedRequests = (pendingData || []).map(exp => {
-      // Mocking name/role until relationships are strictly defined in Supabase
+      const requester = requesterMap[exp.requested_by] || { name: '', role: '' };
       return {
         id: exp.id,
-        name: 'Finance Department',
-        role: 'Internal Request',
+        name: requester.name,
+        role: requester.role,
         amount: `₱${parseFloat(exp.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         amount_raw: parseFloat(exp.amount || 0),
         purpose: exp.purpose || 'General Expense',
         notes: exp.notes || 'No additional notes provided.',
         filename: exp.receipt_url ? exp.receipt_url.split('/').pop() : 'No attached file',
-        filesize: exp.receipt_url ? '1.2 MB' : '0 KB'
+        filesize: ''
       };
     });
 
