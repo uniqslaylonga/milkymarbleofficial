@@ -247,14 +247,17 @@ function initNavbarState() {
   }
 
   if (cartQuery && cartBadge) {
-    fetch(`/api/cart/count?${cartQuery}`)
+    // Exposed on window so page scripts (home.js, etc.) that need the same
+    // count can await this instead of firing their own /api/cart/count call.
+    window.mmCartCountPromise = fetch(`/api/cart/count?${cartQuery}`)
       .then(res => res.json())
       .then(data => {
         const count = parseInt(data.count, 10) || 0;
         cartBadge.innerText = count;
         cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        return data;
       })
-      .catch(() => {});
+      .catch(() => null);
   }
 
   // REGISTERED CUSTOMER STATE
@@ -300,7 +303,9 @@ function initNavbarState() {
     // Auto-sync avatar at fresh user details mula sa database
     const syncId = user.customer_id || user.user_id || user.id;
     if (syncId) {
-      fetch(`/api/customer/profile?customer_id=${encodeURIComponent(syncId)}`, { credentials: 'include' })
+      // Exposed on window for the same reason as mmCartCountPromise above --
+      // lets other scripts reuse this response instead of re-fetching it.
+      window.mmProfilePromise = fetch(`/api/customer/profile?customer_id=${encodeURIComponent(syncId)}`, { credentials: 'include' })
         .then(res => res.json())
         .then(resData => {
           if (resData.status === 'success' && (resData.data || resData.customer)) {
@@ -320,8 +325,9 @@ function initNavbarState() {
               if (dropImg) dropImg.src = safeUrl;
             }
           }
+          return resData;
         })
-        .catch(() => {});
+        .catch(() => null);
     }
 
     if (navOrders) {

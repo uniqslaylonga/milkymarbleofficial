@@ -1627,6 +1627,19 @@ function updateCartCount() {
   const countBadge = document.getElementById('navCartCount');
   if (!countBadge) return;
 
+  // navbar.js (loaded before this script) already kicks off the exact same
+  // /api/cart/count request on this same page and stores the promise here --
+  // reuse it instead of firing a second identical request.
+  if (window.mmCartCountPromise) {
+    window.mmCartCountPromise.then(data => {
+      if (!data) return;
+      const count = parseInt(data.count, 10) || 0;
+      countBadge.innerText = count;
+      countBadge.style.display = count > 0 ? 'inline-block' : 'none';
+    });
+    return;
+  }
+
   const idPayload = getActiveCartPayload();
   const queryParam = idPayload.customer_id
     ? `customer_id=${encodeURIComponent(idPayload.customer_id)}`
@@ -1660,6 +1673,31 @@ async function fetchCustomerLoyaltyPoints() {
     renderLoyaltyPoints(userLoyaltyPoints);
   }
 
+  const applyProfileResult = (result) => {
+    if (result && result.status === 'success') {
+      const data = result.data || result.customer || {};
+      userLoyaltyPoints = parseFloat(data.loyalty_points ?? userLoyaltyPoints ?? 0.0);
+      renderLoyaltyPoints(userLoyaltyPoints);
+
+      // Panatilihing updated ang localStorage
+      localUser.loyalty_points = userLoyaltyPoints;
+      if (data.id) localUser.customer_id = data.id;
+      localStorage.setItem('mm_user', JSON.stringify(localUser));
+    }
+  };
+
+  // navbar.js (loaded before this script) already fetches this same
+  // customer's /api/customer/profile on this page -- reuse that response
+  // instead of firing a second identical request.
+  if (resolveId && window.mmProfilePromise) {
+    try {
+      applyProfileResult(await window.mmProfilePromise);
+    } catch (err) {
+      console.warn('Could not load customer loyalty points:', err);
+    }
+    return;
+  }
+
   try {
     const res = await fetch(`/api/customer/profile${resolveId ? `?customer_id=${resolveId}` : ''}`, {
       credentials: 'include',
@@ -1668,16 +1706,7 @@ async function fetchCustomerLoyaltyPoints() {
     
     if (res.ok) {
       const result = await res.json();
-      if (result.status === 'success') {
-        const data = result.data || result.customer || {};
-        userLoyaltyPoints = parseFloat(data.loyalty_points ?? userLoyaltyPoints ?? 0.0);
-        renderLoyaltyPoints(userLoyaltyPoints);
-
-        // Panatilihing updated ang localStorage
-        localUser.loyalty_points = userLoyaltyPoints;
-        if (data.id) localUser.customer_id = data.id;
-        localStorage.setItem('mm_user', JSON.stringify(localUser));
-      }
+      applyProfileResult(result);
     }
   } catch (err) {
     console.warn('Could not load customer loyalty points:', err);
