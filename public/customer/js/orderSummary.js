@@ -165,6 +165,10 @@ function showSweetAlert(options) {
       cancelButton: 'mm-swal-cancel-btn'
     },
     buttonsStyling: false,
+    // Modals can only be dismissed by pressing one of their buttons —
+    // never by clicking the backdrop or pressing ESC.
+    allowOutsideClick: false,
+    allowEscapeKey: false,
     ...options
   });
 }
@@ -355,7 +359,10 @@ window.renderOrderSummaryModal = async function(items = []) {
   }
 };
 
-window.closeOrderSummaryModal = function() {
+window.closeOrderSummaryModal = function(event) {
+  // A click on the dark backdrop passes the click event in; ignore it.
+  // Only the explicit close (X) button / code calls this with no event.
+  if (event && event.target) return;
   const modal = document.getElementById('orderSummaryModal');
   if (modal) modal.classList.remove('active');
   document.body.style.overflow = '';
@@ -614,7 +621,8 @@ window.openRecipientModal = function() {
   if (modal) modal.classList.add('active');
 };
 
-window.closeRecipientModal = function() {
+window.closeRecipientModal = function(event) {
+  if (event && event.target) return;
   const modal = document.getElementById('recipientEditModal');
   if (modal) modal.classList.remove('active');
 };
@@ -914,18 +922,29 @@ window.confirmPlaceOrder = async function() {
         ? { action: 'clear', session_id: guestSessionId }
         : { action: 'clear', customer_id: customerId };
 
-      const clearCartRequest = () => {
-        fetch('/api/cart', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(clearCartPayload)
-        }).catch(err => console.warn('Could not auto-clear cart:', err));
+      // Removes the ordered items from the cart right when the order is saved,
+      // so it never depends on the customer pressing "Got It".
+      const clearCartRequest = async () => {
+        try {
+          await fetch('/api/cart', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(clearCartPayload)
+          });
+        } catch (err) {
+          console.warn('Could not auto-clear cart:', err);
+        }
 
         const cartBadge = document.getElementById('navCartCount');
         if (cartBadge) {
           cartBadge.innerText = '0';
           cartBadge.style.display = 'none';
+        }
+
+        // On the cart page, re-render the list so the ordered items disappear now.
+        if (typeof window.loadCartItems === 'function') {
+          try { await window.loadCartItems(); } catch (e) {}
         }
       };
 
@@ -946,7 +965,7 @@ window.confirmPlaceOrder = async function() {
           const payData = await payRes.json();
 
           if (payRes.ok && payData.status === 'success' && payData.checkout_url) {
-            clearCartRequest();
+            await clearCartRequest();
             window.location.href = payData.checkout_url;
             return;
           }
@@ -970,7 +989,7 @@ window.confirmPlaceOrder = async function() {
       }
 
       closeOrderSummaryModal();
-      clearCartRequest();
+      await clearCartRequest();
 
       // I-update ang Loyalty Points sa Screen at sa Local Storage gamit ang 0.10 pts ratio
       const earned = calculatedPointsEarned;
@@ -1037,7 +1056,9 @@ window.confirmPlaceOrder = async function() {
         `,
         confirmButtonText: 'Got It!',
         showCancelButton: false,
-        focusConfirm: false
+        focusConfirm: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false
       });
     } else {
       showSweetAlert({

@@ -370,6 +370,8 @@ window.openOrderSummaryFromCart = function() {
       text: 'Please select at least one sweet cup to checkout.',
       icon: 'warning',
       confirmButtonText: 'Got It',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
       customClass: {
         container: 'mm-cart-swal-container',
         popup: 'mm-cart-swal-modal',
