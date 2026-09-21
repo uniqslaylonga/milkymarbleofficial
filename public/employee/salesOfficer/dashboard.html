@@ -124,7 +124,7 @@
         </div>
       </header>
 
-      <!-- WELCOME BANNER WITH AUDIT ACTION BUTTONS -->
+      <!-- WELCOME BANNER WITH DYNAMIC SHIFT BUTTONS -->
       <section class="welcome-banner">
         <div class="welcome-banner-flex">
           <div>
@@ -139,12 +139,13 @@
               </svg>
               <span>X-Reading (Snapshot)</span>
             </button>
-            <button type="button" id="btnEndShiftTrigger" class="btn-z-reading" onclick="openZReadingModal()">
+            <!-- DYNAMIC TRIGGER: Magiging "Start Shift" kapag naka-lock, o "End Shift" kapag bukas -->
+            <button type="button" id="btnShiftTrigger" class="btn-z-reading" onclick="handleShiftButtonClick()">
               <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span>End Shift &amp; Z-Reading</span>
+              <span id="shiftTriggerText">End Shift &amp; Z-Reading</span>
             </button>
           </div>
         </div>
@@ -306,6 +307,57 @@
     </main>
   </div>
 
+  <!-- MODAL 0: START SHIFT / OPEN REGISTER (BAGO MAGSIMULA ANG ARAW) -->
+  <div class="modal-overlay" id="openShiftModal">
+    <div class="audit-modal-card" onclick="event.stopPropagation()">
+      <div class="audit-modal-header">
+        <div>
+          <span class="audit-badge x-badge">SHIFT INITIATION</span>
+          <h2 class="audit-modal-title">Start Shift — Open Register</h2>
+          <p class="audit-modal-sub" id="openShiftSubDate">Tuesday &amp; Thursday Operational Window (10:00 AM)</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeOpenShiftModal()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="audit-modal-body">
+        <div class="audit-status-notice">
+          <svg class="notice-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="10 8 16 12 10 16 10 8" />
+          </svg>
+          <span>Opening the sales desk permits counter transactions and live pre-order claiming.</span>
+        </div>
+
+        <div class="audit-block">
+          <div class="cash-reconcile-wrap">
+            <div class="cash-input-group">
+              <label for="openingFloatInput">Opening Cash Float for Change (₱) *</label>
+              <input type="number" step="0.5" id="openingFloatInput" class="custom-cash-input" value="1000.00" required />
+            </div>
+
+            <div class="cash-input-group">
+              <label for="openingShiftNotes">Shift Opening Notes (Optional)</label>
+              <input type="text" id="openingShiftNotes" class="custom-cash-input" placeholder="e.g. Counter 1 cash drawer float verified" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="audit-modal-footer">
+        <button type="button" class="btn-secondary-audit" onclick="closeOpenShiftModal()">Cancel</button>
+        <button type="button" class="btn-primary-audit" onclick="confirmOpenShift()">
+          <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+          </svg>
+          <span>Open Sales Register</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL 1: X-READING INTERIM SNAPSHOT -->
   <div class="modal-overlay" id="xReadingModal">
     <div class="audit-modal-card" onclick="event.stopPropagation()">
@@ -355,7 +407,7 @@
             </div>
             <div class="metric-cell">
               <small>Opening Float</small>
-              <strong>₱1,000.00</strong>
+              <strong id="xOpeningFloatDisplay">₱1,000.00</strong>
             </div>
             <div class="metric-cell highlight-cell">
               <small>Expected in Drawer</small>
@@ -506,7 +558,7 @@
       <h3 class="dialog-title">Confirm End-of-Shift Z-Reading?</h3>
       
       <div class="dialog-summary-box">
-        <div class="d-row"><span>System Expected Cash:</span> <strong id="confirmExpectedCash">₱4,560.00</strong></div>
+        <div class="d-row"><span>System Expected Cash:</span> <strong id="confirmExpectedCash">₱0.00</strong></div>
         <div class="d-row"><span>Actual Drawer Count:</span> <strong id="confirmActualCash">₱0.00</strong></div>
         <div class="d-row"><span>Computed Variance:</span> <strong id="confirmVariance">₱0.00</strong></div>
       </div>

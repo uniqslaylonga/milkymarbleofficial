@@ -17,7 +17,7 @@ const TX_PAGE_SIZE = 4;
 
 // Register Lock & Z-Reading State
 let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
-let expectedCounterCash = 0; // Real value is fetched from /api/sales-officer/x-reading - see openXReadingModal/refreshExpectedCounterCash.
+let expectedCounterCash = 0;
 let latestXReading = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -90,7 +90,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Setup Chart.js
 function initCharts() {
-    // 1. Mini Horizontal Bar Chart for Acquisition
     const acqCtx = document.getElementById('acquisitionMiniChart');
     if (acqCtx) {
         acquisitionChartInstance = new Chart(acqCtx.getContext('2d'), {
@@ -126,7 +125,6 @@ function initCharts() {
         });
     }
 
-    // 2. Donut Chart for Guest vs Member Revenue
     const revCtx = document.getElementById('revenueDonutChart');
     if (revCtx) {
         revenueDonutChartInstance = new Chart(revCtx.getContext('2d'), {
@@ -219,13 +217,10 @@ async function loadPageData() {
             updateAcquisitionDisplay();
         }
 
-        // Sync the register lock state from the server (system_settings,
-        // set by /sales-officer/z-reading and released by Finance Officer's
-        // reconciliation save) instead of trusting only the local flag,
-        // which previously never got reset once a shift closed.
+        // Synchronize lock state
         syncRegisterLockState(data.registerStatus);
 
-        // 4. Revenue Split Donut & Strategic Insights
+        // 4. Revenue Split Donut
         if (data.revenueSplit) {
             const regAmountEl = document.getElementById('registeredRevenue');
             const regPctEl = document.getElementById('registeredPercent');
@@ -294,7 +289,6 @@ async function loadPageData() {
     }
 }
 
-// Logic for Recent Transactions Date Filter
 function applyTransactionFilters() {
     const filterType = document.getElementById('txDateFilter')?.value || 'today';
     const customDateVal = document.getElementById('txCustomDate')?.value;
@@ -328,7 +322,6 @@ function applyTransactionFilters() {
     renderPaginatedTransactions();
 }
 
-// Render orders on active page with permanent numbered pagination bar
 function renderPaginatedTransactions() {
     const ordersGrid = document.getElementById('recentOrdersGrid');
     const paginationBar = document.getElementById('txPaginationBar');
@@ -337,7 +330,6 @@ function renderPaginatedTransactions() {
     const nextBtn = document.getElementById('nextTxBtn');
 
     if (!ordersGrid) return;
-
     if (paginationBar) paginationBar.style.display = 'flex';
 
     if (filteredOrders.length === 0) {
@@ -399,9 +391,7 @@ function renderPaginatedTransactions() {
     }).join('');
 }
 
-// --------------------------------------------------------------------------
-// SMART SLIDING PAGINATION WITH ELLIPSIS (...)
-// --------------------------------------------------------------------------
+// Smart sliding pagination
 function renderPaginationControls(totalPages, activePage) {
     const pagerNumbers = document.getElementById('pagerNumbers');
     if (!pagerNumbers) return;
@@ -472,67 +462,57 @@ function updateAcquisitionDisplay() {
 }
 
 // ==========================================================================
-// REGISTER LOCK & AUDIT CONTROLS
+// DYNAMIC SHIFT CONTROLS (START SHIFT VS. END SHIFT)
 // ==========================================================================
 function checkRegisterLockState() {
     const banner = document.getElementById('registerStatusBanner');
     const bannerText = document.getElementById('registerStatusText');
-    const zBtn = document.getElementById('btnEndShiftTrigger');
+    const shiftBtn = document.getElementById('btnShiftTrigger');
+    const shiftBtnText = document.getElementById('shiftTriggerText');
 
     if (isRegisterLocked) {
+        // Naka-lock: Ihanda ang button para sa Open Shift / Start Day
         if (banner) {
             banner.className = 'topbar-status-strip locked';
             bannerText.innerHTML = '<span class="status-pulse-dot"></span><strong>Shift Closed &amp; Register Locked</strong> — Transmitted to Finance';
         }
-        if (zBtn) {
-            zBtn.disabled = true;
-            zBtn.innerHTML = `
+        if (shiftBtn) {
+            shiftBtn.className = 'btn-open-shift';
+            shiftBtn.innerHTML = `
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
+              </svg>
+              <span>Start Shift / Open Register</span>
+            `;
+        }
+    } else {
+        // Bukas: Ihanda ang button para sa End Shift & Z-Reading
+        if (banner) {
+            banner.className = 'topbar-status-strip open';
+            bannerText.innerHTML = '<span class="status-pulse-dot"></span>Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)';
+        }
+        if (shiftBtn) {
+            shiftBtn.className = 'btn-z-reading';
+            shiftBtn.innerHTML = `
               <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span>Shift Closed (Locked)</span>
+              <span>End Shift &amp; Z-Reading</span>
             `;
-            zBtn.style.opacity = '0.6';
-            zBtn.style.cursor = 'not-allowed';
         }
+    }
+}
+
+function handleShiftButtonClick() {
+    if (isRegisterLocked) {
+        openOpenShiftModal();
     } else {
-        resetRegisterLockUI();
+        openZReadingModal();
     }
 }
 
-// Restores the banner/button to their normal "register open" state.
-// Needed once a lock can actually be released again (Finance Officer
-// reconciling clears system_settings.register_status server-side) -
-// previously there was nothing to reset the UI back to after a lock.
-function resetRegisterLockUI() {
-    const banner = document.getElementById('registerStatusBanner');
-    const bannerText = document.getElementById('registerStatusText');
-    const zBtn = document.getElementById('btnEndShiftTrigger');
-
-    if (banner) banner.className = 'topbar-status-strip open';
-    if (bannerText) {
-        bannerText.innerHTML = '<span class="status-pulse-dot"></span>Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)';
-    }
-    if (zBtn) {
-        zBtn.disabled = false;
-        zBtn.innerHTML = `
-          <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <span>End Shift &amp; Z-Reading</span>
-        `;
-        zBtn.style.opacity = '';
-        zBtn.style.cursor = '';
-    }
-}
-
-// Reconciles the local "isRegisterLocked" flag against the server's real
-// system_settings.register_status on every dashboard load, instead of
-// trusting whatever localStorage happened to be left at. This is what
-// actually lets a shift re-open after Finance Officer reconciles - before,
-// nothing ever cleared the flag once executeLockdown() set it.
 function syncRegisterLockState(serverStatus) {
     const shouldBeLocked = serverStatus === 'LOCKED';
     if (shouldBeLocked === isRegisterLocked) {
@@ -541,14 +521,65 @@ function syncRegisterLockState(serverStatus) {
     }
     isRegisterLocked = shouldBeLocked;
     localStorage.setItem('isRegisterLocked', shouldBeLocked ? 'true' : 'false');
-    if (!shouldBeLocked) {
-        localStorage.removeItem('latestZReport');
-    }
     checkRegisterLockState();
 }
 
 // --------------------------------------------------------------------------
-// X-READING INTERIM SNAPSHOT MODAL LOGIC
+// OPEN SHIFT / START DAY LOGIC
+// --------------------------------------------------------------------------
+function openOpenShiftModal() {
+    const modal = document.getElementById('openShiftModal');
+    if (!modal) return;
+
+    const dateSub = document.getElementById('openShiftSubDate');
+    if (dateSub) {
+        dateSub.textContent = `Shift Start: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 10:00 AM`;
+    }
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeOpenShiftModal() {
+    const modal = document.getElementById('openShiftModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+async function confirmOpenShift() {
+    const floatAmount = parseFloat(document.getElementById('openingFloatInput')?.value || 1000);
+    const notes = document.getElementById('openingShiftNotes')?.value || 'Morning Shift Cash Float Initialized';
+
+    if (isNaN(floatAmount) || floatAmount < 0) {
+        showCustomAlert("Invalid Float Amount", "Please enter a valid cash float amount.", "warning");
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
+        // Unlock the register
+        localStorage.setItem('isRegisterLocked', 'false');
+        isRegisterLocked = false;
+        closeOpenShiftModal();
+        checkRegisterLockState();
+
+        showCustomAlert(
+            "Shift Started Successfully",
+            `The register is now OPEN with an initial cash float of ₱${floatAmount.toFixed(2)}. You may now punch walk-ins and confirm pre-orders.`,
+            "success"
+        );
+    } catch (error) {
+        console.error('Error starting shift:', error);
+    }
+}
+
+// --------------------------------------------------------------------------
+// X-READING INTERIM SNAPSHOT LOGIC
 // --------------------------------------------------------------------------
 async function openXReadingModal() {
     const modal = document.getElementById('xReadingModal');
@@ -562,8 +593,6 @@ async function openXReadingModal() {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Show a loading state while we fetch the real numbers, rather than
-    // flashing fabricated ones first.
     ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = 'Loading…';
@@ -578,20 +607,15 @@ async function openXReadingModal() {
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
 
         const data = await response.json();
-
-        // Cache the real expected-drawer figure so Z-Reading compares
-        // against the same number this X-Reading just showed, instead of
-        // a stale hardcoded constant.
         expectedCounterCash = data.expectedDrawer;
         latestXReading = data;
 
         document.getElementById('xPreOrdersCount').textContent = `${data.preordersCount} Claims`;
-        document.getElementById('xEwalletAmount').textContent = '₱' + data.eWalletTotal.toFixed(2);
-
+        document.getElementById('xEwalletAmount').textContent = '₱' + (data.digitalSubtotal || 0).toFixed(2);
         document.getElementById('xPresetsCount').textContent = `${data.presetsCount} Presets Sold`;
-        document.getElementById('xWalkinCash').textContent = '₱' + data.walkinCashTotal.toFixed(2);
-        document.getElementById('xExpectedDrawer').textContent = '₱' + data.expectedDrawer.toFixed(2);
-        document.getElementById('xGrossTotal').textContent = '₱' + data.grossTotal.toFixed(2);
+        document.getElementById('xWalkinCash').textContent = '₱' + (data.walkinCashTotal || 0).toFixed(2);
+        document.getElementById('xExpectedDrawer').textContent = '₱' + (data.expectedDrawer || 0).toFixed(2);
+        document.getElementById('xGrossTotal').textContent = '₱' + (data.grossTotal || 0).toFixed(2);
     } catch (error) {
         console.error('Could not load X-Reading data:', error);
         ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
@@ -633,17 +657,12 @@ async function openZReadingModal() {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Show a loading state while we fetch the real numbers, rather than
-    // flashing whatever static placeholder is baked into the HTML.
     const zFieldIds = ['zPreOrdersCount', 'zClaimedAmount', 'zEwalletAmount', 'zUnclaimedAmount', 'zPresetsCount', 'zExpectedCash'];
     zFieldIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = 'Loading…';
     });
 
-    // Always fetch the current expected-drawer figure fresh - don't rely on
-    // whatever X-Reading was last opened, since more sales may have come in
-    // since then (or it may never have been opened this session at all).
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = {};
@@ -656,18 +675,18 @@ async function openZReadingModal() {
         latestXReading = data;
 
         document.getElementById('zPreOrdersCount').textContent = `${data.preordersCount} Orders`;
-        document.getElementById('zClaimedAmount').textContent = '₱' + data.claimedAmount.toFixed(2);
-        document.getElementById('zEwalletAmount').textContent = '₱' + data.eWalletTotal.toFixed(2);
-        document.getElementById('zUnclaimedAmount').textContent = '₱' + data.unclaimedAmount.toFixed(2);
-        document.getElementById('zPresetsCount').textContent = `${data.cupsSold} Cups Sold`;
-        document.getElementById('zExpectedCash').textContent = '₱' + data.expectedDrawer.toFixed(2);
+        document.getElementById('zClaimedAmount').textContent = '₱' + (data.digitalSubtotal || 0).toFixed(2);
+        document.getElementById('zEwalletAmount').textContent = '₱' + (data.digitalSubtotal || 0).toFixed(2);
+        document.getElementById('zUnclaimedAmount').textContent = '₱0.00';
+        document.getElementById('zPresetsCount').textContent = `${data.presetsCount} Cups Sold`;
+        document.getElementById('zExpectedCash').textContent = '₱' + (data.expectedDrawer || 0).toFixed(2);
     } catch (error) {
         console.error('Could not refresh expected drawer amount:', error);
         zFieldIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '—';
         });
-        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched, so the figures shown may be out of date. Please try again before closing the shift.', 'warning');
+        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched. Please try again before closing the shift.', 'warning');
     }
 
     calculateZVariance();
@@ -779,9 +798,6 @@ async function executeLockdown() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
     const variance = actualCash - expectedCounterCash;
 
-    const lockBtn = document.getElementById('zConfirmLockBtn');
-    if (lockBtn) lockBtn.disabled = true;
-
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = { 'Content-Type': 'application/json' };
@@ -791,7 +807,7 @@ async function executeLockdown() {
             actual_cash: actualCash,
             expected_cash: expectedCounterCash,
             variance: variance,
-            notes: `Z-Reading | E-Wallet/QR Ph: ₱${(latestXReading?.eWalletTotal ?? 0).toFixed(2)} | Walk-in Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
+            notes: `Z-Reading | E-Wallet: ₱${(latestXReading?.digitalSubtotal ?? 0).toFixed(2)} | Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
         };
 
         const response = await fetch('/api/sales-officer/z-reading', {
@@ -805,8 +821,6 @@ async function executeLockdown() {
             throw new Error(data.message || 'The server rejected the Z-Reading.');
         }
 
-        // Only mark the register locked once the save to the database is
-        // actually confirmed - not before, and not if it fails.
         localStorage.setItem('latestZReport', JSON.stringify(data.record));
         localStorage.setItem('isRegisterLocked', 'true');
         isRegisterLocked = true;
@@ -816,18 +830,16 @@ async function executeLockdown() {
 
         showCustomAlert(
             "Z-READING TRANSMITTED!",
-            "The sales counter has been locked for this shift. The finalized collection summary has been saved and is visible to the Financial Officer for collection reconciliation.",
+            "The sales counter has been locked for this shift. The finalized collection summary has been saved and transmitted to the Financial Officer.",
             "success"
         );
     } catch (error) {
         console.error('Z-Reading save failed:', error);
         showCustomAlert(
             "Z-Reading Not Saved",
-            `The shift could not be closed because the save failed: ${error.message}. The register remains unlocked - please try again.`,
+            `The shift could not be closed: ${error.message}. The register remains unlocked.`,
             "warning"
         );
-    } finally {
-        if (lockBtn) lockBtn.disabled = false;
     }
 }
 

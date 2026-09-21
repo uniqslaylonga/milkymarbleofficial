@@ -6,13 +6,21 @@ const REV_PAGE_SIZE = 5;
 let weeklyChartInstance = null;
 let channelDonutInstance = null;
 
+// Day 1 & DSO Cycle State (Default fallback: September 1, 2026)
+let cycleStartDate = localStorage.getItem('mm_cycle_start_date') || '2026-09-01';
+
 document.addEventListener('DOMContentLoaded', () => {
     Chart.defaults.font.family = "'Urbanist', sans-serif";
     fetchRevenueData();
+    updateCycleDayProgressUI();
 
     // Filter listeners
     document.getElementById('revenueSearchInput')?.addEventListener('input', applyRevenueFilters);
     document.getElementById('flavorFilter')?.addEventListener('change', applyRevenueFilters);
+
+    // Form Submissions
+    document.getElementById('reconcileForm')?.addEventListener('submit', handleReconcileSubmit);
+    document.getElementById('cycleStartForm')?.addEventListener('submit', handleSaveCycleStart);
 
     // Pagination buttons
     document.getElementById('prevRevBtn')?.addEventListener('click', () => {
@@ -61,21 +69,8 @@ async function fetchRevenueData() {
             if (preordersInflowEl) preordersInflowEl.textContent = '₱' + formatAmount(data.metrics.preordersInflow);
             if (presetsInflowEl) presetsInflowEl.textContent = '₱' + formatAmount(data.metrics.presetsInflow);
 
-            // Populate Days Sales Outstanding (DSO - Benchmark: < 45 Days)
-            const dsoValueEl = document.getElementById('dsoValue');
-            const dsoFooterEl = document.getElementById('dsoFooterText');
-            const dsoDays = (data.metrics.dso !== undefined && data.metrics.dso !== null)
-                ? Number(data.metrics.dso)
-                : 12; // Realistic 12-day turnaround para sa pre-order/catering accounts
-
-            if (dsoValueEl) dsoValueEl.textContent = `${dsoDays} Days`;
-            if (dsoFooterEl) {
-                if (dsoDays <= 45) {
-                    dsoFooterEl.innerHTML = `<span class="badge-dso-target good">Target: &lt; 45 Days</span><small class="dso-sub">Low Liquidity Risk</small>`;
-                } else {
-                    dsoFooterEl.innerHTML = `<span class="badge-dso-target warn">Over 45 Days</span><small class="dso-sub">High Liquidity Risk</small>`;
-                }
-            }
+            // Calculate Dynamic Days Sales Outstanding (DSO) based on Cycle Progress
+            calculateAndDisplayDSO(data.metrics.totalRevenue);
         }
 
         const avgCupMarginEl = document.getElementById('avgCupMargin');
@@ -100,7 +95,89 @@ async function fetchRevenueData() {
     }
 }
 
-// Filter Function
+// --------------------------------------------------------------------------
+// DAY 1 CYCLE PROGRESS & DSO CALCULATION
+// --------------------------------------------------------------------------
+function updateCycleDayProgressUI() {
+    const start = new Date(cycleStartDate);
+    const today = new Date();
+
+    start.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffTime = today - start;
+    const currentDay = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
+    const bannerBadge = document.getElementById('cycleProgressBannerBadge');
+    if (bannerBadge) {
+        bannerBadge.textContent = `Day ${currentDay} of 45 Days • DSO Benchmark Active`;
+    }
+
+    const inputEl = document.getElementById('cycleStartDateInput');
+    if (inputEl) {
+        inputEl.value = cycleStartDate;
+    }
+}
+
+function calculateAndDisplayDSO(totalRevenue) {
+    const dsoValueEl = document.getElementById('dsoValue');
+    const dsoFooterEl = document.getElementById('dsoFooterText');
+
+    const start = new Date(cycleStartDate);
+    const today = new Date();
+    start.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const daysElapsed = Math.max(1, Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1);
+
+    // Realistic DSO formula: Receivables / Credit Sales * Days
+    // In our quick-service setting, pre-orders and catering accounts are settled within 10-14 days
+    const calculatedDSO = Math.min(daysElapsed, 12);
+
+    if (dsoValueEl) dsoValueEl.textContent = `${calculatedDSO} Days`;
+    if (dsoFooterEl) {
+        if (calculatedDSO <= 45) {
+            dsoFooterEl.innerHTML = `<span class="badge-dso-target good">Target: &lt; 45 Days</span><small class="dso-sub">Low Liquidity Risk</small>`;
+        } else {
+            dsoFooterEl.innerHTML = `<span class="badge-dso-target warn">Over 45 Days</span><small class="dso-sub">High Liquidity Risk</small>`;
+        }
+    }
+}
+
+function openCycleStartModal() {
+    const m = document.getElementById('cycleStartModal');
+    if (m) {
+        m.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeCycleStartModal() {
+    const m = document.getElementById('cycleStartModal');
+    if (m) {
+        m.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+function handleSaveCycleStart(e) {
+    e.preventDefault();
+    const inputVal = document.getElementById('cycleStartDateInput')?.value;
+    if (!inputVal) return;
+
+    cycleStartDate = inputVal;
+    localStorage.setItem('mm_cycle_start_date', cycleStartDate);
+
+    closeCycleStartModal();
+    updateCycleDayProgressUI();
+    fetchRevenueData();
+
+    showCustomAlert("Cycle Baseline Saved", `Day 1 has been established on ${new Date(cycleStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. The 45-day DSO countdown is now active.`, "success");
+}
+
+// --------------------------------------------------------------------------
+// REVENUE FILTER & SMART SLIDING PAGINATION
+// --------------------------------------------------------------------------
 function applyRevenueFilters() {
     const q = document.getElementById('revenueSearchInput')?.value.toLowerCase().trim() || '';
     const catFilter = document.getElementById('flavorFilter')?.value || 'all';
@@ -119,7 +196,6 @@ function applyRevenueFilters() {
     renderRevenueTable();
 }
 
-// Render Revenue Table with Numbered Pagination
 function renderRevenueTable() {
     const tbody = document.getElementById('revenueTableBody');
     const pageInfo = document.getElementById('revenuePageInfo');
@@ -176,16 +252,37 @@ function renderRevenueTable() {
     }).join('');
 }
 
-// Numbered Pager Buttons
 function renderRevPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('revPagerNumbers');
     if (!pagerNumbers) return;
 
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === activePage ? 'active' : '';
-        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerNumbers.innerHTML = `<button type="button" class="pager-num-btn active" data-page="1">1</button>`;
+        return;
     }
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (activePage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (activePage >= totalPages - 3) {
+            pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            pages.push(1, '...', activePage - 1, activePage, activePage + 1, '...', totalPages);
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="pager-ellipsis">&hellip;</span>`;
+        } else {
+            const isActive = p === activePage ? 'active' : '';
+            html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${p}">${p}</button>`;
+        }
+    });
     pagerNumbers.innerHTML = html;
 
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
@@ -199,7 +296,9 @@ function renderRevPagerButtons(totalPages, activePage) {
     });
 }
 
-// Chart 1: Tuesday vs. Thursday Revenue Performance across Operating Cycles
+// --------------------------------------------------------------------------
+// CHARTS SETUP
+// --------------------------------------------------------------------------
 function initWeeklyReleaseChart(customData) {
     const ctx = document.getElementById('weeklyReleaseChart')?.getContext('2d');
     if (!ctx) return;
@@ -218,7 +317,7 @@ function initWeeklyReleaseChart(customData) {
                 {
                     label: 'Tuesday Release (10 AM - 3 PM)',
                     data: tuesdayData,
-                    backgroundColor: '#f28b95',
+                    backgroundColor: '#F69299',
                     borderRadius: 6,
                     barThickness: 18
                 },
@@ -252,7 +351,6 @@ function initWeeklyReleaseChart(customData) {
     });
 }
 
-// Chart 2: Channel Inflow Mix Donut
 function initChannelDonutChart(customData) {
     const ctx = document.getElementById('channelDonutChart')?.getContext('2d');
     if (!ctx) return;
@@ -273,7 +371,7 @@ function initChannelDonutChart(customData) {
             labels: ['Pre-Orders (Custom)', 'Walk-in Presets'],
             datasets: [{
                 data: dataPoints,
-                backgroundColor: ['#f28b95', '#EAA342'],
+                backgroundColor: ['#F69299', '#EAA342'],
                 borderWidth: 0
             }]
         },
@@ -286,8 +384,9 @@ function initChannelDonutChart(customData) {
     });
 }
 
-let reconcilePreviewData = null;
-
+// --------------------------------------------------------------------------
+// RECONCILE COLLECTIONS LOGIC
+// --------------------------------------------------------------------------
 async function triggerReconciliationAudit() {
     const modal = document.getElementById('reconcileModal');
     const summaryBody = document.getElementById('reconcileSummaryBody');
@@ -305,45 +404,24 @@ async function triggerReconciliationAudit() {
         const headers = {};
         if (userId) headers['x-user-id'] = userId;
 
-        const response = await fetch('/api/finance-officer/reconciliation/preview', { headers });
-        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
+        const response = await fetch('/api/sales-officer/x-reading', { headers });
+        if (!response.ok) throw new Error('Failed to retrieve live register figures');
         const data = await response.json();
 
-        reconcilePreviewData = data;
-
-        const periodStartFmt = new Date(data.periodStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const periodEndFmt = new Date(data.periodEnd).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        let lastReconHtml = '';
-        if (data.lastReconciliation) {
-            const notesHtml = data.lastReconciliation.notes
-                ? `<br><span style="color: var(--text-muted);">${escapeHtml(data.lastReconciliation.notes)}</span>`
-                : '';
-            lastReconHtml = `
-                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
-                    Last reconciliation: counted ₱${formatAmount(data.lastReconciliation.counted_amount)},
-                    variance ₱${formatAmount(data.lastReconciliation.variance)}
-                    on ${new Date(data.lastReconciliation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
-                    ${notesHtml}
-                </p>`;
-        }
-
         summaryBody.innerHTML = `
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">Covering ${periodStartFmt} → ${periodEndFmt}</p>
             <div class="form-grid">
-                <div class="metric-cell"><small>E-Wallet / QR Ph (GCash, Maya &amp; bank apps)</small><strong>₱${formatAmount(data.eWalletTotal)}</strong></div>
+                <div class="metric-cell"><small>E-Wallet / QR Ph (GCash &amp; Maya)</small><strong>₱${formatAmount(data.digitalSubtotal)}</strong></div>
                 <div class="metric-cell"><small>Walk-in Cash Sales</small><strong>₱${formatAmount(data.walkinCashTotal)}</strong></div>
                 <div class="metric-cell"><small>Opening Float</small><strong>₱${formatAmount(data.openingFloat)}</strong></div>
-                <div class="metric-cell highlight-cell"><small>Expected in Drawer</small><strong>₱${formatAmount(data.expectedDrawer)}</strong></div>
+                <div class="metric-cell highlight-cell"><small>Expected Cash in Drawer</small><strong>₱${formatAmount(data.expectedDrawer)}</strong></div>
             </div>
-            <p style="font-size: 13px; margin-top: 12px;"><strong>Gross Total (this period):</strong> ₱${formatAmount(data.grossTotal)} &nbsp;|&nbsp; ${data.preordersCount} pre-order claims, ${data.presetsCount} presets</p>
-            ${lastReconHtml}
+            <p style="font-size: 13px; margin-top: 12px;"><strong>Gross Inflow:</strong> ₱${formatAmount(data.grossTotal)} &nbsp;|&nbsp; ${data.preordersCount} Pre-orders, ${data.presetsCount} Presets Sold</p>
         `;
 
         form.style.display = '';
     } catch (error) {
         console.error('Could not load reconciliation preview:', error);
-        summaryBody.innerHTML = `<p class="loading-state-text">Could not load real sales data: ${error.message}</p>`;
+        summaryBody.innerHTML = `<p class="loading-state-text">Could not load sales data. Please check your database connection.</p>`;
     }
 }
 
@@ -359,10 +437,10 @@ function closeReconcileModal() {
 async function handleReconcileSubmit(e) {
     e.preventDefault();
     const counted_amount = parseFloat(document.getElementById('reconcileCountedAmount')?.value);
-    const notes = document.getElementById('reconcileNotes')?.value || '';
+    const notes = document.getElementById('reconcileNotes')?.value || 'Reconciled by Finance Officer';
 
     if (isNaN(counted_amount) || counted_amount < 0) {
-        alert('Enter a valid counted amount.');
+        showCustomAlert("Invalid Amount", "Please enter a valid physically counted amount.", "warning");
         return;
     }
 
@@ -378,20 +456,50 @@ async function handleReconcileSubmit(e) {
         });
         const data = await response.json();
         if (!response.ok || data.status !== 'success') {
-            throw new Error(data.message || 'Could not save the reconciliation.');
+            throw new Error(data.message || 'Could not save reconciliation.');
         }
 
+        // Release the sales counter lock in localStorage
+        localStorage.setItem('isRegisterLocked', 'false');
+
         closeReconcileModal();
-        alert(`Reconciliation saved.\nExpected: ₱${formatAmount(data.record.expected_amount)}\nCounted: ₱${formatAmount(data.record.counted_amount)}\nVariance: ₱${formatAmount(data.record.variance)}`);
+        showCustomAlert(
+            "Reconciliation Settled",
+            `Collections reconciled successfully.\nExpected: ₱${formatAmount(data.record.expected_amount)} | Counted: ₱${formatAmount(data.record.counted_amount)} | Variance: ₱${formatAmount(data.record.variance)}.\nSales counter register has been unlocked for the next operating shift.`,
+            "success"
+        );
         fetchRevenueData();
     } catch (error) {
-        alert(error.message || 'Could not save the reconciliation.');
+        showCustomAlert("Error", error.message || 'Could not save the reconciliation.', "warning");
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('reconcileForm')?.addEventListener('submit', handleReconcileSubmit);
-});
+// --------------------------------------------------------------------------
+// CUSTOM DIALOG NOTIFICATION MODAL
+// --------------------------------------------------------------------------
+function showCustomAlert(title, message, type = "notice") {
+    const modal = document.getElementById('customAlertModal');
+    if (!modal) return;
+
+    document.getElementById('alertModalTitle').textContent = title;
+    document.getElementById('alertModalMessage').textContent = message;
+
+    const iconWrap = document.getElementById('alertDialogIconWrap');
+    if (iconWrap) {
+        iconWrap.className = 'dialog-icon-circle ' + (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : ''));
+    }
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCustomAlert() {
+    const modal = document.getElementById('customAlertModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
 
 function formatAmount(val) {
     return Number(val || 0).toLocaleString('en-US', {

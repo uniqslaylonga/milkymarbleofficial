@@ -71,7 +71,7 @@ body {
   position: relative;
 }
 
-/* ===== GUARANTEED FIXED STICKY SIDEBAR ===== */
+/* ===== FIXED STICKY SIDEBAR ===== */
 .sidebar {
   position: fixed;
   top: 0;
@@ -355,6 +355,28 @@ body {
 .btn-z-reading:hover {
   transform: translateY(-2px);
   background: #b52b27;
+}
+
+.btn-open-shift {
+  background: #2E7D32;
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 14px;
+  font-family: var(--font-family-body);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 3px 10px rgba(46, 125, 50, 0.25);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.btn-open-shift:hover {
+  transform: translateY(-2px);
+  background: #256629;
 }
 
 .btn-svg {
@@ -890,7 +912,6 @@ body {
   cursor: default;
 }
 
-/* SMART ELLIPSIS STYLING */
 .pager-ellipsis {
   display: inline-flex;
   align-items: center;
@@ -1323,7 +1344,7 @@ body {
 }
 
 /* ==========================================================================
-   CUSTOM THEMED DIALOG MODALS (REPLACING NATIVE ALERTS)
+   CUSTOM THEMED DIALOG MODALS
    ========================================================================== */
 .dialog-modal-card {
   width: 100%;
