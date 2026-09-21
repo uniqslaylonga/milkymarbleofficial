@@ -219,6 +219,12 @@ async function loadPageData() {
             updateAcquisitionDisplay();
         }
 
+        // Sync the register lock state from the server (system_settings,
+        // set by /sales-officer/z-reading and released by Finance Officer's
+        // reconciliation save) instead of trusting only the local flag,
+        // which previously never got reset once a shift closed.
+        syncRegisterLockState(data.registerStatus);
+
         // 4. Revenue Split Donut & Strategic Insights
         if (data.revenueSplit) {
             const regAmountEl = document.getElementById('registeredRevenue');
@@ -490,7 +496,55 @@ function checkRegisterLockState() {
             zBtn.style.opacity = '0.6';
             zBtn.style.cursor = 'not-allowed';
         }
+    } else {
+        resetRegisterLockUI();
     }
+}
+
+// Restores the banner/button to their normal "register open" state.
+// Needed once a lock can actually be released again (Finance Officer
+// reconciling clears system_settings.register_status server-side) -
+// previously there was nothing to reset the UI back to after a lock.
+function resetRegisterLockUI() {
+    const banner = document.getElementById('registerStatusBanner');
+    const bannerText = document.getElementById('registerStatusText');
+    const zBtn = document.getElementById('btnEndShiftTrigger');
+
+    if (banner) banner.className = 'topbar-status-strip open';
+    if (bannerText) {
+        bannerText.innerHTML = '<span class="status-pulse-dot"></span>Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)';
+    }
+    if (zBtn) {
+        zBtn.disabled = false;
+        zBtn.innerHTML = `
+          <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>End Shift &amp; Z-Reading</span>
+        `;
+        zBtn.style.opacity = '';
+        zBtn.style.cursor = '';
+    }
+}
+
+// Reconciles the local "isRegisterLocked" flag against the server's real
+// system_settings.register_status on every dashboard load, instead of
+// trusting whatever localStorage happened to be left at. This is what
+// actually lets a shift re-open after Finance Officer reconciles - before,
+// nothing ever cleared the flag once executeLockdown() set it.
+function syncRegisterLockState(serverStatus) {
+    const shouldBeLocked = serverStatus === 'LOCKED';
+    if (shouldBeLocked === isRegisterLocked) {
+        checkRegisterLockState();
+        return;
+    }
+    isRegisterLocked = shouldBeLocked;
+    localStorage.setItem('isRegisterLocked', shouldBeLocked ? 'true' : 'false');
+    if (!shouldBeLocked) {
+        localStorage.removeItem('latestZReport');
+    }
+    checkRegisterLockState();
 }
 
 // --------------------------------------------------------------------------

@@ -232,13 +232,27 @@ async function buildSalesDashboard(req, res) {
       guestPercent: totalRev ? (guestRevenue / totalRev) * 100 : 0
     };
 
+    // Register lock state lives server-side in system_settings, set to
+    // 'LOCKED' by /sales-officer/z-reading and back to 'UNLOCKED' once
+    // Finance Officer saves a reconciliation (POST /finance-officer/
+    // reconciliation). The dashboard was previously trusting only its own
+    // localStorage flag, which nothing ever reset - so this is returned on
+    // every dashboard load so the client can sync to the real state instead.
+    const { data: registerSetting } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'register_status')
+      .maybeSingle();
+    const registerStatus = registerSetting?.setting_value || 'UNLOCKED';
+
     return res.json({
       status: 'success',
       user: userProfile,
       metrics: { todayOrders, todaySales, pendingOrders: pendingCount || 0 },
       recentOrders: formattedRecent,
       newAccounts,
-      revenueSplit
+      revenueSplit,
+      registerStatus
     });
   } catch (error) {
     console.error('[sales-officer/dashboard] error:', error.message);
@@ -1417,6 +1431,22 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
       .select()
       .single();
     if (insertErr) throw insertErr;
+
+    // Finance has now reconciled this drawer count, so the register that
+    // Sales Officer's Z-Reading locked (system_settings.register_status,
+    // set in the /sales-officer/z-reading handler above) is released for
+    // the next shift. Sales Officer's dashboard picks this up on its next
+    // /sales-officer/dashboard poll and clears its own local lock flag -
+    // see registerStatus in buildSalesDashboard.
+    try {
+      await supabase.from('system_settings').upsert({
+        setting_key: 'register_status',
+        setting_value: 'UNLOCKED',
+        description: 'Sales counter register lock state after Z-reading'
+      }, { onConflict: 'setting_key' });
+    } catch (e) {
+      // safe fallback kung wala ang setting
+    }
 
     return res.json({ status: 'success', record });
   } catch (error) {
