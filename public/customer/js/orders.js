@@ -788,10 +788,25 @@ window.saveOrderAsBuild = function(encodedOrder) {
   }];
 
   const label = items.map(i => i.title).filter(Boolean).join(', ') || 'Saved Build';
+  // Snapshot of the first drink's layered image so the Saved Builds panel can
+  // redraw it (flavor + toppings + cup) instead of a bare flavor thumbnail.
+  // Extra toppings/add-ons are read from the item's text by resolveBuildPreview()
+  // in navbar.js.
+  const first = items[0] || {};
+  const firstToppings = Array.isArray(first.toppings) ? first.toppings.join(' + ') : (first.toppings || '');
+  const previewAssets = resolveDisplayAssets(first, cleanItemTitle(first.title || ''), first.size, firstToppings);
+
   const build = {
     id: 'build_' + Date.now(),
     label,
     saved_at: new Date().toISOString(),
+    preview: {
+      size: first.size || '12oz',
+      flavor_img: previewAssets.flavor_img,
+      toppings_img: previewAssets.toppings_img,
+      cup_img: previewAssets.cup_img,
+      accent_color: previewAssets.accent_color
+    },
     items
   };
 

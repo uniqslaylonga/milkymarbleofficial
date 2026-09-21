@@ -652,26 +652,138 @@ window.useSavedBuild = function(buildId) {
   }
 };
 
+// ---- Saved Builds thumbnail -------------------------------------------------
+// The panel used to show only the flavor layer (a bare jelly image cropped into
+// a 48px square), so toppings, add-ons and the cup were never visible. It now
+// redraws the whole layered cup the same way the drink builder does.
+const SAVED_BUILD_TOPPINGS = ['Assorted Sprinkles', 'Cheese', 'Choco Chips', 'Choco Sprinkles', 'Marshmallow', 'Nuts', 'Tapioca'];
+const SAVED_BUILD_TOPPING_ALIASES = { 'mashmallow': 'Marshmallow', 'sprinkles': 'Assorted Sprinkles', 'chocolate chip': 'Choco Chips' };
+
+function sbEscape(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function sbToppingPath(name, isLarge) {
+  const folder = isLarge ? 'Large Toppings' : 'Small Toppings';
+  const file = name === 'Marshmallow' ? 'Mashmallow' : name; // file on disk is spelled "Mashmallow"
+  return `images/Layer 2/${folder}/${file}.png`;
+}
+
+// Pulls every known topping / "Extra X (xN)" add-on out of a saved item's text,
+// in the same order the builder stacks them (toppings first, then add-ons).
+function sbParseToppings(item) {
+  const raw = [];
+  if (Array.isArray(item.toppings)) raw.push(...item.toppings);
+  else if (typeof item.toppings === 'string') raw.push(...item.toppings.split(/[+,]/));
+
+  const addons = typeof item.addons === 'string' ? item.addons : '';
+  const re = /Extra\s+([^(,+]+?)\s*\(x\d+\)/gi;
+  let m;
+  while ((m = re.exec(addons))) raw.push(m[1]);
+
+  const seen = new Set();
+  const out = [];
+  raw.forEach(entry => {
+    const key = String(entry).trim().toLowerCase();
+    const name = SAVED_BUILD_TOPPINGS.find(n => n.toLowerCase() === key) || SAVED_BUILD_TOPPING_ALIASES[key];
+    if (name && !seen.has(name)) { seen.add(name); out.push(name); }
+  });
+  return out;
+}
+
+// Works for new builds (build.preview) and for builds saved before this change.
+function resolveBuildPreview(build) {
+  const item = (build.items && build.items[0]) || {};
+  const p = build.preview || {};
+  const size = p.size || item.size || '12oz';
+  const isLarge = size !== '8oz';
+
+  const flavor = p.flavor_img || item.flavor_img || item.image || 'images/logo.png';
+  const cup = p.cup_img || item.cup_img || (isLarge ? 'images/Layer 3/Large Cup.png' : 'images/Layer 3/Small Cup.png');
+
+  let accent = p.accent_color || item.accent_color || '#F48A8E';
+  if (!/^#[0-9a-f]{3,8}$/i.test(accent)) accent = '#F48A8E';
+
+  let toppings;
+  if (Array.isArray(p.topping_imgs)) {
+    toppings = p.topping_imgs.slice();
+  } else {
+    toppings = sbParseToppings(item).map(n => sbToppingPath(n, isLarge));
+    if (!toppings.length) {
+      const single = p.toppings_img || item.toppings_img;
+      if (single) toppings = [single];
+    }
+  }
+
+  return {
+    // Preset drinks ship one finished product photo; only custom builds are layers.
+    layered: /images\/Layer 1\//.test(flavor),
+    isLarge, flavor, cup, toppings, accent
+  };
+}
+
+function buildSavedBuildThumbHtml(build) {
+  const pv = resolveBuildPreview(build);
+  const hide = "this.style.display='none'";
+
+  if (!pv.layered) {
+    return `
+      <div class="saved-build-thumb" style="--sb-accent:${pv.accent};">
+        <img class="saved-build-thumb-plain" src="${sbEscape(pv.flavor)}" alt="" onerror="this.onerror=null;this.src='images/logo.png'">
+      </div>`;
+  }
+
+  const toppingImgs = pv.toppings
+    .map(src => `<img class="saved-build-layer-topping" src="${sbEscape(src)}" alt="" onerror="${hide}">`)
+    .join('');
+
+  return `
+    <div class="saved-build-thumb" style="--sb-accent:${pv.accent};">
+      <div class="saved-build-stack${pv.isLarge ? '' : ' is-small'}">
+        <img class="saved-build-layer-flavor" src="${sbEscape(pv.flavor)}" alt="" onerror="${hide}">
+        <div class="saved-build-layer-box">${toppingImgs}</div>
+        <img class="saved-build-layer-cup" src="${sbEscape(pv.cup)}" alt="" onerror="${hide}">
+      </div>
+    </div>`;
+}
+
+function sbCleanList(v) {
+  if (Array.isArray(v)) v = v.join(', ');
+  return String(v || '').split(/\s*\+\s*/).map(s => s.trim()).filter(Boolean).join(', ');
+}
+
 function openSavedBuildsPanel() {
   const builds = readSavedBuilds();
 
   const rowsHtml = builds.length
     ? builds.map(b => {
-        const firstItem = (b.items && b.items[0]) || {};
-        const img = firstItem.image || firstItem.flavor_img || 'images/logo.png';
+        const items = b.items || [];
+        const firstItem = items[0] || {};
         const title = b.label || firstItem.title || 'Saved Build';
         const savedDate = b.saved_at ? new Date(b.saved_at).toLocaleDateString() : '';
+
+        const toppingsText = sbCleanList(firstItem.toppings);
+        const addonsText = sbCleanList(firstItem.addons);
+        const metaParts = [firstItem.size, toppingsText].filter(Boolean);
+        if (items.length > 1) metaParts.push(`+${items.length - 1} more`);
+
         return `
-          <div class="saved-build-row" style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #eee;text-align:left;">
-            <img src="${img}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
-              <div style="font-size:12px;color:#888;">${savedDate}</div>
+          <div class="saved-build-row">
+            ${buildSavedBuildThumbHtml(b)}
+            <div class="saved-build-info">
+              <div class="saved-build-title">${sbEscape(title)}</div>
+              ${metaParts.length ? `<div class="saved-build-meta">${sbEscape(metaParts.join(' · '))}</div>` : ''}
+              ${addonsText ? `<div class="saved-build-addons">${sbEscape(addonsText)}</div>` : ''}
+              <div class="saved-build-date">${sbEscape(savedDate)}</div>
             </div>
-            <button type="button" onclick="window.useSavedBuild('${b.id}')" style="background:#664638;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">Checkout</button>
-            <button type="button" onclick="window.removeSavedBuild('${b.id}')" title="Remove" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:14px;">
-              <i class="fa-solid fa-trash"></i>
-            </button>
+            <div class="saved-build-actions">
+              <button type="button" class="saved-build-checkout" onclick="window.useSavedBuild('${sbEscape(b.id)}')">Checkout</button>
+              <button type="button" class="saved-build-remove" title="Remove" onclick="window.removeSavedBuild('${sbEscape(b.id)}')">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
           </div>
         `;
       }).join('')
@@ -681,7 +793,7 @@ function openSavedBuildsPanel() {
 
   Swal.fire({
     title: 'Saved Builds',
-    html: `<div style="max-height:340px;overflow-y:auto;">${rowsHtml}</div>`,
+    html: `<div class="saved-builds-list">${rowsHtml}</div>`,
     showConfirmButton: false,
     showCloseButton: true,
     target: document.body,

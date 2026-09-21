@@ -1241,10 +1241,29 @@ window.saveCurrentCustomBuild = function() {
     quantity: 1
   }];
 
+  // Snapshot of the drink's layered image for the Saved Builds panel. Unlike
+  // the cart item above (which only carries the FIRST topping), this keeps
+  // every topping + add-on layer, exactly the way buildLayeredCupHTML()
+  // stacks them in the builder. See resolveBuildPreview() in navbar.js.
+  const toppingLayers = [];
+  customConfig.toppings
+    .concat(Object.keys(customConfig.addonsMap).filter(a => customConfig.addonsMap[a] > 0))
+    .forEach(name => {
+      const src = getLayer2ToppingPath(name, isLarge);
+      if (src && !toppingLayers.includes(src)) toppingLayers.push(src);
+    });
+
   const build = {
     id: 'build_' + Date.now(),
     label: title,
     saved_at: new Date().toISOString(),
+    preview: {
+      size: customConfig.size,
+      flavor_img: l1Src,
+      topping_imgs: toppingLayers,
+      cup_img: l3Src,
+      accent_color: accentColor
+    },
     items
   };
 
