@@ -520,7 +520,11 @@ function loadNavbarDropdownNotifs(customerId) {
   const listEl = document.getElementById('notifDropdownList');
   if (!listEl) return;
 
-  fetch(`/api/orders?customer_id=${encodeURIComponent(customerId)}`)
+  // Only the 3 most recent orders are ever shown here, so ask the server for
+  // just those instead of this customer's entire order history (which grows
+  // -- with full item + image data -- every time they order, and this runs
+  // on every page load for every logged-in customer).
+  fetch(`/api/orders?customer_id=${encodeURIComponent(customerId)}&limit=3`)
     .then(res => res.json())
     .then(data => {
       const orders = data.orders || [];

@@ -272,7 +272,15 @@ router.get('/', async (req, res) => {
     const customer = await resolveCustomer(req);
     if (!customer) return res.json({ status: 'success', orders: [] });
 
-    const { data: orders, error } = await supabase
+    // Optional ?limit=N so callers that only need a preview (e.g. the navbar
+    // notification dropdown, which shows 3 orders) don't have to pull this
+    // customer's entire order history -- with every item's image paths --
+    // on every single page load. Omitting it keeps the old full-history
+    // behavior for callers like the Orders page that need everything.
+    const parsedLimit = parseInt(req.query.limit, 10);
+    const rowLimit = (Number.isFinite(parsedLimit) && parsedLimit > 0) ? parsedLimit : null;
+
+    let ordersQuery = supabase
       .from('orders')
       .select(`
         id, order_number, status, subtotal, discount_amount, total_amount, 
@@ -281,6 +289,10 @@ router.get('/', async (req, res) => {
       `)
       .eq('customer_id', customer.id)
       .order('placed_at', { ascending: false });
+
+    if (rowLimit) ordersQuery = ordersQuery.limit(rowLimit);
+
+    const { data: orders, error } = await ordersQuery;
 
     if (error) throw error;
 

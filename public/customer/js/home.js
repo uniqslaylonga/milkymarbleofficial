@@ -209,7 +209,7 @@ function renderSignatureDrinks() {
     return `
       <div class="product-card" data-search-keywords="${searchKeywords}" onclick="openProductModal('${encodedData}')">
         <div class="product-img-wrapper" style="--thumb-accent: ${drink.accent_color};">
-          <img src="${drink.image}" alt="${drink.title.replace('\n', ' ')}" class="product-img">
+          <img src="${drink.image}" alt="${drink.title.replace('\n', ' ')}" class="product-img" loading="lazy">
         </div>
         <div class="product-details">
           <h2 class="product-title">${drink.title.replace('\n', '<br>')}</h2>
@@ -1557,12 +1557,12 @@ async function loadRecentOrders() {
             <div class="home-order-thumb-wrapper" style="--card-thumb-bg: ${meta.accent};">
               ${meta.is_custom ? `
                 <div class="orders-composite-thumb">
-                  <img src="${meta.flavor_img}" alt="Flavor Layer" class="cart-layer-flavor" onerror="this.style.display='none'">
-                  ${meta.toppings_img ? `<img src="${meta.toppings_img}" alt="Toppings Layer" class="cart-layer-toppings" onerror="this.style.display='none'">` : ''}
-                  <img src="${meta.cup_img}" alt="Cup Outline" class="cart-layer-cup">
+                  <img src="${meta.flavor_img}" alt="Flavor Layer" class="cart-layer-flavor" loading="lazy" onerror="this.style.display='none'">
+                  ${meta.toppings_img ? `<img src="${meta.toppings_img}" alt="Toppings Layer" class="cart-layer-toppings" loading="lazy" onerror="this.style.display='none'">` : ''}
+                  <img src="${meta.cup_img}" alt="Cup Outline" class="cart-layer-cup" loading="lazy">
                 </div>
               ` : `
-                <img src="${meta.image}" class="home-order-thumb-img" alt="${meta.title}">
+                <img src="${meta.image}" class="home-order-thumb-img" alt="${meta.title}" loading="lazy">
               `}
             </div>
             <div class="home-order-details-col">
