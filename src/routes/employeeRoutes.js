@@ -1305,13 +1305,22 @@ router.get('/finance-officer/payments', async (req, res) => {
 // - the e-wallet checkout uses PayMongo's QR Ph, which doesn't reveal
 // whether the customer paid via GCash, Maya, or a bank app, so that split
 // isn't something this integration can report.
+//
+// Uses the same NOT_SALES exclusion as the Sales Officer's X-Reading
+// (employeeRoutes.js ~line 266), instead of a strict PAID_VERIFIED/COMPLETED
+// allowlist. Cash on Pick-Up orders are created with status 'CONFIRMED' and
+// only ever reach 'COMPLETED' once staff mark them picked up - they never
+// pass through 'PAID_VERIFIED' at all (only E-Wallet orders do). The old
+// allowlist meant a freshly-rung-up cash sale that Sales Officer's dashboard
+// already showed would be invisible here (₱0.00) until someone finished
+// walking it through PREPARING → READY_FOR_PICKUP → COMPLETED.
 async function computeDrawerBreakdown(periodStart, periodEnd) {
   const { data: orders, error } = await supabase
     .from('orders')
     .select('total_amount, payment_method')
     .gte('placed_at', periodStart)
     .lte('placed_at', periodEnd)
-    .in('status', ['PAID_VERIFIED', 'COMPLETED']);
+    .not('status', 'in', NOT_SALES);
   if (error) throw error;
 
   let eWalletTotal = 0, walkinCashTotal = 0, preordersCount = 0, presetsCount = 0;
