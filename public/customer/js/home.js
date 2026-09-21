@@ -1199,6 +1199,44 @@ window.proceedCustomOrderSummary = function() {
   }
 };
 
+// Save the in-progress custom build (flavor/jelly/size/toppings/add-ons)
+// to localStorage so the customer can pick up where they left off later.
+// Triggered by the navbar's "Save Build" quick action.
+window.saveCurrentCustomBuild = function() {
+  const build = {
+    id: 'build_' + Date.now(),
+    flavor: customConfig.flavor,
+    jelly: customConfig.jelly,
+    size: customConfig.size,
+    toppings: [...customConfig.toppings],
+    addonsMap: { ...customConfig.addonsMap },
+    utensils: customConfig.utensils,
+    saved_at: new Date().toISOString()
+  };
+
+  let savedBuilds = [];
+  try {
+    savedBuilds = JSON.parse(localStorage.getItem('mm_saved_builds') || '[]');
+  } catch (e) {
+    savedBuilds = [];
+  }
+
+  savedBuilds.unshift(build);
+  savedBuilds = savedBuilds.slice(0, 10); // keep only the 10 most recent saved builds
+  localStorage.setItem('mm_saved_builds', JSON.stringify(savedBuilds));
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Build saved!',
+      showConfirmButton: false,
+      timer: 1600
+    });
+  }
+};
+
 // ==========================================
 // ORDER RECENT & CARD HELPERS
 // ==========================================

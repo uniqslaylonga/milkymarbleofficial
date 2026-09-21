@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   injectNavbarDropdownStyles();
   initNavbarState();
   initNavbarSearch();
+  initNavQuickActions();
   initMobileBottomNav();
   initScrollSpyNav();
   setupGlobalAvatarUpload();
@@ -599,17 +600,32 @@ window.markAllNotificationsAsRead = function(event) {
     });
 };
 
+function initNavQuickActions() {
+  const saveBuildBtn = document.getElementById('navSaveBuildBtn');
+  if (!saveBuildBtn) return;
+
+  const currentPath = window.location.pathname.toLowerCase();
+  const isHomePage = currentPath.endsWith('home.html') || currentPath === '/' || currentPath.endsWith('/customer/');
+
+  saveBuildBtn.addEventListener('click', () => {
+    if (isHomePage && typeof window.saveCurrentCustomBuild === 'function') {
+      window.saveCurrentCustomBuild();
+    } else {
+      window.location.href = 'home.html#customize';
+    }
+  });
+}
+
 function initNavbarSearch() {
   const navWrapper = document.querySelector('.navbar-wrapper');
   const searchBox = document.getElementById('globalNavSearchBox');
   const searchInput = document.getElementById('globalNavSearchInput');
   const searchBtn = document.getElementById('globalNavSearchBtn');
 
+  // The search bar now only ships on orders.html - every other page swaps
+  // it out for the Save Build / Order History quick actions (see
+  // initNavQuickActions above), so bail out early anywhere it's absent.
   if (!searchInput || !searchBox || !searchBtn) return;
-
-  const currentPath = window.location.pathname.toLowerCase();
-  const isHomePage = currentPath.endsWith('home.html') || currentPath === '/';
-  const isOrdersPage = currentPath.endsWith('orders.html');
 
   function handleSearchExecution() {
     const query = searchInput.value.trim();
@@ -628,18 +644,8 @@ function initNavbarSearch() {
       return;
     }
 
-    if (isOrdersPage && typeof window.filterOrdersList === 'function') {
+    if (typeof window.filterOrdersList === 'function') {
       window.filterOrdersList(query);
-    } else if (isHomePage) {
-      if (typeof window.filterDrinks === 'function') {
-        window.filterDrinks(query);
-      }
-      const drinksSection = document.getElementById('drinks');
-      if (drinksSection) {
-        drinksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else {
-      window.location.href = 'home.html?search=' + encodeURIComponent(query) + '#drinks';
     }
   }
 
@@ -649,10 +655,8 @@ function initNavbarSearch() {
   });
 
   searchInput.addEventListener('input', function() {
-    if (isOrdersPage && typeof window.filterOrdersList === 'function') {
+    if (typeof window.filterOrdersList === 'function') {
       window.filterOrdersList(this.value);
-    } else if (isHomePage && typeof window.filterDrinks === 'function') {
-      window.filterDrinks(this.value);
     }
   });
 
