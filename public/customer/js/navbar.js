@@ -600,20 +600,105 @@ window.markAllNotificationsAsRead = function(event) {
     });
 };
 
-function initNavQuickActions() {
-  const saveBuildBtn = document.getElementById('navSaveBuildBtn');
-  if (!saveBuildBtn) return;
+// ==========================================
+// SAVED BUILDS (bookmarked drink customizations, ready to re-checkout)
+// ==========================================
+// Builds are saved as { id, saved_at, label, items } where `items` is the
+// same cart-item shape used by renderOrderSummaryModal (title, size,
+// unit_price, quantity, image, accent_color, toppings, addons, is_custom) -
+// see saveCurrentCustomBuild() in home.js and saveOrderAsBuild() in orders.js.
+function readSavedBuilds() {
+  try {
+    return JSON.parse(localStorage.getItem('mm_saved_builds') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
 
-  const currentPath = window.location.pathname.toLowerCase();
-  const isHomePage = currentPath.endsWith('home.html') || currentPath === '/' || currentPath.endsWith('/customer/');
+function writeSavedBuilds(builds) {
+  localStorage.setItem('mm_saved_builds', JSON.stringify(builds));
+  window.refreshSavedBuildsBadge();
+}
 
-  saveBuildBtn.addEventListener('click', () => {
-    if (isHomePage && typeof window.saveCurrentCustomBuild === 'function') {
-      window.saveCurrentCustomBuild();
-    } else {
-      window.location.href = 'home.html#customize';
+window.refreshSavedBuildsBadge = function() {
+  const badge = document.getElementById('navSavedBuildsCount');
+  if (!badge) return;
+  const count = readSavedBuilds().length;
+  badge.innerText = count;
+  badge.style.display = count > 0 ? 'inline-block' : 'none';
+};
+
+window.removeSavedBuild = function(buildId) {
+  const builds = readSavedBuilds().filter(b => b.id !== buildId);
+  writeSavedBuilds(builds);
+  openSavedBuildsPanel(); // re-render the list in place
+};
+
+// Hands the build's items off to the checkout modal. That modal
+// (renderOrderSummaryModal) only ships on home.html / cart.html / orders.html,
+// so on any other page we stash the items and redirect to home.html, which
+// opens it automatically on load (see home.js).
+window.useSavedBuild = function(buildId) {
+  const build = readSavedBuilds().find(b => b.id === buildId);
+  if (!build) return;
+
+  if (typeof Swal !== 'undefined') Swal.close();
+
+  if (typeof window.renderOrderSummaryModal === 'function') {
+    window.renderOrderSummaryModal(build.items);
+  } else {
+    sessionStorage.setItem('mm_pending_build_checkout', JSON.stringify(build.items));
+    window.location.href = 'home.html?openBuild=1';
+  }
+};
+
+function openSavedBuildsPanel() {
+  const builds = readSavedBuilds();
+
+  const rowsHtml = builds.length
+    ? builds.map(b => {
+        const firstItem = (b.items && b.items[0]) || {};
+        const img = firstItem.image || firstItem.flavor_img || 'images/logo.png';
+        const title = b.label || firstItem.title || 'Saved Build';
+        const savedDate = b.saved_at ? new Date(b.saved_at).toLocaleDateString() : '';
+        return `
+          <div class="saved-build-row" style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #eee;text-align:left;">
+            <img src="${img}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+              <div style="font-size:12px;color:#888;">${savedDate}</div>
+            </div>
+            <button type="button" onclick="window.useSavedBuild('${b.id}')" style="background:#664638;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">Checkout</button>
+            <button type="button" onclick="window.removeSavedBuild('${b.id}')" title="Remove" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:14px;">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+      }).join('')
+    : '<p style="padding:20px 0;color:#888;">No saved builds yet. Customize a drink and tap "Save Build" to bookmark it here.</p>';
+
+  if (typeof Swal === 'undefined') return;
+
+  Swal.fire({
+    title: 'Saved Builds',
+    html: `<div style="max-height:340px;overflow-y:auto;">${rowsHtml}</div>`,
+    showConfirmButton: false,
+    showCloseButton: true,
+    target: document.body,
+    customClass: {
+      container: 'mm-swal-container-top',
+      popup: 'mm-swal-popup'
     }
   });
+}
+
+function initNavQuickActions() {
+  window.refreshSavedBuildsBadge();
+
+  const savedBuildsBtn = document.getElementById('navSavedBuildsBtn');
+  if (savedBuildsBtn) {
+    savedBuildsBtn.addEventListener('click', openSavedBuildsPanel);
+  }
 }
 
 function initNavbarSearch() {

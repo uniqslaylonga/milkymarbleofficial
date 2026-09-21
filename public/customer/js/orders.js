@@ -488,7 +488,9 @@ function renderOrderButtons(orderId, statusKey, orderDataEncoded) {
   } else if (statusKey === 'ready for pickup') {
     return `
       <button type="button" class="btn-action-primary" onclick="confirmOrderReceived('${orderId}')">Order Received</button>
-      <button type="button" class="btn-action-secondary" onclick="openRateModal('${orderId}')">Rate your Sips</button>
+      <button type="button" class="btn-action-secondary" onclick="saveOrderAsBuild('${orderDataEncoded}')" title="Bookmark this order to reorder later">
+        <i class="fa-solid fa-bookmark"></i> Save Build
+      </button>
     `;
   } else if (statusKey === 'completed') {
     return `
@@ -768,6 +770,52 @@ window.reorderCup = function(encodedOrder) {
 
   if (typeof renderOrderSummaryModal === 'function') {
     renderOrderSummaryModal(items);
+  }
+};
+
+// Bookmarks this order's items as a "Saved Build" so the customer can jump
+// straight to checkout with the same drink(s) later from the navbar's Saved
+// Builds icon (see navbar.js). Reuses the same item-extraction as reorderCup.
+window.saveOrderAsBuild = function(encodedOrder) {
+  const order = JSON.parse(decodeURIComponent(encodedOrder));
+  const items = (order.items && order.items.length > 0) ? order.items : [{
+    title: cleanItemTitle(order.title || 'Custom Marble Cup'),
+    size: order.size || '12oz',
+    unit_price: parseFloat(order.total_amount || 19.00),
+    quantity: 1,
+    image: order.image || 'images/logo.png',
+    accent_color: '#F48A8E'
+  }];
+
+  const label = items.map(i => i.title).filter(Boolean).join(', ') || 'Saved Build';
+  const build = {
+    id: 'build_' + Date.now(),
+    label,
+    saved_at: new Date().toISOString(),
+    items
+  };
+
+  let savedBuilds = [];
+  try {
+    savedBuilds = JSON.parse(localStorage.getItem('mm_saved_builds') || '[]');
+  } catch (e) {
+    savedBuilds = [];
+  }
+
+  savedBuilds.unshift(build);
+  savedBuilds = savedBuilds.slice(0, 10); // keep only the 10 most recent saved builds
+  localStorage.setItem('mm_saved_builds', JSON.stringify(savedBuilds));
+  if (typeof window.refreshSavedBuildsBadge === 'function') window.refreshSavedBuildsBadge();
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Build saved! Find it in the bookmark icon up top.',
+      showConfirmButton: false,
+      timer: 2000
+    });
   }
 };
 

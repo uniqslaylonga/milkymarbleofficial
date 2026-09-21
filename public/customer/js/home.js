@@ -1199,19 +1199,53 @@ window.proceedCustomOrderSummary = function() {
   }
 };
 
-// Save the in-progress custom build (flavor/jelly/size/toppings/add-ons)
-// to localStorage so the customer can pick up where they left off later.
-// Triggered by the navbar's "Save Build" quick action.
+// Save the in-progress custom build (flavor/jelly/size/toppings/add-ons) as a
+// bookmarked, checkout-ready item so the customer can order it again later
+// straight from the "Saved Builds" icon in the navbar - see navbar.js.
+// Stored in the same item shape renderOrderSummaryModal/reorderCup use
+// (title, size, unit_price, quantity, image, accent_color, toppings, addons)
+// so any saved build can be handed straight to the checkout modal.
 window.saveCurrentCustomBuild = function() {
+  const isLarge = customConfig.size === '12oz';
+  let addonStr = [];
+  Object.keys(customConfig.addonsMap).forEach(a => {
+    if (customConfig.addonsMap[a] > 0) addonStr.push(`Extra ${a} (x${customConfig.addonsMap[a]})`);
+  });
+  if (customConfig.utensils && customConfig.utensils !== 'No Spoon') {
+    addonStr.push(customConfig.utensils);
+  }
+
+  const l1Src = getLayer1ImagePath(customConfig.flavor, customConfig.jelly, isLarge);
+  const l3Src = getLayer3CupPath(isLarge);
+  const firstTop = customConfig.toppings[0] || null;
+  const l2Src = firstTop ? getLayer2ToppingPath(firstTop, isLarge) : '';
+
+  let accentColor = '#664638';
+  if (customConfig.flavor === 'Strawberry') accentColor = '#f48a8e';
+  if (customConfig.flavor === 'Pandan') accentColor = '#8bb35c';
+
+  const title = `${customConfig.flavor} Jelly ${customConfig.jelly === 'Cube' ? 'Cubes' : customConfig.jelly}`;
+
+  const items = [{
+    title,
+    size: customConfig.size,
+    is_custom: true,
+    image: l1Src,
+    flavor_img: l1Src,
+    toppings_img: l2Src,
+    cup_img: l3Src,
+    accent_color: accentColor,
+    toppings: customConfig.toppings.length > 0 ? '+ ' + customConfig.toppings.join(' + ') : '',
+    addons: addonStr.length > 0 ? '+ ' + addonStr.join(' + ') : '',
+    unit_price: calculateCustomTotal(),
+    quantity: 1
+  }];
+
   const build = {
     id: 'build_' + Date.now(),
-    flavor: customConfig.flavor,
-    jelly: customConfig.jelly,
-    size: customConfig.size,
-    toppings: [...customConfig.toppings],
-    addonsMap: { ...customConfig.addonsMap },
-    utensils: customConfig.utensils,
-    saved_at: new Date().toISOString()
+    label: title,
+    saved_at: new Date().toISOString(),
+    items
   };
 
   let savedBuilds = [];
@@ -1224,6 +1258,7 @@ window.saveCurrentCustomBuild = function() {
   savedBuilds.unshift(build);
   savedBuilds = savedBuilds.slice(0, 10); // keep only the 10 most recent saved builds
   localStorage.setItem('mm_saved_builds', JSON.stringify(savedBuilds));
+  if (typeof window.refreshSavedBuildsBadge === 'function') window.refreshSavedBuildsBadge();
 
   if (typeof Swal !== 'undefined') {
     Swal.fire({
@@ -1236,6 +1271,23 @@ window.saveCurrentCustomBuild = function() {
     });
   }
 };
+
+// If we were redirected here from the Saved Builds panel on a page that
+// doesn't carry the checkout modal (see useSavedBuild in navbar.js), open it
+// automatically with the build that was stashed just before the redirect.
+(function autoOpenPendingSavedBuild() {
+  if (new URLSearchParams(window.location.search).get('openBuild') !== '1') return;
+  try {
+    const pending = JSON.parse(sessionStorage.getItem('mm_pending_build_checkout') || 'null');
+    sessionStorage.removeItem('mm_pending_build_checkout');
+    if (pending && typeof window.renderOrderSummaryModal === 'function') {
+      window.renderOrderSummaryModal(pending);
+    }
+  } catch (e) { /* no-op */ }
+  const url = new URL(window.location.href);
+  url.searchParams.delete('openBuild');
+  window.history.replaceState({}, '', url.toString());
+})();
 
 // ==========================================
 // ORDER RECENT & CARD HELPERS
