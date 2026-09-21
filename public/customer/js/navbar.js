@@ -325,11 +325,11 @@ function initNavbarState() {
     }
 
     if (navOrders) {
-      navOrders.href = 'orders.html';
+      navOrders.href = 'home.html#orders-preview';
       navOrders.onclick = null;
     }
     if (mNavOrders) {
-      mNavOrders.href = 'orders.html';
+      mNavOrders.href = 'home.html#orders-preview';
       mNavOrders.onclick = null;
     }
 
@@ -369,11 +369,11 @@ function initNavbarState() {
     }
 
     if (navOrders) {
-      navOrders.href = 'orders.html';
+      navOrders.href = 'home.html#orders-preview';
       navOrders.onclick = null;
     }
     if (mNavOrders) {
-      mNavOrders.href = 'orders.html';
+      mNavOrders.href = 'home.html#orders-preview';
       mNavOrders.onclick = null;
     }
 
