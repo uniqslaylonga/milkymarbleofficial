@@ -844,6 +844,47 @@ body {
   opacity: 0.9;
 }
 
+/* SweetAlert2 Theme Matching */
+.swal2-popup.mm-swal-popup {
+  background-color: var(--card-white) !important;
+  border-radius: 20px !important;
+  padding: 24px !important;
+  border: 1.5px solid var(--border-soft) !important;
+  box-shadow: 0 16px 40px rgba(124, 79, 56, 0.22) !important;
+  font-family: var(--font-family-body) !important;
+}
+
+.swal2-title.mm-swal-title {
+  font-family: var(--font-family-heading) !important;
+  color: var(--brown-soft) !important;
+  font-size: 18px !important;
+  letter-spacing: 0.5px !important;
+}
+
+.swal2-confirm.mm-swal-confirm {
+  background-color: var(--accent-pink) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 8px 24px !important;
+  font-weight: 700 !important;
+  font-size: 12.5px !important;
+  font-family: var(--font-family-body) !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 8px rgba(246, 146, 153, 0.3) !important;
+}
+
+.swal2-cancel.mm-swal-cancel {
+  background-color: transparent !important;
+  border: 1.5px solid var(--border-soft) !important;
+  border-radius: 12px !important;
+  padding: 8px 18px !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  color: var(--brown-soft) !important;
+  cursor: pointer !important;
+}
+
 @media (max-width: 1150px) {
   .overview-grid {
     grid-template-columns: repeat(2, 1fr);

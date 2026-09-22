@@ -285,7 +285,7 @@ function renderPromoPagerButtons(totalPages, activePage) {
     });
 }
 
-// Submit proposal to CEO
+// Submit proposal to CEO with themed SweetAlert
 async function handlePitchFormSubmit(e) {
     e.preventDefault();
 
@@ -316,16 +316,15 @@ async function handlePitchFormSubmit(e) {
             body: JSON.stringify(payload)
         });
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
+
+        closePromoModal();
+        form.reset();
+        await fetchPromotionsData();
+        SalesCommon.alert('Promotion Pitched', `Promotion proposal for "${code}" submitted. It is now waiting for CEO approval.`, 'success');
     } catch (err) {
         console.error('Pitch submission failed:', err);
-        alert('Could not submit the promotion: ' + (err.message || 'unknown error'));
-        return;
+        SalesCommon.alert('Pitch Failed', err.message || 'Could not submit the promotion.', 'warning');
     }
-
-    closePromoModal();
-    form.reset();
-    await fetchPromotionsData();
-    alert(`Promotion proposal for "${code}" submitted. It is now waiting for CEO approval.`);
 }
 
 function openPromoModal() {

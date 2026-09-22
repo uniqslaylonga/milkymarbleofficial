@@ -111,7 +111,6 @@ async function fetchCustomerRecords() {
             }
         }
 
-        // Only display registered members (filter out guest rows)
         allCustomers = (data.customers || []).filter(c => c.type === 'registered');
         applyDirectoryFilters();
         updateAcquisitionAnalyticsPanel();
@@ -189,7 +188,6 @@ function applyDirectoryFilters() {
         return true;
     });
 
-    // Sorting
     filteredCustomers.sort((a, b) => {
         if (sortBy === 'name_asc') return (a.full_name || '').localeCompare(b.full_name || '');
         if (sortBy === 'orders_desc') return (b.total_orders || 0) - (a.total_orders || 0);
@@ -316,13 +314,33 @@ function renderCustomerPagerButtons(totalPages, activePage) {
 
 function openProfileModal(customerId) {
     const cust = allCustomers.find(c => String(c.id) === String(customerId));
-    if (!cust) return;
+    if (!cust) {
+        SalesCommon.alert('Record Not Found', 'Could not locate customer details.', 'warning');
+        return;
+    }
 
     document.getElementById('modalAvatar').src = cust.avatar || '/customer/images/account.png';
     document.getElementById('modalName').textContent = cust.full_name;
     document.getElementById('modalSub').textContent = `${cust.email || 'No email'} • ${cust.phone || 'No phone'}`;
-    document.getElementById('modalCallBtn').href = cust.phone ? `tel:${cust.phone}` : '#';
-    document.getElementById('modalSmsBtn').href = cust.phone ? `sms:${cust.phone}` : '#';
+    
+    // Call and SMS actions with themed alerts if phone is missing
+    const callBtn = document.getElementById('modalCallBtn');
+    const smsBtn = document.getElementById('modalSmsBtn');
+
+    if (callBtn) {
+        callBtn.onclick = () => {
+            if (cust.phone) window.location.href = `tel:${cust.phone}`;
+            else SalesCommon.alert('No Phone Registered', 'This member does not have a contact number on file.', 'info');
+        };
+    }
+
+    if (smsBtn) {
+        smsBtn.onclick = () => {
+            if (cust.phone) window.location.href = `sms:${cust.phone}`;
+            else SalesCommon.alert('No Phone Registered', 'This member does not have a contact number on file.', 'info');
+        };
+    }
+
     document.getElementById('modalAddress').textContent = cust.address || 'Counter Pick-Up Customer';
 
     const paymentBox = document.getElementById('modalPaymentBox');

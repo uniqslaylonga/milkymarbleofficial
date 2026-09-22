@@ -261,9 +261,15 @@ function renderMonitoringPagerButtons(totalPages, activePage) {
     });
 }
 
-// Handover / Picked up action (pure status update)
+// Handover / Picked up action with themed confirm
 async function markOrderAsPickedUp(orderId) {
-    if (!confirm(`Confirm handover for this order? This will complete the order.`)) return;
+    const confirmed = await SalesCommon.confirm(
+        'Confirm Customer Handover',
+        `Are you handing over Order #${orderId} to the customer? This will finalize and close the order.`,
+        'Yes, Handed Over',
+        'Cancel'
+    );
+    if (!confirmed) return;
 
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -273,31 +279,34 @@ async function markOrderAsPickedUp(orderId) {
             body: JSON.stringify({ order_id: orderId, action: 'complete' })
         });
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
+
+        await fetchOrderMonitoringData();
+        SalesCommon.alert('Order Completed', `Order #${orderId} has been successfully claimed and closed.`, 'success');
     } catch (err) {
         console.error('Handover update failed:', err);
-        alert('Could not complete this order: ' + (err.message || 'unknown error'));
-        return;
+        SalesCommon.alert('Update Failed', err.message || 'Could not complete order handover.', 'warning');
     }
-
-    await fetchOrderMonitoringData();
 }
 
-// Quick POS Walk-in Preset Puncher
+// Quick POS Walk-in Preset Puncher with themed alert & confirm
 async function punchWalkinPreset(presetName, size, price) {
     if (localStorage.getItem('isRegisterLocked') === 'true') {
-        alert('Register is currently locked. Please open shift before punching counter sales.');
+        SalesCommon.alert('Register Locked', 'The counter register is currently locked. Please open shift before punching walk-in sales.', 'warning');
         return;
     }
 
-    if (!confirm(`Punch Walk-in Sale:\nItem: ${presetName} (${size})\nPrice: ₱${price}.00\nCollect payment at counter?`)) {
-        return;
-    }
+    const confirmed = await SalesCommon.confirm(
+        'Record Walk-in Sale',
+        `Punching:\n${presetName} (${size})\nPrice: ₱${price}.00\n\nCollect physical cash payment at counter?`,
+        'Confirm Sale',
+        'Cancel'
+    );
+    if (!confirmed) return;
 
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = Object.assign({ 'Content-Type': 'application/json' }, userId ? { 'x-user-id': userId } : {});
 
-        // Direct punch recorded under Walk-in Counter account
         const response = await fetch('/api/sales-officer/order-monitoring/update', {
             method: 'POST',
             headers,
@@ -310,11 +319,11 @@ async function punchWalkinPreset(presetName, size, price) {
             })
         });
 
-        alert(`Walk-in sale recorded! Collected ₱${price}.00 cash.`);
         await fetchOrderMonitoringData();
+        SalesCommon.alert('Walk-in Sale Recorded', `Successfully collected ₱${price}.00 cash in drawer.`, 'success');
     } catch (err) {
         console.error('Walk-in sale error:', err);
-        alert('Recorded walk-in sale locally. Please confirm register balance on Z-Reading.');
+        SalesCommon.alert('Transaction Recorded Locally', 'Please verify your physical drawer count against expected totals during Z-Reading.', 'info');
     }
 }
 

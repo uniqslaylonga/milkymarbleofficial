@@ -164,7 +164,6 @@ function renderPaginatedOrders() {
             maximumFractionDigits: 2
         });
 
-        // Registered Member or Walk-in Counter tag
         const isWalkin = !ord.customer_id || String(ord.customer_name || '').toLowerCase().includes('walk');
         const badgeClass = isWalkin ? 'badge-walkin' : 'badge-member';
         const badgeText = isWalkin ? 'Walk-in' : 'Member';
@@ -247,14 +246,20 @@ function renderPagerButtons(totalPages, activePage) {
     });
 }
 
-// Push to kitchen with register-lock guard
+// Push to kitchen with register-lock guard & themed confirm
 async function confirmOrder(orderId) {
     if (isRegisterLocked) {
-        alert('The sales counter register is currently locked. Orders cannot be confirmed.');
+        SalesCommon.alert('Register Locked', 'The sales counter register is currently locked. Orders cannot be confirmed.', 'warning');
         return;
     }
 
-    if (!confirm(`Are you sure you want to confirm Order #${orderId}? It will be queued to production.`)) return;
+    const isConfirmed = await SalesCommon.confirm(
+        'Confirm Order Approval?',
+        `Are you sure you want to approve Order #${orderId}? It will be queued to kitchen production.`,
+        'Yes, Confirm',
+        'Cancel'
+    );
+    if (!isConfirmed) return;
 
     try {
         const response = await fetch(`/api/orders/${orderId}/status`, {
@@ -274,22 +279,27 @@ async function confirmOrder(orderId) {
         if (confirmedEl) confirmedEl.textContent = (parseInt(confirmedEl.textContent || '0', 10) + 1).toString();
 
         applyOrderFilters();
+        SalesCommon.alert('Order Confirmed', `Order #${orderId} has been sent to production queue.`, 'success');
     } catch (err) {
         console.error('Error confirming order:', err);
-        alert(err.message || 'Could not confirm order.');
+        SalesCommon.alert('Confirmation Failed', err.message || 'Could not confirm order.', 'warning');
     }
 }
 
-// Reject order
+// Reject order with themed prompt
 async function rejectOrder(orderId) {
-    const reason = prompt('Please enter reason for rejecting this order (optional):');
+    const reason = await SalesCommon.prompt(
+        'Reject Order',
+        `Please specify the reason for cancelling Order #${orderId} (optional):`,
+        'e.g. Out of stock, duplicate order, customer cancellation'
+    );
     if (reason === null) return;
 
     try {
         const response = await fetch(`/api/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'CANCELLED', reason })
+            body: JSON.stringify({ status: 'CANCELLED', reason: reason || 'Cancelled by Sales Officer' })
         });
 
         const result = await response.json().catch(() => ({}));
@@ -303,9 +313,10 @@ async function rejectOrder(orderId) {
         if (rejectedEl) rejectedEl.textContent = (parseInt(rejectedEl.textContent || '0', 10) + 1).toString();
 
         applyOrderFilters();
+        SalesCommon.alert('Order Rejected', `Order #${orderId} has been cancelled.`, 'info');
     } catch (err) {
         console.error('Error rejecting order:', err);
-        alert(err.message || 'Could not reject order.');
+        SalesCommon.alert('Rejection Failed', err.message || 'Could not reject order.', 'warning');
     }
 }
 
