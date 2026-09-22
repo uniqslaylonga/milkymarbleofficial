@@ -943,6 +943,74 @@ app.post(['/api/customer/profile/upload', '/api/customers/profile/upload'], uplo
 });
 
 // ==========================================
+// SELF-SERVICE PROFILE PICTURE (Management & Employees)
+// ==========================================
+// Any logged-in staff member (admin, CEO, or any employee role) can set
+// their own avatar. This mirrors the customer upload above, updating the
+// shared `users.avatar` column directly by user_id - it works for every
+// role because `employees` doesn't keep its own avatar column, avatar
+// always lives on `users`.
+app.get('/api/profile/avatar', async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+    const userId = parseInt(req.query.user_id, 10);
+    if (!userId) return res.status(400).json({ status: 'error', message: 'user_id is required.' });
+
+    const { data: userRow, error } = await supabase
+      .from('users')
+      .select('avatar')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+
+    return res.json({ status: 'success', avatar: (userRow && userRow.avatar) || null });
+  } catch (error) {
+    console.error('Get profile avatar error:', error);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.post('/api/profile/upload-avatar', uploadMiddleware, async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
+
+    const userId = parseInt(req.body?.user_id, 10);
+    if (!userId) return res.status(400).json({ status: 'error', message: 'user_id is required.' });
+
+    let avatarUrl = '';
+    if (req.file) {
+      avatarUrl = `/images/uploads/${req.file.filename}`;
+    } else if (req.body && req.body.avatar) {
+      avatarUrl = req.body.avatar;
+    }
+    if (!avatarUrl) {
+      return res.status(400).json({ status: 'error', message: 'No valid image file uploaded.' });
+    }
+
+    const { data: existingUser, error: findErr } = await supabase
+      .from('users')
+      .select('id, user_type')
+      .eq('id', userId)
+      .maybeSingle();
+    if (findErr) throw findErr;
+    if (!existingUser) {
+      return res.status(404).json({ status: 'error', message: 'User not found.' });
+    }
+
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ avatar: avatarUrl })
+      .eq('id', userId);
+    if (updateErr) throw updateErr;
+
+    return res.json({ status: 'success', message: 'Profile picture updated.', avatar: avatarUrl });
+  } catch (error) {
+    console.error('Upload staff avatar error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Failed to upload photo.' });
+  }
+});
+
+// ==========================================
 // 6. PRODUCTION EMAIL OTP & PASSWORD
 // ==========================================
 app.post('/api/customer/email-otp', async (req, res) => {
@@ -1739,9 +1807,12 @@ app.get('/api/admin/production-planning', async (req, res) => {
 app.post('/api/admin/create-plan', async (req, res) => {
   try {
     if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
-    
+
     const { recipe_id, batch_code, total_cups_produced, cooked_by } = req.body;
-    
+    if (!recipe_id || !total_cups_produced || !cooked_by) {
+      return res.status(400).json({ status: 'error', message: 'recipe_id, total_cups_produced, and cooked_by are required.' });
+    }
+
     const { data, error } = await supabase
       .from('production_logs')
       .insert([{
