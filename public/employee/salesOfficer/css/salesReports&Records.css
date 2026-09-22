@@ -249,7 +249,6 @@ body {
   display: block;
 }
 
-/* Report Action Header */
 .report-action-header {
   display: flex;
   align-items: center;
@@ -343,7 +342,7 @@ body {
   letter-spacing: 0.8px;
 }
 
-/* Grids */
+/* Screen Grids & Cards */
 .overview-grid {
   display: grid;
   gap: 16px;
@@ -357,7 +356,6 @@ body {
   grid-template-columns: repeat(3, 1fr);
 }
 
-/* Target & DSO Cards */
 .target-card {
   background-color: var(--card-bg);
   border: none;
@@ -459,7 +457,6 @@ body {
   background-color: var(--dso-accent) !important;
 }
 
-/* Stat Cards */
 .stat-card {
   background-color: var(--card-bg);
   border: none;
@@ -680,7 +677,6 @@ body {
   font-weight: 600;
 }
 
-/* Pagination Bar */
 .tx-pagination-bar {
   display: flex;
   align-items: center;
@@ -787,37 +783,203 @@ body {
   user-select: none;
 }
 
-/* SweetAlert2 Styling */
-.swal2-popup.mm-swal-popup {
-  background-color: #FFFFFF !important;
-  border-radius: 20px !important;
-  padding: 24px !important;
-  border: 1.5px solid rgba(246, 146, 153, 0.28) !important;
-  box-shadow: 0 16px 40px rgba(124, 79, 56, 0.22) !important;
-  font-family: var(--font-family-body) !important;
+/* ==========================================================================
+   PURE CORPORATE EXECUTIVE REPORT STYLING (FOR PDF RENDER AREA ONLY)
+   ========================================================================== */
+.corporate-pdf-render-area {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-.swal2-title.mm-swal-title {
-  font-family: var(--font-family-heading) !important;
-  color: var(--brown-soft) !important;
-  font-size: 18px !important;
-  letter-spacing: 0.5px !important;
+.corp-doc-page {
+  width: 100%;
+  max-width: 190mm;
+  margin: 0 auto;
+  background: #ffffff !important;
+  padding: 8mm 6mm;
+  box-sizing: border-box;
 }
 
-.swal2-confirm.mm-swal-confirm {
-  background-color: var(--accent-pink) !important;
-  color: #ffffff !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 8px 24px !important;
-  font-weight: 700 !important;
-  font-size: 12.5px !important;
-  font-family: var(--font-family-body) !important;
-  cursor: pointer !important;
-  box-shadow: 0 3px 8px rgba(246, 146, 153, 0.3) !important;
+.corp-header-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
-/* Responsive */
+.corp-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.corp-doc-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.corp-company-name {
+  font-family: 'Bootzy TM', sans-serif !important;
+  font-size: 17px;
+  font-weight: 800;
+  color: #7C4F38;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+
+.corp-company-sub {
+  font-size: 10.5px;
+  color: #666666;
+  font-weight: 600;
+  display: block;
+}
+
+.corp-meta-right {
+  text-align: right;
+  font-size: 10px;
+  color: #444444;
+  line-height: 1.4;
+}
+
+.corp-doc-code {
+  font-weight: 800;
+  color: #7C4F38;
+}
+
+.corp-doc-divider {
+  width: 100%;
+  height: 2px;
+  background: #7C4F38;
+  margin: 6px 0 12px;
+}
+
+.corp-doc-title {
+  text-align: center;
+  font-family: 'Bootzy TM', sans-serif !important;
+  font-size: 15px;
+  font-weight: 800;
+  color: #2b2b2b;
+  letter-spacing: 1.5px;
+  margin-bottom: 16px;
+}
+
+.corp-section-wrap {
+  margin-bottom: 16px;
+}
+
+.corp-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #7C4F38;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid #d4c5c0;
+  padding-bottom: 3px;
+  margin-bottom: 6px;
+}
+
+.corp-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  text-align: left;
+}
+
+.corp-data-table th {
+  background-color: #f7edea !important;
+  color: #453434 !important;
+  font-weight: 800;
+  padding: 6px 8px;
+  border: 1px solid #d9cbcf;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+.corp-data-table td {
+  padding: 5px 8px;
+  border: 1px solid #e5dad6;
+  color: #2b2b2b;
+  vertical-align: middle;
+}
+
+.corp-two-col-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+}
+
+.corp-dso-summary-box {
+  border: 1.5px solid #68B0AB;
+  background: #f4faf9;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.corp-dso-head {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #256661;
+  text-transform: uppercase;
+}
+
+.corp-dso-number {
+  font-size: 20px;
+  font-weight: 800;
+  color: #256661;
+  margin: 2px 0;
+  font-family: 'Bootzy TM', sans-serif !important;
+}
+
+.corp-dso-desc {
+  font-size: 9px;
+  line-height: 1.35;
+  color: #3b5250;
+}
+
+.corp-signoff-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 26px;
+  padding: 0 16px;
+}
+
+.corp-sig-box {
+  width: 42%;
+  text-align: center;
+}
+
+.corp-sig-line {
+  border-bottom: 1.5px solid #2b2b2b;
+  margin-bottom: 5px;
+}
+
+.corp-sig-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.corp-sig-role {
+  display: block;
+  font-size: 9px;
+  color: #666666;
+}
+
+.corp-doc-footer-note {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 8px;
+  color: #888888;
+  border-top: 1px dashed #d9cbcf;
+  padding-top: 6px;
+}
+
 @media (max-width: 1150px) {
   .four-col-grid {
     grid-template-columns: repeat(2, 1fr);

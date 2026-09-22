@@ -68,8 +68,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cashInput = document.getElementById('zActualCashInput');
     if (cashInput) cashInput.addEventListener('input', calculateZVariance);
 
-    const btnExecute = document.getElementById('btnExecuteLockAndTransmit');
-    if (btnExecute) btnExecute.addEventListener('click', executeLockdown);
+    const pitchTypeSelect = document.getElementById('pitchDiscountType');
+    const pitchValLabel = document.getElementById('pitchDiscountValLabel');
+    if (pitchTypeSelect && pitchValLabel) {
+        pitchTypeSelect.addEventListener('change', (e) => {
+            pitchValLabel.textContent = e.target.value === 'percent'
+                ? 'Discount Value * (%)'
+                : 'Discount Value * (₱ Fixed)';
+        });
+    }
 
     await loadPageData();
 });
@@ -102,7 +109,6 @@ function initCharts() {
         });
     }
 
-    // Weekly Inflow Chart
     const weeklyCtx = document.getElementById('weeklyInflowChart');
     if (weeklyCtx) {
         weeklyRevenueChartInstance = new Chart(weeklyCtx.getContext('2d'), {
@@ -148,7 +154,7 @@ async function loadPageData() {
 
         const data = await response.json();
 
-        // 1. User Header
+        // User Header
         const userNameEl = document.getElementById('userName');
         const userFirstNameEl = document.getElementById('userFirstName');
         if (data.user && data.user.fullName) {
@@ -156,7 +162,7 @@ async function loadPageData() {
             if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || data.user.fullName;
         }
 
-        // 2. Today's Performance
+        // Today's Performance
         const todayOrdersEl = document.getElementById('todayOrders');
         const todaySalesEl = document.getElementById('todaySales');
         const pendingOrdersEl = document.getElementById('pendingOrders');
@@ -170,7 +176,7 @@ async function loadPageData() {
         }
         if (pendingOrdersEl && data.metrics) pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
 
-        // 3. Customer Acquisition
+        // Customer Acquisition
         if (data.newAccounts) {
             customerAcquisitionData = {
                 today: data.newAccounts.today || 0,
@@ -195,7 +201,7 @@ async function loadPageData() {
 
         syncRegisterLockState(data.registerStatus);
 
-        // 4. Transactions and Weekly Inflow DSS
+        // Transactions and Weekly Inflow DSS
         allFetchedOrders = data.recentOrders || [];
         updateWeeklyInflowAndDSS();
         applyTransactionFilters();
@@ -262,7 +268,7 @@ function updateWeeklyInflowAndDSS() {
         }
     }
 
-    // Decision Support System (DSS) Rule: Alert on any negative drop
+    // Decision Support System (DSS) Rule
     if (dssBox && dssMessage && btnPitch) {
         if (hasPriorData && diffPct < 0) {
             dssBox.className = 'dss-alert-box alert-active';
@@ -283,14 +289,27 @@ function updateWeeklyInflowAndDSS() {
     }
 }
 
-// Pitch Promo Modal Logic
+// Pitch Promo Modal Logic (Matching Promotions Desk contents)
 function openPitchPromoModal() {
     const modal = document.getElementById('pitchPromoModal');
     if (!modal) return;
+
     const codeInput = document.getElementById('pitchPromoCode');
+    const segmentSelect = document.getElementById('pitchTargetSegment');
+    const typeSelect = document.getElementById('pitchDiscountType');
+    const valInput = document.getElementById('pitchDiscountValue');
+    const minSpendInput = document.getElementById('pitchMinSpend');
+    const usageCapInput = document.getElementById('pitchUsageCap');
     const noteInput = document.getElementById('pitchNote');
+
     if (codeInput) codeInput.value = '';
+    if (segmentSelect) segmentSelect.value = 'all';
+    if (typeSelect) typeSelect.value = 'percent';
+    if (valInput) valInput.value = '';
+    if (minSpendInput) minSpendInput.value = '';
+    if (usageCapInput) usageCapInput.value = '';
     if (noteInput) noteInput.value = 'DSS-triggered initiative: Low weekly inflow detected. Recommending a discount to boost pre-orders.';
+
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -304,13 +323,18 @@ function closePitchPromoModal() {
 }
 
 async function submitPromoPitch() {
-    const code = document.getElementById('pitchPromoCode')?.value.trim();
-    const discount_type = document.getElementById('pitchDiscountType')?.value;
+    const code = document.getElementById('pitchPromoCode')?.value.trim().toUpperCase();
+    const target_segment = document.getElementById('pitchTargetSegment')?.value || 'all';
+    const discount_type = document.getElementById('pitchDiscountType')?.value || 'percent';
     const discount_value = parseFloat(document.getElementById('pitchDiscountValue')?.value);
+    const min_spend_raw = document.getElementById('pitchMinSpend')?.value;
+    const usage_cap_raw = document.getElementById('pitchUsageCap')?.value;
+    const min_spend = min_spend_raw ? parseFloat(min_spend_raw) : null;
+    const usage_cap = usage_cap_raw ? parseInt(usage_cap_raw, 10) : null;
     const pitch_note = document.getElementById('pitchNote')?.value.trim();
 
     if (!code || isNaN(discount_value) || discount_value <= 0) {
-        showCustomAlert('Incomplete Details', 'Please provide a valid promo code and discount amount.', 'warning');
+        SalesCommon.alert('Incomplete Details', 'Please provide a valid promo code and discount amount.', 'warning');
         return;
     }
 
@@ -324,8 +348,11 @@ async function submitPromoPitch() {
             headers,
             body: JSON.stringify({
                 code,
+                target_segment,
                 discount_type,
                 discount_value,
+                min_spend,
+                usage_cap,
                 pitch_note: pitch_note || 'DSS sales recovery recommendation'
             })
         });
@@ -336,10 +363,10 @@ async function submitPromoPitch() {
         }
 
         closePitchPromoModal();
-        showCustomAlert('Promotion Pitched', `Promo code ${code.toUpperCase()} has been submitted directly to the CEO for approval.`, 'success');
+        SalesCommon.alert('Promotion Pitched', `Promo code ${code} has been submitted directly to the CEO for approval.`, 'success');
     } catch (err) {
         console.error('Error submitting promo pitch:', err);
-        showCustomAlert('Pitch Failed', err.message, 'warning');
+        SalesCommon.alert('Pitch Failed', err.message, 'warning');
     }
 }
 
@@ -414,7 +441,6 @@ function renderPaginatedTransactions() {
             maximumFractionDigits: 2
         });
 
-        // Walk-in vs Registered Member badge (no Guest)
         const isWalkin = !ord.customer_id || String(ord.customer_name || '').toLowerCase().includes('walk');
         const badgeClass = isWalkin ? 'badge-walkin' : 'badge-member';
         const badgeText = isWalkin ? 'Walk-in' : 'Member';
@@ -578,14 +604,14 @@ function closeOpenShiftModal() {
 async function confirmOpenShift() {
     const floatAmount = parseFloat(document.getElementById('openingFloatInput')?.value || 1000);
     if (isNaN(floatAmount) || floatAmount < 0) {
-        showCustomAlert("Invalid Float Amount", "Please enter a valid cash float amount.", "warning");
+        SalesCommon.alert("Invalid Float Amount", "Please enter a valid cash float amount.", "warning");
         return;
     }
     localStorage.setItem('isRegisterLocked', 'false');
     isRegisterLocked = false;
     closeOpenShiftModal();
     checkRegisterLockState();
-    showCustomAlert("Shift Started Successfully", `Register is now OPEN with float ₱${floatAmount.toFixed(2)}.`, "success");
+    SalesCommon.alert("Shift Started Successfully", `Register is now OPEN with float ₱${floatAmount.toFixed(2)}.`, "success");
 }
 
 async function openXReadingModal() {
@@ -617,7 +643,7 @@ async function openXReadingModal() {
         document.getElementById('xGrossTotal').textContent = '₱' + (data.grossTotal || 0).toFixed(2);
     } catch (error) {
         console.error('Could not load X-Reading data:', error);
-        showCustomAlert('Error', 'Real sales data could not be fetched.', 'warning');
+        SalesCommon.alert('Error', 'Real sales data could not be fetched.', 'warning');
     }
 }
 
@@ -631,7 +657,7 @@ function closeXReadingModal() {
 
 async function openZReadingModal() {
     if (isRegisterLocked) {
-        showCustomAlert("Shift Already Closed", "This shift has already been concluded with a Z-Reading.", "warning");
+        SalesCommon.alert("Shift Already Closed", "This shift has already been concluded with a Z-Reading.", "warning");
         return;
     }
     const modal = document.getElementById('zReadingModal');
@@ -661,7 +687,7 @@ async function openZReadingModal() {
         document.getElementById('zExpectedCash').textContent = '₱' + (data.expectedDrawer || 0).toFixed(2);
     } catch (error) {
         console.error('Could not refresh totals:', error);
-        showCustomAlert('Error', 'Sales data could not be fetched.', 'warning');
+        SalesCommon.alert('Error', 'Sales data could not be fetched.', 'warning');
     }
     calculateZVariance();
 }
@@ -708,55 +734,27 @@ function calculateZVariance() {
     }
 }
 
-function showCustomAlert(title, message, type = "notice") {
-    const modal = document.getElementById('customAlertModal');
-    if (!modal) return;
-    document.getElementById('alertModalTitle').textContent = title;
-    document.getElementById('alertModalMessage').textContent = message;
-    const iconWrap = document.getElementById('alertDialogIconWrap');
-    if (iconWrap) {
-        iconWrap.className = 'dialog-icon-circle ' + (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : ''));
-    }
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeCustomAlert() {
-    const modal = document.getElementById('customAlertModal');
-    if (modal) {
-        modal.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-}
-
-function promptZReadingConfirmation() {
+async function promptZReadingConfirmation() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
     if (isNaN(actualCash) || actualCash < 0) {
-        showCustomAlert("Incomplete Cash Count", "Please enter the actual physical cash counted in the drawer.", "warning");
+        SalesCommon.alert("Incomplete Cash Count", "Please enter the actual physical cash counted in the drawer before locking.", "warning");
         return;
     }
     const variance = actualCash - expectedCounterCash;
-    document.getElementById('confirmExpectedCash').textContent = '₱' + expectedCounterCash.toFixed(2);
-    document.getElementById('confirmActualCash').textContent = '₱' + actualCash.toFixed(2);
-    document.getElementById('confirmVariance').textContent = `${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}`;
 
-    const confirmModal = document.getElementById('customConfirmModal');
-    if (confirmModal) {
-        confirmModal.classList.add('open');
-        document.body.style.overflow = 'hidden';
-    }
-}
+    const confirmed = await SalesCommon.confirm(
+        'Confirm End-of-Shift Z-Reading?',
+        `Expected Cash: ₱${expectedCounterCash.toFixed(2)} | Actual Drawer: ₱${actualCash.toFixed(2)} | Variance: ${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}\n\nWarning: Register will be locked permanently.`,
+        'Lock & Transmit',
+        'Cancel'
+    );
 
-function closeCustomConfirm() {
-    const confirmModal = document.getElementById('customConfirmModal');
-    if (confirmModal) {
-        confirmModal.classList.remove('open');
-        document.body.style.overflow = '';
+    if (confirmed) {
+        executeLockdown();
     }
 }
 
 async function executeLockdown() {
-    closeCustomConfirm();
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
     const variance = actualCash - expectedCounterCash;
 
@@ -787,10 +785,10 @@ async function executeLockdown() {
         closeZReadingModal();
         checkRegisterLockState();
 
-        showCustomAlert("Z-Reading Transmitted", "Sales counter locked. Report sent to Financial Officer.", "success");
+        SalesCommon.alert("Z-Reading Transmitted", "Sales counter locked. Report sent to Financial Officer.", "success");
     } catch (error) {
         console.error('Z-Reading save failed:', error);
-        showCustomAlert("Failed", error.message, "warning");
+        SalesCommon.alert("Failed", error.message, "warning");
     }
 }
 

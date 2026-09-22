@@ -9,6 +9,8 @@ let currentPresetPage = 1;
 const PRESETS_PAGE_SIZE = 5;
 
 let currentReportMetrics = null;
+let currentTargetMetrics = null;
+let officerFullName = 'Sales Officer';
 
 document.addEventListener('DOMContentLoaded', () => {
     const filterSelect = document.getElementById('reportDateFilter');
@@ -93,17 +95,19 @@ async function fetchAllReportData() {
         const reportsData = await reportsRes.json();
         const targetData = await targetRes.json();
 
-        // Populate User
+        // User Details
         const user = reportsData.user || targetData.user;
-        if (user) {
+        if (user && user.fullName) {
+            officerFullName = user.fullName;
             const userNameEl = document.getElementById('userName');
             const userAvatarEl = document.getElementById('userAvatar');
-            if (userNameEl) userNameEl.textContent = user.fullName || 'Sales Officer';
+            if (userNameEl) userNameEl.textContent = user.fullName;
             if (userAvatarEl && user.avatarSrc) userAvatarEl.src = user.avatarSrc;
         }
 
         // Section 1: Target Gauges & DSO 45 Days
         if (targetData.metrics) {
+            currentTargetMetrics = targetData.metrics;
             populateTargetGauges(targetData.metrics);
         }
 
@@ -137,7 +141,6 @@ async function fetchAllReportData() {
     }
 }
 
-// Populate gauges and DSO 45 days
 function populateTargetGauges(metrics) {
     const dailyPct = metrics.dailyPct || (metrics.dailyTarget ? Math.round((metrics.todaySales / metrics.dailyTarget) * 100) : 0);
     document.getElementById('dailyPct').textContent = `${dailyPct}%`;
@@ -160,7 +163,6 @@ function populateTargetGauges(metrics) {
     document.getElementById('fulfilledCountDisplay').textContent = `${metrics.preordersClaimed || 0} / ${metrics.preordersTotal || 0}`;
     document.getElementById('fulfillmentGaugeFill').style.width = `${Math.min(fulfillmentPct, 100)}%`;
 
-    // DSO 45 days specification
     const dsoEl = document.getElementById('dsoValueDisplay');
     if (dsoEl) dsoEl.textContent = '45 Days';
 }
@@ -393,27 +395,147 @@ function renderReportPagerButtons(totalPages, activePage) {
     });
 }
 
-// Export to PDF using html2pdf.js with SweetAlert theme
+// POPULATES PURE EXECUTIVE CORPORATE TEMPLATE AND EXPORTS TO PDF
 async function exportReportToPDF() {
-    const element = document.getElementById('reportExportContainer');
-    if (!element) return;
+    const renderWrapper = document.getElementById('corporatePdfRenderWrapper');
+    if (!renderWrapper) return;
 
-    SalesCommon.alert('Generating PDF Report', 'Compiling financial highlights, quotas, and DSO 45 metric into PDF...', 'info');
+    SalesCommon.alert('Compiling Executive Audit Report', 'Formatting official commercial tables, DSO 45 metrics, and sign-off sheets into formal corporate PDF...', 'info');
+
+    const periodFilter = document.getElementById('reportDateFilter');
+    const selectedPeriodText = periodFilter ? periodFilter.options[periodFilter.selectedIndex].text : 'Current Month';
+    const todayFormatted = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+
+    // 1. Meta Details
+    document.getElementById('pdfMetaDate').textContent = `Date: ${todayFormatted}`;
+    document.getElementById('pdfMetaPeriod').textContent = `Period: ${selectedPeriodText}`;
+    document.getElementById('pdfSignOfficer').textContent = officerFullName;
+
+    // 2. Section 1 Table: KPIs
+    const dailyTarget = currentTargetMetrics?.dailyTarget || 0;
+    const todaySales = currentTargetMetrics?.todaySales || 0;
+    const dailyPct = dailyTarget ? Math.round((todaySales / dailyTarget) * 100) : 0;
+
+    const monthlyTarget = currentTargetMetrics?.monthlyTarget || 0;
+    const monthSales = currentTargetMetrics?.monthSales || 0;
+    const monthlyPct = monthlyTarget ? Math.round((monthSales / monthlyTarget) * 100) : 0;
+
+    const gross = currentReportMetrics?.grossSales || 0;
+    const net = currentReportMetrics?.netSales || 0;
+    const aov = currentReportMetrics?.aov || 0;
+
+    document.getElementById('pdfKpiTableBody').innerHTML = `
+        <tr>
+            <td><strong>Daily Revenue Target</strong></td>
+            <td>₱${Number(dailyTarget).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>₱${Number(todaySales).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td><strong>${dailyPct}%</strong></td>
+            <td>${dailyPct >= 100 ? 'Quota Achieved' : 'In Progress'}</td>
+        </tr>
+        <tr>
+            <td><strong>Monthly Revenue Target</strong></td>
+            <td>₱${Number(monthlyTarget).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>₱${Number(monthSales).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td><strong>${monthlyPct}%</strong></td>
+            <td>${monthlyPct >= 100 ? 'Target Exceeded' : 'Active Cycle'}</td>
+        </tr>
+        <tr>
+            <td><strong>Gross Billed Sales</strong></td>
+            <td>—</td>
+            <td>₱${Number(gross).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>100.0%</td>
+            <td>Audited</td>
+        </tr>
+        <tr>
+            <td><strong>Net Realized Sales (Post-Discount)</strong></td>
+            <td>—</td>
+            <td>₱${Number(net).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>${gross > 0 ? ((net / gross) * 100).toFixed(1) : 100}%</td>
+            <td>Cleared</td>
+        </tr>
+        <tr>
+            <td><strong>Average Order Value (AOV)</strong></td>
+            <td>₱25.00 Baseline</td>
+            <td>₱${Number(aov).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>—</td>
+            <td>Standard Basket Size</td>
+        </tr>
+    `;
+
+    // 3. Section 2 Table: Channel Breakdown
+    const preorderRev = currentTargetMetrics?.dailyPreorderRev || 0;
+    const walkinRev = currentTargetMetrics?.dailyWalkinRev || 0;
+    const totalRev = preorderRev + walkinRev;
+    const prePct = totalRev > 0 ? ((preorderRev / totalRev) * 100).toFixed(1) : 0;
+    const walkPct = totalRev > 0 ? ((walkinRev / totalRev) * 100).toFixed(1) : 0;
+
+    document.getElementById('pdfChannelTableBody').innerHTML = `
+        <tr>
+            <td><strong>Scheduled Online Pre-orders (Digital Settlement)</strong></td>
+            <td>₱${Number(preorderRev).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>${prePct}%</td>
+        </tr>
+        <tr>
+            <td><strong>Chiller Walk-in Presets (Counter Physical Cash)</strong></td>
+            <td>₱${Number(walkinRev).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td>${walkPct}%</td>
+        </tr>
+    `;
+
+    // 4. Section 3 Table: Chiller Presets
+    if (allPresets.length > 0) {
+        document.getElementById('pdfPresetTableBody').innerHTML = allPresets.map(p => {
+            const pct = p.prepared_batch ? Math.round((p.cups_sold / p.prepared_batch) * 100) : 0;
+            const rev = Number((p.cups_sold || 0) * (p.unit_price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(p.name)}</strong></td>
+                    <td>${escapeHtml(p.cup_size || '8oz / 12oz')}</td>
+                    <td>${p.prepared_batch != null ? p.prepared_batch : '—'}</td>
+                    <td>${p.cups_sold}</td>
+                    <td>${pct}%</td>
+                    <td>₱${rev}</td>
+                </tr>
+            `;
+        }).join('');
+    } else {
+        document.getElementById('pdfPresetTableBody').innerHTML = `<tr><td colspan="6" style="text-align:center;">No preset chiller batches recorded.</td></tr>`;
+    }
+
+    // 5. Section 4 Table: Catalog SKU Rankings
+    if (allProductsRank.length > 0) {
+        document.getElementById('pdfRankingTableBody').innerHTML = allProductsRank.map((prod, idx) => `
+            <tr>
+                <td>#${idx + 1}</td>
+                <td><strong>${escapeHtml(prod.name)}</strong></td>
+                <td>${escapeHtml(prod.sku || 'N/A')}</td>
+                <td>${Number(prod.units_sold || 0).toLocaleString()}</td>
+                <td>₱${Number(prod.revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+    } else {
+        document.getElementById('pdfRankingTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;">No itemized catalog transactions found.</td></tr>`;
+    }
+
+    // Temporarily unhide for capture
+    renderWrapper.style.display = 'block';
 
     const opt = {
-        margin: [8, 8, 8, 8],
-        filename: `Milky_Marble_Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`,
+        margin: [10, 10, 10, 10],
+        filename: `Milky_Marble_Executive_Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     try {
-        await html2pdf().set(opt).from(element).save();
-        SalesCommon.alert('PDF Export Complete', 'The official sales report has been downloaded successfully.', 'success');
+        await html2pdf().set(opt).from(renderWrapper).save();
+        renderWrapper.style.display = 'none';
+        SalesCommon.alert('PDF Export Complete', 'Official executive audit report has been generated successfully.', 'success');
     } catch (err) {
-        console.error('PDF export failed:', err);
-        SalesCommon.alert('Export Failed', 'Could not generate PDF: ' + err.message, 'error');
+        renderWrapper.style.display = 'none';
+        console.error('Corporate PDF export failed:', err);
+        SalesCommon.alert('Export Failed', 'Error generating PDF: ' + err.message, 'error');
     }
 }
 

@@ -6,11 +6,12 @@
   <title>Milky Marble — Sales Officer Dashboard</title>
   <link rel="icon" type="image/png" href="/customer/images/logo.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
   <div class="app-container">
-    <!-- Fixed Sidebar -->
+    <!-- Fixed Sidebar (6 Links) -->
     <aside class="sidebar">
       <div class="brand-section">
         <div class="brand-logo-wrap">
@@ -19,7 +20,6 @@
         <h1 class="brand-title">Milky Marble</h1>
       </div>
       <nav class="nav-menu">
-        <!-- 1. Dashboard (Active) -->
         <a href="dashboard.html" class="nav-link active">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -29,8 +29,6 @@
           </svg>
           <span>Dashboard</span>
         </a>
-
-        <!-- 2. Order Confirmation -->
         <a href="orderConfirmation.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4" />
@@ -38,8 +36,6 @@
           </svg>
           <span>Order Confirmation</span>
         </a>
-
-        <!-- 3. Order Monitoring -->
         <a href="orderMonitoring.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="4" width="20" height="16" rx="3" />
@@ -47,8 +43,6 @@
           </svg>
           <span>Order Monitoring</span>
         </a>
-
-        <!-- 4. Customer Records -->
         <a href="customerRecords.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
@@ -58,8 +52,6 @@
           </svg>
           <span>Customer Records</span>
         </a>
-
-        <!-- 5. Promotions -->
         <a href="promotions.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
@@ -67,8 +59,6 @@
           </svg>
           <span>Promotions</span>
         </a>
-
-        <!-- 6. Reports & Records (Pinagsamang Target, Quotas, at Audit) -->
         <a href="salesReports&Records.html" class="nav-link">
           <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3v18h18" />
@@ -89,7 +79,6 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <!-- Topbar: Shift status & Profile (No search bar) -->
       <header class="topbar">
         <div id="registerStatusBanner" class="topbar-status-strip open">
           <span class="status-pulse-dot"></span>
@@ -159,9 +148,8 @@
 
       <!-- Main Layout -->
       <div class="split-dashboard-layout">
-        <!-- Left: Analytics & DSS -->
         <div class="analytics-column">
-          <!-- Card 1: Customer Acquisition -->
+          <!-- Customer Acquisition -->
           <div class="stat-card compact-panel">
             <div class="card-head-row">
               <div class="head-titles">
@@ -188,7 +176,7 @@
             </div>
           </div>
 
-          <!-- Card 2: Weekly Revenue Inflow & Decision Support System (DSS) -->
+          <!-- Weekly Inflow & DSS Advisory -->
           <div class="stat-card compact-panel">
             <div class="card-head-row">
               <div class="head-titles">
@@ -233,7 +221,7 @@
           </div>
         </div>
 
-        <!-- Right: Transactions -->
+        <!-- Transactions Column -->
         <div class="transactions-column">
           <div class="stat-card transactions-card">
             <div class="card-head-row tx-head-row">
@@ -275,7 +263,7 @@
     </main>
   </div>
 
-  <!-- Pitch Promo Modal (Triggered by DSS recommendation) -->
+  <!-- Pitch Promo Modal (Pantay na sa Contents ng Promotions Desk) -->
   <div class="modal-overlay" id="pitchPromoModal">
     <div class="audit-modal-card" onclick="event.stopPropagation()">
       <div class="audit-modal-header">
@@ -293,19 +281,36 @@
           <div class="cash-reconcile-wrap">
             <div class="cash-input-group">
               <label for="pitchPromoCode">Promo Code *</label>
-              <input type="text" id="pitchPromoCode" class="custom-cash-input" placeholder="e.g. BOOST10, JELLYWEEK" required />
+              <input type="text" id="pitchPromoCode" class="custom-cash-input" placeholder="e.g. BOOST10, JELLYWEEK" style="text-transform: uppercase;" required />
+            </div>
+            <div class="cash-input-group">
+              <label for="pitchTargetSegment">Target Customer Segment *</label>
+              <select id="pitchTargetSegment" class="custom-cash-input" style="padding: 8px 12px; font-size: 12.5px;">
+                <option value="all" selected>All Customers (General Public)</option>
+                <option value="member">Registered Members Only (Loyalty Retention)</option>
+              </select>
             </div>
             <div class="audit-metrics-grid-4">
               <div class="cash-input-group">
                 <label for="pitchDiscountType">Discount Type *</label>
-                <select id="pitchDiscountType" class="custom-cash-input" style="padding: 7px 10px; font-size: 12.5px;">
+                <select id="pitchDiscountType" class="custom-cash-input" style="padding: 8px 12px; font-size: 12.5px;">
                   <option value="percent">Percentage (%)</option>
                   <option value="fixed">Fixed Amount (₱)</option>
                 </select>
               </div>
               <div class="cash-input-group">
-                <label for="pitchDiscountValue">Discount Value *</label>
+                <label for="pitchDiscountValue" id="pitchDiscountValLabel">Discount Value * (%)</label>
                 <input type="number" step="0.5" id="pitchDiscountValue" class="custom-cash-input" placeholder="e.g. 10 or 2.00" required />
+              </div>
+            </div>
+            <div class="audit-metrics-grid-4">
+              <div class="cash-input-group">
+                <label for="pitchMinSpend">Minimum Spend (Optional, ₱)</label>
+                <input type="number" step="1" min="0" id="pitchMinSpend" class="custom-cash-input" placeholder="e.g. 200 (Leave blank if none)" />
+              </div>
+              <div class="cash-input-group">
+                <label for="pitchUsageCap">Usage Cap (Optional)</label>
+                <input type="number" step="1" min="1" id="pitchUsageCap" class="custom-cash-input" placeholder="e.g. 100 (Leave blank for unlimited)" />
               </div>
             </div>
             <div class="cash-input-group">
@@ -389,14 +394,6 @@
         </button>
       </div>
       <div class="audit-modal-body">
-        <div class="audit-status-notice">
-          <svg class="notice-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <span>Interim audit only. Register remains <strong>Open &amp; Active</strong> for transactions.</span>
-        </div>
         <div class="audit-block">
           <div class="audit-block-head">
             <span>Pre-Orders Digital Inflow</span>
@@ -528,50 +525,6 @@
           </svg>
           <span>Lock Register &amp; Transmit Z-Report</span>
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom Alert Modal -->
-  <div class="modal-overlay" id="customAlertModal">
-    <div class="dialog-modal-card" onclick="event.stopPropagation()">
-      <div class="dialog-icon-circle" id="alertDialogIconWrap">
-        <svg id="alertDialogIcon" class="dialog-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-      </div>
-      <h3 class="dialog-title" id="alertModalTitle">Notice</h3>
-      <p class="dialog-message" id="alertModalMessage">Please enter the actual physical cash counted in the drawer before locking.</p>
-      <div class="dialog-actions">
-        <button type="button" class="btn-dialog-primary" onclick="closeCustomAlert()">OK</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom Confirm Modal -->
-  <div class="modal-overlay" id="customConfirmModal">
-    <div class="dialog-modal-card" onclick="event.stopPropagation()">
-      <div class="dialog-icon-circle warning">
-        <svg class="dialog-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      </div>
-      <h3 class="dialog-title">Confirm End-of-Shift Z-Reading?</h3>
-      <div class="dialog-summary-box">
-        <div class="d-row"><span>System Expected Cash:</span> <strong id="confirmExpectedCash">₱0.00</strong></div>
-        <div class="d-row"><span>Actual Drawer Count:</span> <strong id="confirmActualCash">₱0.00</strong></div>
-        <div class="d-row"><span>Computed Variance:</span> <strong id="confirmVariance">₱0.00</strong></div>
-      </div>
-      <p class="dialog-warning-note">
-        <strong>Warning:</strong> The sales register will be locked and cannot accept further orders.
-      </p>
-      <div class="dialog-actions split">
-        <button type="button" class="btn-dialog-secondary" onclick="closeCustomConfirm()">Cancel</button>
-        <button type="button" class="btn-dialog-danger" id="btnExecuteLockAndTransmit">OK</button>
       </div>
     </div>
   </div>
