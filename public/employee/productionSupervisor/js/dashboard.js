@@ -5,7 +5,7 @@ let currentQueuePage = 1;
 const QUEUE_PAGE_SIZE = 4;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Live DOA Threshold Calculation sa Modal
+    // Live DOA threshold calculation in modal
     const qtyInput = document.getElementById('inputQuantity');
     const unitPriceInput = document.getElementById('inputUnitPrice');
     if (qtyInput && unitPriceInput) {
@@ -13,13 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         unitPriceInput.addEventListener('input', calculateRestockThreshold);
     }
 
-    // 2. Search Listener
-    const searchInput = document.getElementById('kitchenSearchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', applyQueueSearch);
-    }
-
-    // 3. Queue Pagination Buttons
+    // Queue pagination buttons
     const prevBtn = document.getElementById('prevQueueBtn');
     const nextBtn = document.getElementById('nextQueueBtn');
 
@@ -42,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Modal Form Submit
+    // Modal form submit
     const restockForm = document.getElementById('restockPitchForm');
     if (restockForm) {
         restockForm.addEventListener('submit', handleRestockPitchSubmit);
@@ -51,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchProductionDashboardData();
 });
 
+// Load live dashboard metrics
 async function fetchProductionDashboardData() {
     try {
         let response;
@@ -62,21 +57,23 @@ async function fetchProductionDashboardData() {
             response = await fetch('/api/production-supervisor/dashboard', { headers });
         }
 
-        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || 'Server responded with status ' + response.status);
+        }
 
         const data = await response.json();
 
-        // User profile setup
+        // User profile header
         const userFullNameEl = document.getElementById('userFullName');
         const userFirstNameEl = document.getElementById('userFirstName');
         const userAvatarEl = document.getElementById('userAvatar');
 
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Production Supervisor';
-        if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || 'Supervisor';
-        if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
+        if (userFullNameEl) userFullNameEl.textContent = data.user?.fullName || 'Production Supervisor';
+        if (userFirstNameEl) userFirstNameEl.textContent = data.user?.firstName || 'Supervisor';
+        if (userAvatarEl && data.user?.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // KPI Metrics - straight from the server; 0 stays 0, nothing is
-        // backfilled with a fake placeholder number.
+        // KPI Metrics
         const m = data.metrics || {};
         document.getElementById('completedToday').textContent = String(m.completedToday || 0).padStart(2, '0');
         document.getElementById('inProduction').textContent = String(m.inProduction || 0).padStart(2, '0');
@@ -92,12 +89,12 @@ async function fetchProductionDashboardData() {
         renderScheduleList(data.scheduleList);
 
     } catch (error) {
-        console.error('Could not load live data from the server:', error);
-        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
+        console.error('Could not load live dashboard data:', error);
+        showCustomSwal('Error Loading Data', error.message || 'Live server data could not be retrieved.', 'warning');
     }
 }
 
-// Live DOA Threshold Preview Calculation
+// Live DOA threshold calculation without emojis
 function calculateRestockThreshold() {
     const qty = parseFloat(document.getElementById('inputQuantity')?.value || 0);
     const unitPrice = parseFloat(document.getElementById('inputUnitPrice')?.value || 0);
@@ -113,18 +110,18 @@ function calculateRestockThreshold() {
     if (badgeEl) {
         if (total <= 300) {
             badgeEl.className = 'badge-route route-procure';
-            badgeEl.textContent = '🟢 Direct Route: Procurement Officer (Direct Purchase Authorized)';
+            badgeEl.textContent = 'Direct Route: Procurement Officer (Direct Purchase Authorized)';
         } else if (total > 300 && total <= 500) {
             badgeEl.className = 'badge-route route-finance';
-            badgeEl.textContent = '🟠 Escalation Route: Requires Financial Officer Approval';
+            badgeEl.textContent = 'Escalation Route: Requires Financial Officer Endorsement';
         } else {
             badgeEl.className = 'badge-route route-ceo';
-            badgeEl.textContent = '🔴 Executive Route: Requires CEO Approval (High Capital Expense)';
+            badgeEl.textContent = 'Executive Route: Requires CEO Approval (High Value Capital)';
         }
     }
 }
 
-// Render Restock Pitches (Right Column)
+// Render restock pitches
 function renderRestockPitches() {
     const container = document.getElementById('restockPitchList');
     if (!container) return;
@@ -142,7 +139,7 @@ function renderRestockPitches() {
         return `
             <div class="pitch-row-item">
                 <div class="pitch-row-top">
-                    <span class="pitch-item-title">${escapeHtml(p.item_name)} (${p.quantity}x)</span>
+                    <span class="pitch-item-title">${escapeHtml(p.item_name)}</span>
                     <span class="pitch-cost-bold">₱${Number(p.total_cost).toFixed(2)}</span>
                 </div>
                 <div class="pitch-row-footer">
@@ -154,20 +151,7 @@ function renderRestockPitches() {
     }).join('');
 }
 
-// Filter Queue Search
-function applyQueueSearch() {
-    const searchVal = document.getElementById('kitchenSearchInput')?.value.trim().toLowerCase() || '';
-    filteredQueueOrders = allQueueOrders.filter(ro => {
-        if (!searchVal) return true;
-        const title = (ro.cleanTitle || '').toLowerCase();
-        const num = (ro.order_number || '').toLowerCase();
-        return title.includes(searchVal) || num.includes(searchVal);
-    });
-    currentQueuePage = 1;
-    renderQueueTable();
-}
-
-// Render Queue Table with Permanent Pager
+// Render queue table with pagination
 function renderQueueTable() {
     const tbody = document.getElementById('recentOrdersList');
     const pageInfo = document.getElementById('queuePageInfo');
@@ -227,7 +211,7 @@ function renderQueueTable() {
     }).join('');
 }
 
-// Numbered Page Buttons
+// Pagination controls
 function renderQueuePagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('queuePagerNumbers');
     if (!pagerNumbers) return;
@@ -250,7 +234,7 @@ function renderQueuePagerButtons(totalPages, activePage) {
     });
 }
 
-// Render Schedule Preview (Tue/Thu slots)
+// Render schedule list
 function renderScheduleList(schedules) {
     const container = document.getElementById('scheduleList');
     if (!container) return;
@@ -269,7 +253,6 @@ function renderScheduleList(schedules) {
     `).join('');
 }
 
-// Restock Pitch Modal Handlers
 function openRestockModal() {
     const modal = document.getElementById('restockModalOverlay');
     if (modal) {
@@ -286,11 +269,7 @@ function closeRestockModal() {
     }
 }
 
-// Posts to the same real endpoint the Procurement Officer's "Add Request"
-// modal uses - creates a genuine `expenses` row with real DOA routing,
-// instead of the old behavior of faking a local-only object that vanished
-// on refresh (it used to POST to /api/production/restock-pitch, which
-// was never a real route).
+// Handle pitch submit with themed SweetAlert
 async function handleRestockPitchSubmit(e) {
     e.preventDefault();
 
@@ -300,7 +279,7 @@ async function handleRestockPitchSubmit(e) {
     const totalCost = qty * unitPrice;
 
     if (!itemName || !(totalCost > 0)) {
-        alert('Please enter an ingredient name, a quantity and a unit price.');
+        showCustomSwal('Incomplete Input', 'Please enter a valid ingredient name, quantity, and unit price.', 'warning');
         return;
     }
 
@@ -308,15 +287,30 @@ async function handleRestockPitchSubmit(e) {
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-        const res = await employeeFetch('/api/procurement-officer/add-request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                item_name: qty > 1 ? `${itemName} (${qty}x)` : itemName,
-                store_name: '',
-                amount: totalCost
-            })
-        });
+        let res;
+        const payload = {
+            item_name: qty > 1 ? `${itemName} (${qty}x)` : itemName,
+            store_name: '',
+            amount: totalCost
+        };
+
+        if (typeof employeeFetch === 'function') {
+            res = await employeeFetch('/api/procurement-officer/add-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+            const headers = { 'Content-Type': 'application/json' };
+            if (userId) headers['x-user-id'] = userId;
+            res = await fetch('/api/procurement-officer/add-request', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+        }
+
         const result = await res.json();
         if (!res.ok || result.status === 'error') throw new Error(result.message || 'Server error');
 
@@ -326,12 +320,31 @@ async function handleRestockPitchSubmit(e) {
         await fetchProductionDashboardData();
 
         const route = result.request && result.request.route;
-        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance' : 'Direct buy authorized');
-        alert(`Requisition for "${itemName}" (₱${totalCost.toFixed(2)}) pitched successfully.\nRouting: ${routeText}`);
+        const routeText = route === 'ceo' ? 'Escalated to the CEO' : (route === 'finance' ? 'Endorsed to Finance Officer' : 'Direct purchase authorized for Procurement');
+        showCustomSwal('Requisition Pitched', `Requisition for "${itemName}" (₱${totalCost.toFixed(2)}) has been submitted.\n\nRouting: ${routeText}`, 'success');
     } catch (error) {
-        alert('Could not save the requisition: ' + error.message);
+        showCustomSwal('Pitch Failed', 'Could not submit requisition: ' + error.message, 'warning');
     } finally {
         if (submitBtn) submitBtn.disabled = false;
+    }
+}
+
+// Custom SweetAlert2 theme matching Milky Marble palette
+function showCustomSwal(title, text, icon = 'info') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: icon,
+            customClass: {
+                popup: 'mm-swal-popup',
+                title: 'mm-swal-title',
+                confirmButton: 'mm-swal-confirm'
+            },
+            buttonsStyling: false
+        });
+    } else {
+        alert(title + '\n' + text);
     }
 }
 

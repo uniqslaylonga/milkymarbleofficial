@@ -6,13 +6,13 @@ const ORDERS_PAGE_SIZE = 5;
 let currentFilterTab = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Search Bar Listener
+    // Search listener
     const searchInput = document.getElementById('orderSearchInput');
     if (searchInput) {
         searchInput.addEventListener('input', applyOrderFilters);
     }
 
-    // 2. Filter Tabs (All / Pre-order / Preset)
+    // Filter tabs
     const tabButtons = document.querySelectorAll('.order-filter-tabs .tab-btn');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Permanent Pagination Buttons
+    // Pagination buttons
     const prevBtn = document.getElementById('prevOrderBtn');
     const nextBtn = document.getElementById('nextOrderBtn');
 
@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchOrderListData();
 });
 
+// Load kitchen queue from API
 async function fetchOrderListData() {
     try {
         let response;
@@ -60,17 +61,20 @@ async function fetchOrderListData() {
             response = await fetch('/api/production-supervisor/order-list', { headers });
         }
 
-        if (!response.ok) throw new Error(await EmployeeUI.errorMessage(response));
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || 'Server error ' + response.status);
+        }
 
         const data = await response.json();
 
-        // User profile setup
+        // User profile header
         const userFullNameEl = document.getElementById('userFullName');
         const userAvatarEl = document.getElementById('userAvatar');
-        if (userFullNameEl) userFullNameEl.textContent = data.user.fullName || 'Production Supervisor';
-        if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
+        if (userFullNameEl) userFullNameEl.textContent = data.user?.fullName || 'Production Supervisor';
+        if (userAvatarEl && data.user?.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
 
-        // KPI Counts - real order-status counts from the server, 0 if none.
+        // KPI Counts
         const k = data.kpis || {};
         document.getElementById('preordersTargetCount').textContent = String(k.pendingCount || 0);
         document.getElementById('presetsQuotaCount').textContent = String(k.inProgressCount || 0);
@@ -83,21 +87,19 @@ async function fetchOrderListData() {
         renderPresetBatchAllocator();
 
     } catch (error) {
-        console.error('Could not load live data from the server:', error);
-        if (window.EmployeeUI) { EmployeeUI.showError(error); EmployeeUI.failTables(); }
+        console.error('Could not load live order list:', error);
+        showCustomSwal('Error Loading Orders', error.message || 'Could not fetch active queue from server.', 'warning');
     }
 }
 
-// Filter Logic (Search Query + Tab Filters)
+// Filter logic (Search query + Tab filters)
 function applyOrderFilters() {
     const searchVal = document.getElementById('orderSearchInput')?.value.trim().toLowerCase() || '';
 
     filteredOrders = allOrders.filter(ord => {
-        // Tab Filter
         if (currentFilterTab === 'preorder' && ord.type !== 'preorder') return false;
         if (currentFilterTab === 'preset' && ord.type !== 'preset') return false;
 
-        // Search Filter
         if (searchVal) {
             const num = (ord.order_number || '').toLowerCase();
             const cust = (ord.customer_name || '').toLowerCase();
@@ -115,7 +117,7 @@ function applyOrderFilters() {
     renderOrdersTable();
 }
 
-// Render Orders Table with Pagination
+// Render orders table with pagination
 function renderOrdersTable() {
     const tbody = document.getElementById('ordersTableBody');
     const pageInfo = document.getElementById('orderPageInfo');
@@ -164,11 +166,11 @@ function renderOrdersTable() {
                 </td>
                 <td>
                     <div class="specs-title">${escapeHtml(ord.cleanTitle)}</div>
-                    <div class="specs-detail-pill">${escapeHtml(ord.specs)}</div>
+                    <div class="specs-detail-pill">${escapeHtml(ord.specs || 'Standard Recipe')}</div>
                 </td>
                 <td><strong>${ord.quantity || 1}</strong></td>
-                <td><span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted);">${escapeHtml(ord.claim_slot)}</span></td>
-                <td><span class="shelf-tag-badge">${escapeHtml(ord.shelf_tag)}</span></td>
+                <td><span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted);">${escapeHtml(ord.claim_slot || 'Counter Release')}</span></td>
+                <td><span class="shelf-tag-badge">${escapeHtml(ord.shelf_tag || 'Chiller Section')}</span></td>
                 <td>
                     <span class="status-badge-prep ${isReady ? 'ready' : 'inprep'}">
                         ${escapeHtml(ord.statusLabel)}
@@ -184,7 +186,7 @@ function renderOrdersTable() {
     }).join('');
 }
 
-// Numbered Page Buttons: 1, 2, 3...
+// Pagination controls
 function renderOrderPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('orderPagerNumbers');
     if (!pagerNumbers) return;
@@ -207,13 +209,13 @@ function renderOrderPagerButtons(totalPages, activePage) {
     });
 }
 
-// Render Walk-in Preset Batch Allocator
+// Render Walk-in Preset Batch Allocator without emojis
 function renderPresetBatchAllocator() {
     const container = document.getElementById('presetGrid');
     if (!container) return;
 
     if (allPresets.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); padding: 10px;">Preset batch tracking isn\'t set up yet.</div>';
+        container.innerHTML = '<div style="color: var(--text-muted); padding: 10px;">Preset batch tracking ready for next scheduled batch.</div>';
         return;
     }
 
@@ -229,14 +231,20 @@ function renderPresetBatchAllocator() {
                 <div class="preset-body">
                     <div class="preset-specs-row">
                         <span>Batch Stock: <strong>${preset.sealed_count} / ${preset.target_batch} Cups</strong></span>
-                        <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(preset.specs)}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(preset.specs || '')}</span>
                     </div>
                     <div class="progress-track-sm">
                         <div class="progress-fill-sm" style="width: ${Math.min(pct, 100)}%;"></div>
                     </div>
                 </div>
                 <div class="preset-card-footer">
-                    <span class="chiller-location">📍 ${escapeHtml(preset.chiller_rack)}</span>
+                    <span class="chiller-location">
+                        <svg class="inline-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        <span>${escapeHtml(preset.chiller_rack || 'Main Chiller Rack')}</span>
+                    </span>
                     <button type="button" class="btn-batch-action" onclick="window.location.href='orderProduction.html?batch_name=${encodeURIComponent(preset.name)}'">
                         Brew / Seal More
                     </button>
@@ -244,6 +252,25 @@ function renderPresetBatchAllocator() {
             </article>
         `;
     }).join('');
+}
+
+// Custom SweetAlert2 theme matching Milky Marble palette
+function showCustomSwal(title, text, icon = 'info') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: icon,
+            customClass: {
+                popup: 'mm-swal-popup',
+                title: 'mm-swal-title',
+                confirmButton: 'mm-swal-confirm'
+            },
+            buttonsStyling: false
+        });
+    } else {
+        alert(title + '\n' + text);
+    }
 }
 
 function escapeHtml(str) {
