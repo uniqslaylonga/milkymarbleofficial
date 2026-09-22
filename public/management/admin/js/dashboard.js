@@ -39,34 +39,27 @@ async function fetchAdminDashboardData() {
         renderStaffList(data.staffList || []);
 
     } catch (error) {
-        console.warn('Using fallback data for admin dashboard:', error);
-        loadFallbackAdminData();
+        console.error('Error loading admin dashboard:', error);
+        showAdminDashboardError();
     }
 }
 
-function loadFallbackAdminData() {
-    document.getElementById('statCustomers').textContent = '31';
-    document.getElementById('statBatches').textContent = '4';
-    document.getElementById('statActiveStaff').textContent = '4';
-    document.getElementById('statTotalStaffFooter').textContent = '4 total staff registered';
+// Used to silently swap in a whole fabricated dataset on any fetch failure
+// (fake customers, fake production batches, fake staff names) with nothing
+// telling the admin it wasn't real. Replaced with an honest error state.
+function showAdminDashboardError() {
+    document.getElementById('statCustomers').textContent = '—';
+    document.getElementById('statBatches').textContent = '—';
+    document.getElementById('statActiveStaff').textContent = '—';
+    document.getElementById('statTotalStaffFooter').textContent = 'Unable to load';
 
-    renderRecentCustomers([
-        { id: 89, full_name: 'Jack', email: 'hdusboudboia@gmail.com' },
-        { id: 88, full_name: 'Ysysudhd', email: 'hxushdhcuhw@gmail.com' },
-        { id: 87, full_name: 'Abraham', email: 'wfqqfsqgvsoghas@gmail.com' }
-    ]);
-
-    renderProductionLogs([
-        { flavor_name: 'Coffee Jelly Classic', batch_code: 'BATCH-2026-004', total_cups_produced: 90, supervisor: 'Richmond S. Pinca' },
-        { flavor_name: 'Buko Pandan Supreme', batch_code: 'BATCH-2026-003', total_cups_produced: 120, supervisor: 'Richmond S. Pinca' },
-        { flavor_name: 'Strawberry Delight', batch_code: 'BATCH-2026-002', total_cups_produced: 60, supervisor: 'Richmond S. Pinca' }
-    ]);
-
-    renderStaffList([
-        { full_name: 'Rhodalyn D. Leodones', username: 'inventoryofficer1', role_name: 'Procurement & Inventory', is_active: true },
-        { full_name: 'Richmond S. Pinca', username: 'productionofficer1', role_name: 'Production Supervisor', is_active: true },
-        { full_name: 'Kerstin E. Reyes', username: 'financeofficer1', role_name: 'Finance Officer', is_active: true }
-    ]);
+    const errorMsg = '<div class="loading-state-text" style="color:#c0392b;">Could not load data. Please refresh.</div>';
+    const custEl = document.getElementById('recentCustomersList');
+    if (custEl) custEl.innerHTML = errorMsg;
+    const logsEl = document.getElementById('productionLogsList');
+    if (logsEl) logsEl.innerHTML = errorMsg;
+    const staffEl = document.getElementById('staffList');
+    if (staffEl) staffEl.innerHTML = errorMsg;
 }
 
 function renderRecentCustomers(customers) {

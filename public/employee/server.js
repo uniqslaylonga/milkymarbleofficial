@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 // Import Routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -118,6 +119,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(compression());
 app.use(cookieParser());
 app.use(express.json({
   limit: '15mb',
@@ -128,12 +130,33 @@ app.use(express.urlencoded({ limit: '15mb', extended: true }));
 // ==========================================
 // 1. STATIC FILE SERVING & ROUTE ALIASES
 // ==========================================
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/customer', express.static(path.join(__dirname, 'public/customer')));
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/images/uploads', express.static(path.join(__dirname, 'public/images/uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'public/images/uploads')));
-app.use('/customer/images', express.static(path.join(__dirname, 'public/images')));
+// Cache-Control tuned per asset type. This is what lets Vercel's Edge
+// Network (and the browser) cache these responses instead of re-invoking
+// this serverless function on every single request -- the main driver of
+// Fast Origin Transfer for a static-asset-heavy app like this one.
+function staticCacheHeaders(res, filePath) {
+  if (/\.(png|jpe?g|gif|webp|svg|ico|ttf|otf|woff2?)$/i.test(filePath)) {
+    // Images/fonts rarely change: cache long at the edge and in the browser,
+    // but allow a background revalidation window instead of marking them
+    // "immutable" (filenames aren't content-hashed, so they *can* change).
+    res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400');
+  } else if (/\.(css|js)$/i.test(filePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600');
+  } else {
+    // HTML and anything else: short cache so edits still show up quickly,
+    // but repeated hits within the window still avoid the origin function.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+  }
+}
+
+const staticOpts = { maxAge: '7d', setHeaders: staticCacheHeaders };
+
+app.use(express.static(path.join(__dirname, 'public'), staticOpts));
+app.use('/customer', express.static(path.join(__dirname, 'public/customer'), staticOpts));
+app.use('/images', express.static(path.join(__dirname, 'public/images'), staticOpts));
+app.use('/images/uploads', express.static(path.join(__dirname, 'public/images/uploads'), staticOpts));
+app.use('/uploads', express.static(path.join(__dirname, 'public/images/uploads'), staticOpts));
+app.use('/customer/images', express.static(path.join(__dirname, 'public/images'), staticOpts));
 
 app.get(['/customerlogin.html', '/customer/customerlogin.html'], (req, res) => {
   const queryStr = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
@@ -722,28 +745,14 @@ app.get(['/api/customer/profile', '/api/customers/profile'], async (req, res) =>
     let lastPaymentMethod = null;
     if (supabase && customerRecord && customerRecord.id) {
       try {
-        // Look at the few most recent orders (not just one) so a single row
-        // with an empty payment_method can't hide the real last-used method.
-        const { data: recentOrders, error: lastOrderErr } = await supabase
+        const { data: lastOrder } = await supabase
           .from('orders')
-          .select('payment_method, pickup_instructions')
+          .select('payment_method')
           .eq('customer_id', customerRecord.id)
           .order('placed_at', { ascending: false })
-          .limit(10);
-
-        if (lastOrderErr) {
-          console.warn('Could not resolve last payment method for customer', customerRecord.id, lastOrderErr.message);
-        } else if (Array.isArray(recentOrders)) {
-          for (const o of recentOrders) {
-            let m = o.payment_method;
-            if (!m && o.pickup_instructions) {
-              // Older orders only stored it in text: "Pick-up: ... | Payment: E-Wallet"
-              const match = String(o.pickup_instructions).match(/Payment:\s*(.+)$/i);
-              if (match) m = match[1].trim();
-            }
-            if (m) { lastPaymentMethod = m; break; }
-          }
-        }
+          .limit(1)
+          .maybeSingle();
+        if (lastOrder) lastPaymentMethod = lastOrder.payment_method || null;
       } catch (e) {
         console.warn('Could not resolve last payment method for customer', customerRecord.id, e);
       }
@@ -1730,9 +1739,12 @@ app.get('/api/admin/production-planning', async (req, res) => {
 app.post('/api/admin/create-plan', async (req, res) => {
   try {
     if (!supabase) return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
-    
+
     const { recipe_id, batch_code, total_cups_produced, cooked_by } = req.body;
-    
+    if (!recipe_id || !total_cups_produced || !cooked_by) {
+      return res.status(400).json({ status: 'error', message: 'recipe_id, total_cups_produced, and cooked_by are required.' });
+    }
+
     const { data, error } = await supabase
       .from('production_logs')
       .insert([{
@@ -1998,27 +2010,43 @@ app.get('/api/ceo/budget-approval', async (req, res) => {
     const { count: rejectedCount } = await supabase.from('expenses').select('*', { count: 'exact', head: true }).eq('status', 'REJECTED');
 
     // Fetch Pending Requests
-    // Note: If you don't have relationships set up yet between expenses and employees, 
-    // we query expenses and safely format the data.
     const { data: pendingData } = await supabase
       .from('expenses')
-      .select('id, amount, purpose, notes, status, receipt_url, created_at')
+      .select('id, amount, purpose, notes, status, receipt_url, created_at, requested_by')
       .eq('status', 'PENDING')
       .order('created_at', { ascending: false });
 
+    // Resolve the real requester (name + department/role) from the users table.
+    // If a request has no requested_by, or that user can't be found, leave it blank.
+    const requesterIds = [...new Set((pendingData || []).map(e => e.requested_by).filter(Boolean))];
+    let requesterMap = {};
+    if (requesterIds.length) {
+      const { data: requesterUsers } = await supabase
+        .from('users')
+        .select('id, full_name, user_roles(roles(name))')
+        .in('id', requesterIds);
+
+      (requesterUsers || []).forEach(u => {
+        const role = u.user_roles && u.user_roles.length > 0 && u.user_roles[0].roles
+          ? u.user_roles[0].roles.name
+          : '';
+        requesterMap[u.id] = { name: u.full_name || '', role };
+      });
+    }
+
     // Format for the frontend grid
     const formattedRequests = (pendingData || []).map(exp => {
-      // Mocking name/role until relationships are strictly defined in Supabase
+      const requester = requesterMap[exp.requested_by] || { name: '', role: '' };
       return {
         id: exp.id,
-        name: 'Finance Department',
-        role: 'Internal Request',
+        name: requester.name,
+        role: requester.role,
         amount: `₱${parseFloat(exp.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         amount_raw: parseFloat(exp.amount || 0),
         purpose: exp.purpose || 'General Expense',
         notes: exp.notes || 'No additional notes provided.',
         filename: exp.receipt_url ? exp.receipt_url.split('/').pop() : 'No attached file',
-        filesize: exp.receipt_url ? '1.2 MB' : '0 KB'
+        filesize: ''
       };
     });
 
