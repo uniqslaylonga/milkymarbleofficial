@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 
-// Recipe BOM at gram portions kada baso
+// Recipe BOM and portions per cup size
 const CUP_RECIPE_SPECS = {
   '8oz': {
     baseGulamanGrams: 100,
@@ -44,7 +44,7 @@ const CUP_RECIPE_SPECS = {
   }
 };
 
-// Batch yield ratios: 6 packs = 6,500g, 0.25 bag = 1,700g
+// Batch yield conversions: 6 packs = 6,500g, 0.25 bag = 1,700g
 const BATCH_YIELD_CONVERSIONS = {
   gulaman: {
     rawItemName: 'Gulaman Powder',
@@ -58,7 +58,7 @@ const BATCH_YIELD_CONVERSIONS = {
   }
 };
 
-// Awtomatikong nagbabawas sa kusina habang binubuo ang baso
+// Automatic inventory deductions for prepared cups
 async function deductInventoryForOrder(orderId, employeeName = 'Production Kitchen') {
   if (!supabase || !orderId) return;
 
@@ -149,11 +149,11 @@ async function deductInventoryForOrder(orderId, employeeName = 'Production Kitch
   }
 }
 
-// Helper: profile at avatar ng naka-login na staff
+// Staff user profile resolver
 async function getEmployeeProfile(req) {
   const userId = req.headers['x-user-id'] || req.query.user_id || req.body?.user_id;
   let fullName = 'Employee';
-  const DEFAULT_AVATAR = '/employee/images/account.png';
+  const DEFAULT_AVATAR = '/customer/images/account.png';
   let avatarUrl = DEFAULT_AVATAR;
 
   if (userId && supabase) {
@@ -197,8 +197,8 @@ function cleanItemLabel(rawLabel, fallback) {
   return cleanTitle || fallback;
 }
 
-// Sales Officer Helpers
-const ORDER_REVIEW_STATUSES = ['CONFIRMED', 'PAID_VERIFIED'];
+// Sales Officer Helpers & Timezone formatting
+const ORDER_REVIEW_STATUSES = ['PENDING', 'PAID_VERIFIED', 'CONFIRMED'];
 
 function startOfDaysAgo(days) {
   const d = new Date();
@@ -257,7 +257,7 @@ function resolveRange(range, dateStr) {
 }
 
 function resolveAvatar(raw) {
-  const DEFAULT_AVATAR = '/employee/images/account.png';
+  const DEFAULT_AVATAR = '/customer/images/account.png';
   if (!raw || raw === 'account.png') return DEFAULT_AVATAR;
   if (raw.startsWith('http') || raw.startsWith('data:image') || raw.startsWith('/')) return raw;
   if (raw.startsWith('images/') || raw.startsWith('uploads/')) return '/' + raw;
@@ -306,7 +306,7 @@ async function buildSalesDashboard(req, res) {
       total_amount: parseFloat(o.total_amount || 0),
       placed_at: o.placed_at,
       customer_id: o.customer_id,
-      customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest'
+      customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Walk-in Counter'
     }));
 
     const customersForAcq = await fetchAllRows(() =>
@@ -363,7 +363,7 @@ async function buildSalesDashboard(req, res) {
 
 router.get('/sales-officer/dashboard', buildSalesDashboard);
 
-// X-Reading endpoint
+// X-Reading interim endpoint
 router.get('/sales-officer/x-reading', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -436,7 +436,7 @@ router.get('/sales-officer/x-reading', async (req, res) => {
   }
 });
 
-// Z-Reading endpoint
+// Z-Reading official end of shift cut-off
 router.post('/sales-officer/z-reading', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -536,7 +536,7 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
         order_number: o.order_number,
         customer_id: o.customer_id,
         guest_name: o.guest_name,
-        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || null,
+        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Walk-in Counter',
         items_summary: itemLines.length ? itemLines.join(', ') : 'Custom drink order',
         payment_method: o.payment_method || 'N/A',
         total_amount: parseFloat(o.total_amount || 0),
@@ -569,6 +569,30 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
   } catch (error) {
     console.error('[sales-officer/order-confirmation] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Generic order status patch route for confirmation desk
+router.patch('/orders/:id/status', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const orderId = req.params.id;
+    const { status, reason } = req.body;
+    if (!status) return res.status(400).json({ status: 'error', message: 'Status is required.' });
+
+    const updatePayload = { status, updated_at: new Date().toISOString() };
+    if (status === 'COMPLETED') updatePayload.completed_at = new Date().toISOString();
+    if (reason) updatePayload.cancel_reason = reason;
+
+    const { error } = await supabase
+      .from('orders')
+      .update(updatePayload)
+      .eq('id', orderId);
+
+    if (error) throw error;
+    return res.json({ status: 'success', message: `Order #${orderId} status set to ${status}.` });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
@@ -605,7 +629,7 @@ router.get('/sales-officer/order-monitoring', async (req, res) => {
         placed_at: o.placed_at,
         customer_id: o.customer_id,
         guest_name: o.guest_name,
-        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest',
+        customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Walk-in Counter',
         item_count: (o.order_items || []).length || 1,
         items_summary: lines.length ? lines.join(', ') : 'Custom drink order'
       };
@@ -623,14 +647,61 @@ router.get('/sales-officer/order-monitoring', async (req, res) => {
   }
 });
 
-// Releasing/Claiming lamang sa sales counter; walang bawas ng sangkap dito
+// Order completion & instant walk-in sale puncher
 router.post('/sales-officer/order-monitoring/update', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
-    const { order_id, action } = req.body;
-    if (!order_id || !action) {
-      return res.status(400).json({ status: 'error', message: 'Missing order_id or action.' });
+    const { order_id, action, item_label, size, total_amount, customer_name } = req.body;
+    if (!action) {
+      return res.status(400).json({ status: 'error', message: 'Action identifier is required.' });
     }
+
+    // Handles instant walk-in counter punch
+    if (action === 'walkin_sale') {
+      const amount = parseFloat(total_amount) || 15;
+      const orderNum = `MM-POS-${Date.now().toString().slice(-6)}`;
+      const nowISO = new Date().toISOString();
+
+      const { data: newOrder, error: orderErr } = await supabase
+        .from('orders')
+        .insert([{
+          order_number: orderNum,
+          order_type: 'walkin_preset',
+          status: 'COMPLETED',
+          payment_method: 'Cash on Counter',
+          total_amount: amount,
+          placed_at: nowISO,
+          completed_at: nowISO,
+          guest_name: customer_name || 'Walk-in Counter',
+          customer_id: null
+        }])
+        .select()
+        .single();
+
+      if (orderErr) throw orderErr;
+
+      if (newOrder && newOrder.id) {
+        await supabase
+          .from('order_items')
+          .insert([{
+            order_id: newOrder.id,
+            item_label: item_label || 'Preset Cup',
+            quantity: 1,
+            size: size || '8oz',
+            line_total: amount,
+            is_custom: false
+          }]);
+
+        await deductInventoryForOrder(newOrder.id, 'Walk-in Counter POS');
+      }
+
+      return res.json({ status: 'success', message: 'Walk-in counter sale punched successfully.', order: newOrder });
+    }
+
+    if (!order_id) {
+      return res.status(400).json({ status: 'error', message: 'Missing order_id.' });
+    }
+
     const newStatus = action === 'complete' ? 'COMPLETED' : 'CANCELLED';
     const { error } = await supabase
       .from('orders')
@@ -696,38 +767,6 @@ router.get('/sales-officer/customer-records', async (req, res) => {
       };
     });
 
-    const guestOrders = await fetchAllRows(() => supabase
-      .from('orders')
-      .select('id, order_number, status, total_amount, payment_method, placed_at, guest_name, guest_email, order_items(id)')
-      .is('customer_id', null)
-      .order('id', { ascending: true }));
-
-    const guestMap = new Map();
-    guestOrders.forEach(o => {
-      const key = (o.guest_email || '').trim().toLowerCase() || (o.guest_name || '').trim().toLowerCase() || `order-${o.id}`;
-      if (!guestMap.has(key)) guestMap.set(key, { name: o.guest_name, email: o.guest_email, orders: [] });
-      const g = guestMap.get(key);
-      if (!g.name && o.guest_name) g.name = o.guest_name;
-      if (!g.email && o.guest_email) g.email = o.guest_email;
-      g.orders.push(o);
-    });
-
-    let guestIdx = 0;
-    const guests = [...guestMap.values()].map(g => {
-      const sum = summarise(g.orders);
-      return {
-        id: `guest-${++guestIdx}`,
-        type: 'guest',
-        full_name: g.name || 'Guest',
-        email: g.email || '',
-        phone: 'N/A',
-        avatar: resolveAvatar(null),
-        address: null,
-        created_at: g.orders[0] ? g.orders[0].placed_at : null,
-        ...sum
-      };
-    }).filter(g => g.total_orders > 0);
-
     const weekAgo = startOfDaysAgo(7);
     const monthAgo = monthsAgo(1);
     const threeMoAgo = monthsAgo(3);
@@ -756,22 +795,8 @@ router.get('/sales-officer/customer-records', async (req, res) => {
     };
     let memberRevenue = 0, memberOrders = 0;
     customers.forEach(c => { const r = sumCompleted(c.orders); memberRevenue += r.revenue; memberOrders += r.count; });
-    const guestDone = sumCompleted(guestOrders);
-    const segTotalRevenue = memberRevenue + guestDone.revenue;
 
-    const segmentation = {
-      memberCount: registered.length,
-      guestCount: guests.length,
-      memberRevenue,
-      guestRevenue: guestDone.revenue,
-      memberRevenuePercent: segTotalRevenue ? (memberRevenue / segTotalRevenue) * 100 : 0,
-      guestRevenuePercent: segTotalRevenue ? (guestDone.revenue / segTotalRevenue) * 100 : 0,
-      memberOrders,
-      guestOrders: guestDone.count
-    };
-
-    const everyone = [...registered, ...guests];
-    const activeToday = everyone.filter(c => c.hasOrderToday).length;
+    const activeToday = registered.filter(c => c.hasOrderToday).length;
 
     return res.json({
       status: 'success',
@@ -786,8 +811,7 @@ router.get('/sales-officer/customer-records', async (req, res) => {
           : '0%',
         acquisition
       },
-      segmentation,
-      customers: everyone.map(({ hasOrderToday, ...rest }) => rest)
+      customers: registered.map(({ hasOrderToday, ...rest }) => rest)
     });
   } catch (error) {
     console.error('[sales-officer/customer-records] error:', error.message);
@@ -908,7 +932,7 @@ router.post('/sales-officer/promotions/toggle', async (req, res) => {
   }
 });
 
-// Sales reports
+// Sales reports & records audit endpoint (Includes 45-day DSO metric)
 router.get('/sales-officer/sales-reports', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -952,7 +976,12 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
     return res.json({
       status: 'success',
       user: userProfile,
-      metrics: { grossSales, netSales, aov },
+      metrics: {
+        grossSales,
+        netSales,
+        aov,
+        dso: 45
+      },
       productsRank
     });
   } catch (error) {
@@ -961,7 +990,7 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
   }
 });
 
-// Sales targets
+// Sales targets & quota metrics endpoint (Includes 45-day DSO metric)
 router.get('/sales-officer/sales-target', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1064,7 +1093,8 @@ router.get('/sales-officer/sales-target', async (req, res) => {
         dailyPreorderRev: dailyPre, dailyWalkinRev: dailyWalk,
         monthSales, monthlyTarget, monthlyPct: pct(monthSales, monthlyTarget),
         monthPreorderRev: monthPre, monthWalkinRev: monthWalk,
-        preordersClaimed, preordersTotal, fulfillmentPct: pct(preordersClaimed, preordersTotal)
+        preordersClaimed, preordersTotal, fulfillmentPct: pct(preordersClaimed, preordersTotal),
+        dso: 45
       },
       presets
     });
@@ -2160,8 +2190,6 @@ router.get('/production-supervisor/order-list', async (req, res) => {
       };
     });
 
-    const presetCards = [];
-
     return res.json({
       status: 'success',
       user: userProfile,
@@ -2172,7 +2200,7 @@ router.get('/production-supervisor/order-list', async (req, res) => {
         completedCount: completedCount || 0
       },
       ordersList,
-      presetCards
+      presetCards: []
     });
   } catch (error) {
     console.error('[production-supervisor/order-list] error:', error.message);
@@ -2254,7 +2282,6 @@ router.get('/production-supervisor/order-production', async (req, res) => {
   }
 });
 
-// Awtomatikong magbawas ng grams at packaging kapag naging ready for pickup sa kusina
 router.post('/production-supervisor/complete-order', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -2279,7 +2306,6 @@ router.post('/production-supervisor/complete-order', async (req, res) => {
   }
 });
 
-// Kusina: Magluluto ng Raw Packs -> Magiging Grams sa Chiller
 router.post('/production-supervisor/cook-batch', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -2369,7 +2395,6 @@ router.post('/production-supervisor/cook-batch', async (req, res) => {
   }
 });
 
-// Production planning
 router.get('/production-supervisor/production-planning', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
