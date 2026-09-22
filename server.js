@@ -34,28 +34,44 @@ try {
 }
 
 // Multer Setup para sa Avatar Uploads
+// Uses in-memory storage (not disk): Vercel's filesystem is read-only
+// outside os.tmpdir(), and even /tmp there doesn't persist across
+// invocations/instances, so any avatar written to local disk would 404
+// as soon as a different serverless instance served the GET. Instead we
+// keep the file in memory just long enough to stream it into Supabase
+// Storage (see uploadAvatarToSupabase below), which is durable and works
+// identically locally and on Vercel.
 let upload = null;
 try {
   const multer = require('multer');
-  // NOTE: Vercel's filesystem is read-only outside os.tmpdir(); fall back
-  // to a temp dir there. These uploads won't persist — move to Supabase
-  // Storage for production-durable avatar uploads.
-  const uploadDir = process.env.VERCEL
-    ? path.join(require('os').tmpdir(), 'milky-marble-uploads')
-    : path.join(__dirname, 'public/images/uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname) || '.png';
-      cb(null, `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`);
-    }
-  });
-  upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+  upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 } catch (e) {
   console.warn('[Notice] multer is not installed.');
+}
+
+const AVATAR_BUCKET = process.env.SUPABASE_AVATAR_BUCKET || 'avatars';
+
+// Uploads a file buffer to Supabase Storage and returns its public URL.
+// Used for every avatar upload path (customer self-service, staff
+// self-service, and admin add/edit employee) so avatars persist reliably
+// in production instead of relying on local/serverless disk.
+async function uploadAvatarToSupabase(buffer, originalName, mimeType) {
+  if (!supabase) throw new Error('Database disconnected.');
+  const ext = (path.extname(originalName || '') || '.png').toLowerCase();
+  const fileName = `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
+  const { error: uploadErr } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(fileName, buffer, {
+      contentType: mimeType || 'image/png',
+      upsert: false
+    });
+  if (uploadErr) throw uploadErr;
+
+  const { data: publicData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(fileName);
+  if (!publicData || !publicData.publicUrl) {
+    throw new Error('Could not resolve public URL for uploaded avatar.');
+  }
+  return publicData.publicUrl;
 }
 
 const app = express();
@@ -818,26 +834,20 @@ app.put(['/api/customer/profile', '/api/customers/profile'], async (req, res) =>
       return res.status(404).json({ status: 'error', message: 'Target user account not found.' });
     }
 
-    // Awtomatikong i-convert ang Base64 image sa short disk path para magkasya sa varchar(255)
+    // Awtomatikong i-convert ang Base64 image sa Supabase Storage URL para
+    // magkasya sa varchar(255) at para persistent ito sa production.
     let finalAvatarUrl = avatar;
     if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image')) {
       try {
-        const uploadDir = path.join(__dirname, 'public/images/uploads');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
         const matches = avatar.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
         if (matches) {
           const rawExt = matches[1].toLowerCase();
           const ext = (rawExt === 'jpeg' || rawExt === 'jpg') ? 'jpg' : (rawExt === 'png' ? 'png' : 'webp');
           const buffer = Buffer.from(matches[2], 'base64');
-          const fileName = `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-          const filePath = path.join(uploadDir, fileName);
-          fs.writeFileSync(filePath, buffer);
-          finalAvatarUrl = `/images/uploads/${fileName}`;
+          finalAvatarUrl = await uploadAvatarToSupabase(buffer, `avatar.${ext}`, `image/${rawExt}`);
         }
       } catch (fileErr) {
-        console.error('Error saving base64 avatar to disk:', fileErr);
+        console.error('Error uploading base64 avatar to Supabase Storage:', fileErr);
       }
     }
 
@@ -907,7 +917,7 @@ app.post(['/api/customer/profile/upload', '/api/customers/profile/upload'], uplo
   try {
     let avatarUrl = '';
     if (req.file) {
-      avatarUrl = `/images/uploads/${req.file.filename}`;
+      avatarUrl = await uploadAvatarToSupabase(req.file.buffer, req.file.originalname, req.file.mimetype);
     } else if (req.body && req.body.avatar) {
       avatarUrl = req.body.avatar;
     }
@@ -979,7 +989,7 @@ app.post('/api/profile/upload-avatar', uploadMiddleware, async (req, res) => {
 
     let avatarUrl = '';
     if (req.file) {
-      avatarUrl = `/images/uploads/${req.file.filename}`;
+      avatarUrl = await uploadAvatarToSupabase(req.file.buffer, req.file.originalname, req.file.mimetype);
     } else if (req.body && req.body.avatar) {
       avatarUrl = req.body.avatar;
     }
@@ -2322,7 +2332,7 @@ app.post('/api/admin/add-employee', employeeAvatarUpload, async (req, res) => {
 
     let avatarUrl = null;
     if (req.file) {
-      avatarUrl = `/images/uploads/${req.file.filename}`;
+      avatarUrl = await uploadAvatarToSupabase(req.file.buffer, req.file.originalname, req.file.mimetype);
     }
 
     // 1. Create the base user account
@@ -2385,7 +2395,7 @@ app.post('/api/admin/edit-employee', employeeAvatarUpload, async (req, res) => {
     if (full_name) userUpdates.full_name = full_name;
     if (username) userUpdates.username = username;
     if (email) userUpdates.email = email;
-    if (req.file) userUpdates.avatar = `/images/uploads/${req.file.filename}`;
+    if (req.file) userUpdates.avatar = await uploadAvatarToSupabase(req.file.buffer, req.file.originalname, req.file.mimetype);
 
     if (Object.keys(userUpdates).length > 0) {
       const { error: userErr } = await supabase
