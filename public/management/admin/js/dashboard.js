@@ -62,6 +62,25 @@ function showAdminDashboardError() {
     if (staffEl) staffEl.innerHTML = errorMsg;
 }
 
+// Shared avatar markup for the entity-summary-card rows (Recent Customer
+// Accounts + Staff Summary). Renders the real uploaded profile photo when
+// one exists, layered over the pink placeholder icon so a broken/missing
+// image (never uploaded yet, or a stale pre-Supabase-Storage path) just
+// falls back to the icon instead of a broken-image glyph.
+function renderAvatar(avatarUrl) {
+    const hasPhoto = !!(avatarUrl && typeof avatarUrl === 'string' && !avatarUrl.includes('account.png'));
+    return `
+        <div class="esc-avatar-sm">
+            <svg class="user-avatar-svg" viewBox="0 0 36 36" fill="none">
+                <circle cx="18" cy="18" r="18" fill="#F69299" />
+                <circle cx="18" cy="14" r="5.5" fill="#FFFFFF" />
+                <path d="M8.5 28.5C8.5 23.8 12.8 21.5 18 21.5C23.2 21.5 27.5 23.8 27.5 28.5" fill="#FFFFFF" />
+            </svg>
+            ${hasPhoto ? `<img src="${escapeHtml(avatarUrl)}" alt="" class="esc-avatar-photo" onerror="this.remove()">` : ''}
+        </div>
+    `;
+}
+
 function renderRecentCustomers(customers) {
     const container = document.getElementById('recentCustomersList');
     if (!container) return;
@@ -77,13 +96,7 @@ function renderRecentCustomers(customers) {
         return `
             <div class="entity-summary-card">
                 <div class="esc-left">
-                    <div class="esc-avatar-sm">
-                        <svg class="user-avatar-svg" viewBox="0 0 36 36" fill="none">
-                            <circle cx="18" cy="18" r="18" fill="#F69299" />
-                            <circle cx="18" cy="14" r="5.5" fill="#FFFFFF" />
-                            <path d="M8.5 28.5C8.5 23.8 12.8 21.5 18 21.5C23.2 21.5 27.5 23.8 27.5 28.5" fill="#FFFFFF" />
-                        </svg>
-                    </div>
+                    ${renderAvatar(c.avatar)}
                     <div>
                         <div class="esc-title">${escapeHtml(c.full_name)}</div>
                         <div class="esc-sub">${custCode} • ${escapeHtml(c.email || 'No email')}</div>
@@ -137,13 +150,7 @@ function renderStaffList(staffList) {
         return `
             <div class="entity-summary-card">
                 <div class="esc-left">
-                    <div class="esc-avatar-sm">
-                        <svg class="user-avatar-svg" viewBox="0 0 36 36" fill="none">
-                            <circle cx="18" cy="18" r="18" fill="#F69299" />
-                            <circle cx="18" cy="14" r="5.5" fill="#FFFFFF" />
-                            <path d="M8.5 28.5C8.5 23.8 12.8 21.5 18 21.5C23.2 21.5 27.5 23.8 27.5 28.5" fill="#FFFFFF" />
-                        </svg>
-                    </div>
+                    ${renderAvatar(staff.avatar)}
                     <div>
                         <div class="esc-title">${escapeHtml(staff.full_name)}</div>
                         <div class="esc-sub">${escapeHtml(staff.username)}</div>
