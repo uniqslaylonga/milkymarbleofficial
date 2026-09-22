@@ -1875,19 +1875,29 @@ app.get('/api/admin/employee-records', async (req, res) => {
     const { count: totalHeadcount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee');
     const { count: activeToday } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'employee').eq('is_active', true);
     
-    // 3. Fetch Employees (Joining users to their employee specific table)
+    // 3. Fetch Employees (Joining users to their employee specific table,
+    // plus their assigned system role/position via user_roles -> roles).
+    // The employees.job_title column is free text an admin can leave blank
+    // ("Unassigned"), but the role assigned through user_roles is what
+    // actually drives dashboard routing at login (see authRoutes.js
+    // employee-login) - so that's the real "position" to show here.
     const { data: employeesData } = await supabase
       .from('users')
       .select(`
         id, username, email, full_name, is_active, avatar, created_at,
-        employees(employee_code, job_title, department, gender)
+        employees(employee_code, job_title, department, gender),
+        user_roles(roles(name))
       `)
       .eq('user_type', 'employee')
       .order('created_at', { ascending: false });
 
     const formattedEmployees = (employeesData || []).map(u => {
       const empDetails = Array.isArray(u.employees) ? u.employees[0] : (u.employees || {});
-      
+
+      const position = (u.user_roles && u.user_roles.length > 0 && u.user_roles[0].roles)
+        ? u.user_roles[0].roles.name
+        : null;
+
       let empAvatar = '../images/account.png';
       if (u.avatar && !u.avatar.includes('account.png')) {
         let cleanAvatar = u.avatar.replace(/^\/PHP/, '');
@@ -1906,6 +1916,7 @@ app.get('/api/admin/employee-records', async (req, res) => {
         username: u.username,
         email: u.email,
         job_title: empDetails.job_title || 'Unassigned',
+        position: position || empDetails.job_title || 'Unassigned',
         department: empDetails.department || 'General',
         gender: empDetails.gender || 'Not Specified',
         is_active: u.is_active ? 1 : 0,
