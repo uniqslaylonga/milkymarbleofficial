@@ -1,11 +1,10 @@
 let allCampaigns = [];
 let filteredCampaigns = [];
-let activeStatusTab = 'all'; // 'all', 'pending', 'active', 'archived'
+let activeStatusTab = 'all';
 let currentPromoPage = 1;
 const PROMO_PAGE_SIZE = 6;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Dynamic Discount Placeholder
     const discountTypeSelect = document.getElementById('inputDiscountType');
     const discountValueLabel = document.getElementById('discountValueLabel');
     if (discountTypeSelect && discountValueLabel) {
@@ -16,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Status Tab Listeners
     const tabBtns = document.querySelectorAll('.promo-status-tabs .tab-btn');
     tabBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -27,14 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Search & Date Filter Listeners
-    const searchInput = document.getElementById('promoSearchInput');
     const dateFilter = document.getElementById('promoDateFilter');
     const customDate = document.getElementById('promoCustomDate');
-
-    if (searchInput) {
-        searchInput.addEventListener('input', applyPromoFilters);
-    }
 
     if (dateFilter) {
         dateFilter.addEventListener('change', (e) => {
@@ -50,11 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (customDate) {
-        customDate.addEventListener('change', applyPromoFilters);
-    }
+    if (customDate) customDate.addEventListener('change', applyPromoFilters);
 
-    // 4. Pagination Buttons
     const prevBtn = document.getElementById('prevPromoBtn');
     const nextBtn = document.getElementById('nextPromoBtn');
 
@@ -77,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 5. Modal Handlers
     const closeBtn = document.getElementById('modalCloseBtn');
     const cancelBtn = document.getElementById('modalCancelBtn');
     const modalOverlay = document.getElementById('promoModalOverlay');
@@ -91,13 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (pitchForm) {
-        pitchForm.addEventListener('submit', handlePitchFormSubmit);
-    }
+    if (pitchForm) pitchForm.addEventListener('submit', handlePitchFormSubmit);
 
     fetchPromotionsData();
 });
 
+// Load campaigns list
 async function fetchPromotionsData() {
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -108,7 +95,6 @@ async function fetchPromotionsData() {
 
         const data = await response.json();
 
-        // Populate User Header
         if (data.user) {
             const userNameEl = document.getElementById('userName');
             const userAvatarEl = document.getElementById('userAvatar');
@@ -121,7 +107,7 @@ async function fetchPromotionsData() {
         applyPromoFilters();
 
     } catch (error) {
-        console.error('Could not load live data from the server:', error);
+        console.error('Could not load promotions from server:', error);
         SalesCommon.showError(error);
         SalesCommon.failTables();
     }
@@ -142,25 +128,16 @@ function updateMetricsAndTabs() {
     document.getElementById('countArchivedBadge').textContent = archivedCount.toString();
 }
 
-// Filter Logic: Status Tabs + Search + Date
+// Filter logic by status and date
 function applyPromoFilters() {
-    const query = document.getElementById('promoSearchInput')?.value.toLowerCase().trim() || '';
     const dateFilterVal = document.getElementById('promoDateFilter')?.value || 'all';
     const customDateVal = document.getElementById('promoCustomDate')?.value;
 
     filteredCampaigns = allCampaigns.filter(c => {
-        // Status Tab
         if (activeStatusTab === 'pending' && c.status !== 'PENDING_APPROVAL') return false;
         if (activeStatusTab === 'active' && c.status !== 'ACTIVE') return false;
         if (activeStatusTab === 'archived' && (c.status !== 'REJECTED' && c.status !== 'EXPIRED')) return false;
 
-        // Search
-        const codeMatch = (c.code || '').toLowerCase().includes(query);
-        const noteMatch = (c.pitch_note || '').toLowerCase().includes(query);
-        const segmentMatch = (c.target_segment || '').toLowerCase().includes(query);
-        if (query && !codeMatch && !noteMatch && !segmentMatch) return false;
-
-        // Date Check
         if (dateFilterVal === 'current' && c.status !== 'ACTIVE') return false;
         if (dateFilterVal === 'month' && c.created_at) {
             const date = new Date(c.created_at);
@@ -179,7 +156,7 @@ function applyPromoFilters() {
     renderCampaignGrid();
 }
 
-// Render Promo Cards & Pagination Bar
+// Render cards and pagination
 function renderCampaignGrid() {
     const grid = document.getElementById('campaignGrid');
     const pageInfo = document.getElementById('promoPageInfo');
@@ -217,14 +194,11 @@ function renderCampaignGrid() {
         const minSpendText = c.min_spend ? `Min. Spend: ₱${Number(c.min_spend).toLocaleString()}` : 'No minimum spend';
         const usageText = c.usage_cap ? `${c.usage_count || 0} / ${c.usage_cap} redemptions` : `${c.usage_count || 0} redemptions (Unlimited)`;
 
-        let segmentLabel = 'All Customers';
+        let segmentLabel = 'General Public';
         let segmentClass = 'segment-all';
         if (c.target_segment === 'member') {
             segmentLabel = 'Members Only';
             segmentClass = 'segment-member';
-        } else if (c.target_segment === 'guest') {
-            segmentLabel = 'Guest Conversion';
-            segmentClass = 'segment-guest';
         }
 
         let statusClass = 'pending';
@@ -266,16 +240,38 @@ function renderCampaignGrid() {
     }).join('');
 }
 
-// Numbered Page Buttons: 1, 2, 3...
+// Smart sliding pagination
 function renderPromoPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('promoPagerNumbers');
     if (!pagerNumbers) return;
 
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === activePage ? 'active' : '';
-        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerNumbers.innerHTML = `<button type="button" class="pager-num-btn active" data-page="1">1</button>`;
+        return;
     }
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (activePage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (activePage >= totalPages - 3) {
+            pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            pages.push(1, '...', activePage - 1, activePage, activePage + 1, '...', totalPages);
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="pager-ellipsis">&hellip;</span>`;
+        } else {
+            const isActive = p === activePage ? 'active' : '';
+            html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${p}">${p}</button>`;
+        }
+    });
     pagerNumbers.innerHTML = html;
 
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
@@ -289,7 +285,7 @@ function renderPromoPagerButtons(totalPages, activePage) {
     });
 }
 
-// Submit Pitch Form to CEO
+// Submit proposal to CEO
 async function handlePitchFormSubmit(e) {
     e.preventDefault();
 
@@ -321,8 +317,8 @@ async function handlePitchFormSubmit(e) {
         });
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
     } catch (err) {
-        console.error('Pitch failed:', err);
-        alert('Could not submit the promotion: ' + (err.message || 'unknown error') + '. It was NOT saved.');
+        console.error('Pitch submission failed:', err);
+        alert('Could not submit the promotion: ' + (err.message || 'unknown error'));
         return;
     }
 

@@ -1,30 +1,155 @@
-// src/routes/employeeRoutes.js
-//
-// All employee-dashboard API endpoints (Sales Officer, Finance Officer,
-// Procurement/Inventory Officer, Production Supervisor), running on
-// Supabase. This replaces public/employee/server.js, which was never
-// require()'d by the app and called a MySQL-style `db.query(...)` that
-// doesn't exist in this project anymore.
-//
-// Employee LOGIN itself lives in src/routes/authRoutes.js (POST
-// /api/auth/employee-login) and already talks to Supabase — nothing to do
-// there. This file is the dashboards employees land on *after* logging in.
-//
-// Tables used that already existed: users, customers, orders, order_items,
-// products, promotions.
-// Tables this file expects to exist (see supabase_employee_dashboards.sql
-// in the project root — run it once in the Supabase SQL editor):
-// expenses, vendors, inventory_items, inventory_movement_logs,
-// production_orders, recipes, drawer_reconciliations.
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 
-// ----------------------------------------------------------------------------
-// Shared helper: resolve the logged-in employee's display name + avatar.
-// The frontend sends the id saved at login (localStorage 'userId') either as
-// an 'x-user-id' header or a user_id query param.
-// ----------------------------------------------------------------------------
+// Recipe BOM at gram portions kada baso
+const CUP_RECIPE_SPECS = {
+  '8oz': {
+    baseGulamanGrams: 100,
+    condensedMilkOz: 0.7,
+    extraCondensedMilkOz: 0.5,
+    powderedMilkGrams: 2,
+    cupItemName: '8oz Cup',
+    toppingsGrams: {
+      'pearls': 30,
+      'tapioca': 30,
+      'tapioca pearls': 30,
+      'cheese': 5,
+      'chocolate chip': 5,
+      'marshmallow': 2,
+      'nuts': 5,
+      'sprinkles (chocolate)': 2,
+      'sprinkles (assorted)': 2,
+      'sprinkles': 2
+    }
+  },
+  '12oz': {
+    baseGulamanGrams: 200,
+    condensedMilkOz: 1.5,
+    extraCondensedMilkOz: 1.0,
+    powderedMilkGrams: 3,
+    cupItemName: '12oz Cup',
+    toppingsGrams: {
+      'pearls': 50,
+      'tapioca': 50,
+      'tapioca pearls': 50,
+      'cheese': 7,
+      'chocolate chip': 7,
+      'marshmallow': 2,
+      'nuts': 7,
+      'sprinkles (chocolate)': 2,
+      'sprinkles (assorted)': 2,
+      'sprinkles': 2
+    }
+  }
+};
+
+// Batch yield ratios: 6 packs = 6,500g, 0.25 bag = 1,700g
+const BATCH_YIELD_CONVERSIONS = {
+  gulaman: {
+    rawItemName: 'Gulaman Powder',
+    cookedItemName: 'Cooked Gulaman Base',
+    gramsPerPack: 6500 / 6
+  },
+  tapioca: {
+    rawItemName: 'Raw Tapioca Pearls',
+    cookedItemName: 'Cooked Tapioca Pearls',
+    gramsPerBag: 1700 / 0.25
+  }
+};
+
+// Awtomatikong nagbabawas sa kusina habang binubuo ang baso
+async function deductInventoryForOrder(orderId, employeeName = 'Production Kitchen') {
+  if (!supabase || !orderId) return;
+
+  try {
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('id, order_items(item_label, quantity, size, toppings, is_custom)')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (orderErr || !order || !order.order_items) return;
+
+    for (const item of order.order_items) {
+      const qty = parseInt(item.quantity, 10) || 1;
+      const rawLabel = String(item.item_label || '').toLowerCase();
+      
+      const is8oz = (item.size && item.size.includes('8oz')) || rawLabel.includes('8oz');
+      const sizeKey = is8oz ? '8oz' : '12oz';
+      const spec = CUP_RECIPE_SPECS[sizeKey];
+
+      const toppingsStr = String(item.toppings || '').toLowerCase();
+      const hasExtraCondensed = toppingsStr.includes('condensed');
+      const totalCondensedOz = (spec.condensedMilkOz + (hasExtraCondensed ? spec.extraCondensedMilkOz : 0)) * qty;
+
+      const deductions = [
+        { name: 'Cooked Gulaman Base', qty: spec.baseGulamanGrams * qty },
+        { name: 'Condensed Milk', qty: totalCondensedOz },
+        { name: 'Powdered Milk', qty: spec.powderedMilkGrams * qty },
+        { name: spec.cupItemName, qty: 1 * qty },
+        { name: 'Cup Lids', qty: 1 * qty },
+        { name: 'Boba Straws', qty: 1 * qty }
+      ];
+
+      const isPreset = !item.is_custom;
+
+      if (isPreset || toppingsStr.includes('pearl') || toppingsStr.includes('tapioca')) {
+        deductions.push({ name: 'Cooked Tapioca Pearls', qty: spec.toppingsGrams['pearls'] * qty });
+      }
+      if (toppingsStr.includes('cheese')) {
+        deductions.push({ name: 'Cheese', qty: spec.toppingsGrams['cheese'] * qty });
+      }
+      if (toppingsStr.includes('chocolate chip')) {
+        deductions.push({ name: 'Chocolate Chip', qty: spec.toppingsGrams['chocolate chip'] * qty });
+      }
+      if (toppingsStr.includes('marshmallow')) {
+        deductions.push({ name: 'Marshmallow', qty: spec.toppingsGrams['marshmallow'] * qty });
+      }
+      if (toppingsStr.includes('nuts')) {
+        deductions.push({ name: 'Nuts', qty: spec.toppingsGrams['nuts'] * qty });
+      }
+      if (toppingsStr.includes('sprinkles (chocolate)')) {
+        deductions.push({ name: 'Sprinkles (Chocolate)', qty: spec.toppingsGrams['sprinkles (chocolate)'] * qty });
+      } else if (toppingsStr.includes('sprinkles (assorted)')) {
+        deductions.push({ name: 'Sprinkles (Assorted)', qty: spec.toppingsGrams['sprinkles (assorted)'] * qty });
+      } else if (toppingsStr.includes('sprinkles')) {
+        deductions.push({ name: 'Sprinkles', qty: spec.toppingsGrams['sprinkles'] * qty });
+      }
+
+      for (const d of deductions) {
+        const { data: invRow } = await supabase
+          .from('inventory_items')
+          .select('id, on_hand, name')
+          .ilike('name', `%${d.name}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (invRow) {
+          const currentQty = parseFloat(invRow.on_hand) || 0;
+          const newQty = Math.max(0, currentQty - d.qty);
+
+          await supabase
+            .from('inventory_items')
+            .update({ on_hand: newQty })
+            .eq('id', invRow.id);
+
+          await supabase.from('inventory_movement_logs').insert([{
+            item_id: invRow.id,
+            item_name: invRow.name,
+            change_type: 'DEDUCT',
+            quantity_changed: d.qty,
+            employee_name: employeeName
+          }]);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[deductInventoryForOrder warning]:', err.message);
+  }
+}
+
+// Helper: profile at avatar ng naka-login na staff
 async function getEmployeeProfile(req) {
   const userId = req.headers['x-user-id'] || req.query.user_id || req.body?.user_id;
   let fullName = 'Employee';
@@ -39,8 +164,6 @@ async function getEmployeeProfile(req) {
       .maybeSingle();
 
     if (user) {
-      // Prefer the real full name; if that column is empty for this account,
-      // show the username rather than the generic 'Employee' placeholder.
       const cleanFull = (user.full_name || '').trim();
       fullName = cleanFull || (user.username || '').trim() || fullName;
       const rawAvatar = user.avatar;
@@ -52,7 +175,6 @@ async function getEmployeeProfile(req) {
         } else {
           avatarUrl = '/images/' + rawAvatar;
         }
-        // '/images/account.png' doesn't exist on the server - use the real default.
         if (avatarUrl === '/images/account.png') avatarUrl = DEFAULT_AVATAR;
       }
     }
@@ -65,8 +187,6 @@ function noDb(res) {
   return res.status(500).json({ status: 'error', message: 'Database disconnected.' });
 }
 
-// Clean an item_label the same way the rest of the app does, to surface a
-// readable product name on dashboards.
 function cleanItemLabel(rawLabel, fallback) {
   let cleanTitle = String(rawLabel || '')
     .replace(/\s*\((8oz|12oz)\)/gi, '')
@@ -77,15 +197,7 @@ function cleanItemLabel(rawLabel, fallback) {
   return cleanTitle || fallback;
 }
 
-// ============================================================================
-// SALES OFFICER
-// ============================================================================
-
-// Orders that have been placed and are payment-settled (Cash-on-Pickup orders
-// land straight on CONFIRMED; e-wallet orders move to PAID_VERIFIED once the
-// PayMongo webhook fires) but haven't been queued into production yet. This is
-// the Sales Officer's "needs my attention" queue, used both for the pending
-// count on the dashboard and for the Order Confirmation desk below.
+// Sales Officer Helpers
 const ORDER_REVIEW_STATUSES = ['CONFIRMED', 'PAID_VERIFIED'];
 
 function startOfDaysAgo(days) {
@@ -93,37 +205,35 @@ function startOfDaysAgo(days) {
   d.setDate(d.getDate() - days);
   return d;
 }
+
 function monthsAgo(months) {
   const d = new Date();
   d.setMonth(d.getMonth() - months);
   return d;
 }
 
-// ---- Philippine-time + query helpers (Sales Officer) ----------------------
-// The server (Vercel) runs in UTC. Using UTC for "today" makes the day roll over
-// at 8:00 AM Manila time, so early-morning orders were counted as "yesterday".
 const phDateFmt = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit'
 });
+
 function phDate(v) {
   const d = v instanceof Date ? v : new Date(v);
   return isNaN(d) ? '' : phDateFmt.format(d);
 }
-// 'YYYY-MM-DD' (Manila) -> ISO instant of that day's 00:00 Manila time.
+
 function phDayStartISO(dateStr) {
   return new Date(`${dateStr}T00:00:00+08:00`).toISOString();
 }
+
 function phAddDays(dateStr, n) {
   const d = new Date(`${dateStr}T00:00:00+08:00`);
   d.setUTCDate(d.getUTCDate() + n);
   return phDate(d);
 }
-// Unpaid / voided orders are not sales.
+
 const NOT_SALES = '(CANCELLED,PENDING_PAYMENT)';
 const isSaleStatus = st => st !== 'CANCELLED' && st !== 'PENDING_PAYMENT';
 
-// Supabase returns at most 1000 rows per request. Page through so totals are
-// never silently truncated. buildQuery must return a FRESH query each call.
 async function fetchAllRows(buildQuery, pageSize = 1000) {
   const rows = [];
   for (let from = 0; ; from += pageSize) {
@@ -135,7 +245,6 @@ async function fetchAllRows(buildQuery, pageSize = 1000) {
   return rows;
 }
 
-// range = today | week | month | custom (+ date) | all  ->  { start, end } ISO
 function resolveRange(range, dateStr) {
   const today = phDate(new Date());
   if (range === 'today') return { start: phDayStartISO(today), end: null };
@@ -147,7 +256,6 @@ function resolveRange(range, dateStr) {
   return { start: null, end: null };
 }
 
-// Same avatar-path rules the rest of the app uses.
 function resolveAvatar(raw) {
   const DEFAULT_AVATAR = '/employee/images/account.png';
   if (!raw || raw === 'account.png') return DEFAULT_AVATAR;
@@ -156,6 +264,7 @@ function resolveAvatar(raw) {
   return '/images/' + raw;
 }
 
+// Sales Officer Dashboard
 async function buildSalesDashboard(req, res) {
   try {
     if (!supabase) return noDb(res);
@@ -200,7 +309,6 @@ async function buildSalesDashboard(req, res) {
       customer_name: (o.customers && o.customers.users && o.customers.users.full_name) || o.guest_name || 'Guest'
     }));
 
-    // --- Customer acquisition (New Accounts mini-chart) ---
     const customersForAcq = await fetchAllRows(() =>
       supabase.from('customers').select('id, created_at').order('id', { ascending: true }));
     const acqDates = customersForAcq.map(c => new Date(c.created_at)).filter(d => !isNaN(d));
@@ -216,7 +324,6 @@ async function buildSalesDashboard(req, res) {
       last6Months: acqDates.filter(d => d >= sixMoAgo).length
     };
 
-    // --- Revenue split: registered members vs guest checkouts ---
     const salesOrders = await fetchAllRows(() =>
       supabase.from('orders').select('id, total_amount, customer_id').not('status', 'in', NOT_SALES).order('id', { ascending: true }));
     let registeredRevenue = 0, guestRevenue = 0;
@@ -232,12 +339,6 @@ async function buildSalesDashboard(req, res) {
       guestPercent: totalRev ? (guestRevenue / totalRev) * 100 : 0
     };
 
-    // Register lock state lives server-side in system_settings, set to
-    // 'LOCKED' by /sales-officer/z-reading and back to 'UNLOCKED' once
-    // Finance Officer saves a reconciliation (POST /finance-officer/
-    // reconciliation). The dashboard was previously trusting only its own
-    // localStorage flag, which nothing ever reset - so this is returned on
-    // every dashboard load so the client can sync to the real state instead.
     const { data: registerSetting } = await supabase
       .from('system_settings')
       .select('setting_value')
@@ -262,11 +363,7 @@ async function buildSalesDashboard(req, res) {
 
 router.get('/sales-officer/dashboard', buildSalesDashboard);
 
-// ----------------------------------------------------------------------------
-// X-READING & Z-READING AUDIT ENDPOINTS (Connected to drawer_reconciliations)
-// ----------------------------------------------------------------------------
-
-// 1. GET /api/sales-officer/x-reading
+// X-Reading endpoint
 router.get('/sales-officer/x-reading', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -286,12 +383,6 @@ router.get('/sales-officer/x-reading', async (req, res) => {
     let preordersCount = 0;
     let presetsCount = 0;
     let cupsSold = 0;
-    // "Claimed" = e-wallet (QR Ph - GCash/Maya/bank apps, indistinguishable
-    // from each other in this integration) pre-orders already picked up
-    // (COMPLETED). "Unclaimed / No-show" = e-wallet pre-orders still not
-    // picked up as of this cut-off (not COMPLETED; CANCELLED orders are
-    // already excluded upstream by NOT_SALES, so anything left in a
-    // non-terminal status here is still awaiting claim).
     let claimedCount = 0;
     let claimedAmount = 0;
     let unclaimedCount = 0;
@@ -301,11 +392,6 @@ router.get('/sales-officer/x-reading', async (req, res) => {
       const amt = parseFloat(o.total_amount) || 0;
       const method = String(o.payment_method || '').toLowerCase();
       const itemQty = (o.order_items || []).reduce((s, it) => s + (parseInt(it.quantity, 10) || 0), 0);
-
-      // Checkout only ever stores 'Cash on Pick-Up' or 'E-Wallet' (the
-      // e-wallet checkout uses PayMongo's QR Ph, which doesn't tell us
-      // whether the customer scanned with GCash, Maya, or a bank app -
-      // so those genuinely cannot be split apart here).
       const isCash = method.includes('cash');
 
       if (isCash) {
@@ -350,7 +436,7 @@ router.get('/sales-officer/x-reading', async (req, res) => {
   }
 });
 
-// 2. POST /api/sales-officer/z-reading
+// Z-Reading endpoint
 router.post('/sales-officer/z-reading', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -412,9 +498,7 @@ router.post('/sales-officer/z-reading', async (req, res) => {
         setting_value: 'LOCKED',
         description: 'Sales counter register lock state after Z-reading'
       }, { onConflict: 'setting_key' });
-    } catch (e) {
-      // safe fallback kung wala ang setting
-    }
+    } catch (e) {}
 
     return res.json({ status: 'success', message: 'Z-Reading saved successfully.', record });
   } catch (error) {
@@ -423,7 +507,7 @@ router.post('/sales-officer/z-reading', async (req, res) => {
   }
 });
 
-// Order Confirmation desk
+// Order confirmation desk
 router.get('/sales-officer/order-confirmation', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -488,6 +572,7 @@ router.get('/sales-officer/order-confirmation', async (req, res) => {
   }
 });
 
+// Order monitoring desk
 router.get('/sales-officer/order-monitoring', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -538,6 +623,7 @@ router.get('/sales-officer/order-monitoring', async (req, res) => {
   }
 });
 
+// Releasing/Claiming lamang sa sales counter; walang bawas ng sangkap dito
 router.post('/sales-officer/order-monitoring/update', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -558,6 +644,7 @@ router.post('/sales-officer/order-monitoring/update', async (req, res) => {
   }
 });
 
+// Customer records
 router.get('/sales-officer/customer-records', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -708,6 +795,7 @@ router.get('/sales-officer/customer-records', async (req, res) => {
   }
 });
 
+// Promotions desk
 router.get('/sales-officer/promotions', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -820,6 +908,7 @@ router.post('/sales-officer/promotions/toggle', async (req, res) => {
   }
 });
 
+// Sales reports
 router.get('/sales-officer/sales-reports', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -845,7 +934,7 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
     try {
       const { data: products } = await supabase.from('products').select('sku, name');
       (products || []).forEach(p => { if (p.name) skuByName.set(String(p.name).trim().toLowerCase(), p.sku); });
-    } catch (e) { /* SKU is optional */ }
+    } catch (e) {}
 
     const rank = new Map();
     orders.forEach(o => {
@@ -872,6 +961,7 @@ router.get('/sales-officer/sales-reports', async (req, res) => {
   }
 });
 
+// Sales targets
 router.get('/sales-officer/sales-target', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -891,7 +981,7 @@ router.get('/sales-officer/sales-target', async (req, res) => {
         if (t.period === 'daily') dailyTarget = parseFloat(t.target_amount) || dailyTarget;
         if (t.period === 'monthly') monthlyTarget = parseFloat(t.target_amount) || monthlyTarget;
       });
-    } catch (e) { /* table not created yet - use defaults */ }
+    } catch (e) {}
 
     const orders = await fetchAllRows(() => supabase
       .from('orders')
@@ -945,7 +1035,7 @@ router.get('/sales-officer/sales-target', async (req, res) => {
         const name = cleanItemLabel(b.item_label, 'Preset drink');
         batchMap.set(`${b.batch_date}|${name.toLowerCase()}`, { day: b.batch_date, name, prepared: parseInt(b.prepared_qty, 10) || 0 });
       });
-    } catch (e) { /* table not created yet - batch column shows a dash */ }
+    } catch (e) {}
 
     const keys = new Set([...presetAgg.keys(), ...batchMap.keys()]);
     const presets = [...keys].map((key, i) => {
@@ -984,10 +1074,7 @@ router.get('/sales-officer/sales-target', async (req, res) => {
   }
 });
 
-// ============================================================================
-// FINANCE OFFICER
-// ============================================================================
-
+// Finance Officer Dashboard
 router.get('/finance-officer/dashboard', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1046,6 +1133,7 @@ router.get('/finance-officer/dashboard', async (req, res) => {
   }
 });
 
+// Finance Revenue
 router.get('/finance-officer/revenue', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1092,11 +1180,6 @@ router.get('/finance-officer/revenue', async (req, res) => {
       .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
     const totalBudget = (expenseRows || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
 
-    // Real Avg. Margin per Cup: (revenue from cups sold - recorded COGS
-    // expenses) / cups sold. There is no per-product cost/recipe data in
-    // the schema, so we cannot break this down per flavor - only this
-    // single average, built entirely from order_items quantities and the
-    // same 'cogs' expense category the Expenses page already totals.
     const { data: cupItems } = await supabase
       .from('order_items')
       .select('quantity, orders!inner(status)')
@@ -1155,6 +1238,7 @@ router.get('/finance-officer/revenue', async (req, res) => {
   }
 });
 
+// Finance Budget Cycles
 router.get('/finance-officer/budget', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1311,23 +1395,7 @@ router.get('/finance-officer/payments', async (req, res) => {
   }
 });
 
-// Shared by Finance Officer's reconciliation preview/save and matches the
-// Sales Officer's X/Z-Reading methodology exactly, so both roles are always
-// comparing the same numbers: e-wallet payments never touch the physical
-// drawer, so only walk-in cash + the opening float count as "expected cash
-// in the drawer." Checkout only ever stores 'Cash on Pick-Up' or 'E-Wallet'
-// - the e-wallet checkout uses PayMongo's QR Ph, which doesn't reveal
-// whether the customer paid via GCash, Maya, or a bank app, so that split
-// isn't something this integration can report.
-//
-// Uses the same NOT_SALES exclusion as the Sales Officer's X-Reading
-// (employeeRoutes.js ~line 266), instead of a strict PAID_VERIFIED/COMPLETED
-// allowlist. Cash on Pick-Up orders are created with status 'CONFIRMED' and
-// only ever reach 'COMPLETED' once staff mark them picked up - they never
-// pass through 'PAID_VERIFIED' at all (only E-Wallet orders do). The old
-// allowlist meant a freshly-rung-up cash sale that Sales Officer's dashboard
-// already showed would be invisible here (₱0.00) until someone finished
-// walking it through PREPARING → READY_FOR_PICKUP → COMPLETED.
+// Finance Drawer Breakdown Helper
 async function computeDrawerBreakdown(periodStart, periodEnd) {
   const { data: orders, error } = await supabase
     .from('orders')
@@ -1353,11 +1421,6 @@ async function computeDrawerBreakdown(periodStart, periodEnd) {
   return { eWalletTotal, walkinCashTotal, openingFloat, expectedDrawer, grossTotal, preordersCount, presetsCount };
 }
 
-// GET /api/finance-officer/reconciliation/preview
-// Shows the Finance Officer the same real breakdown a Sales Officer's
-// X/Z-Reading shows, for the period since the last reconciliation, BEFORE
-// they enter what they actually counted - so they're comparing against a
-// real number, not typing into a blind prompt.
 router.get('/finance-officer/reconciliation/preview', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -1432,21 +1495,13 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
       .single();
     if (insertErr) throw insertErr;
 
-    // Finance has now reconciled this drawer count, so the register that
-    // Sales Officer's Z-Reading locked (system_settings.register_status,
-    // set in the /sales-officer/z-reading handler above) is released for
-    // the next shift. Sales Officer's dashboard picks this up on its next
-    // /sales-officer/dashboard poll and clears its own local lock flag -
-    // see registerStatus in buildSalesDashboard.
     try {
       await supabase.from('system_settings').upsert({
         setting_key: 'register_status',
         setting_value: 'UNLOCKED',
         description: 'Sales counter register lock state after Z-reading'
       }, { onConflict: 'setting_key' });
-    } catch (e) {
-      // safe fallback kung wala ang setting
-    }
+    } catch (e) {}
 
     return res.json({ status: 'success', record });
   } catch (error) {
@@ -1455,10 +1510,7 @@ router.post('/finance-officer/reconciliation', async (req, res) => {
   }
 });
 
-// ============================================================================
-// PROCUREMENT / INVENTORY OFFICER
-// ============================================================================
-
+// Procurement Officer
 function routeForAmount(amount) {
   const n = parseFloat(amount) || 0;
   return n > 500 ? 'ceo' : (n > 300 ? 'finance' : 'procure');
@@ -1928,10 +1980,7 @@ router.get('/procurement-officer/stock-control', async (req, res) => {
   }
 });
 
-// ============================================================================
-// PRODUCTION SUPERVISOR
-// ============================================================================
-
+// Production Supervisor
 router.get('/production-supervisor/dashboard', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -2205,6 +2254,7 @@ router.get('/production-supervisor/order-production', async (req, res) => {
   }
 });
 
+// Awtomatikong magbawas ng grams at packaging kapag naging ready for pickup sa kusina
 router.post('/production-supervisor/complete-order', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -2219,13 +2269,107 @@ router.post('/production-supervisor/complete-order', async (req, res) => {
       .eq('id', order_id);
     if (error) throw error;
 
-    return res.json({ status: 'success', message: 'Order marked ready for pickup.' });
+    const empName = await getEmployeeProfile(req);
+    await deductInventoryForOrder(order_id, empName.fullName || 'Production Kitchen');
+
+    return res.json({ status: 'success', message: 'Order marked ready for pickup and ingredients deducted.' });
   } catch (error) {
     console.error('[production-supervisor/complete-order] error:', error.message);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
+// Kusina: Magluluto ng Raw Packs -> Magiging Grams sa Chiller
+router.post('/production-supervisor/cook-batch', async (req, res) => {
+  try {
+    if (!supabase) return noDb(res);
+    const { batch_type, raw_quantity } = req.body; 
+    const numQty = parseFloat(raw_quantity);
+
+    if (!batch_type || isNaN(numQty) || numQty <= 0) {
+      return res.status(400).json({ status: 'error', message: 'Valid batch_type and quantity required.' });
+    }
+
+    const conversion = BATCH_YIELD_CONVERSIONS[batch_type.toLowerCase()];
+    if (!conversion) {
+      return res.status(400).json({ status: 'error', message: 'Invalid batch type.' });
+    }
+
+    const cookedGramsProduced = batch_type.toLowerCase() === 'gulaman' 
+      ? Math.round(numQty * conversion.gramsPerPack)
+      : Math.round(numQty * conversion.gramsPerBag);
+
+    const empProfile = await getEmployeeProfile(req);
+    const staffName = empProfile.fullName || 'Kitchen Staff';
+
+    const { data: rawItem } = await supabase
+      .from('inventory_items')
+      .select('id, on_hand, name')
+      .ilike('name', `%${conversion.rawItemName}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (rawItem) {
+      const remainingRaw = Math.max(0, (parseFloat(rawItem.on_hand) || 0) - numQty);
+      await supabase
+        .from('inventory_items')
+        .update({ on_hand: remainingRaw })
+        .eq('id', rawItem.id);
+
+      await supabase.from('inventory_movement_logs').insert([{
+        item_id: rawItem.id,
+        item_name: rawItem.name,
+        change_type: 'DEDUCT',
+        quantity_changed: numQty,
+        employee_name: staffName
+      }]);
+    }
+
+    const { data: cookedItem } = await supabase
+      .from('inventory_items')
+      .select('id, on_hand, name')
+      .ilike('name', `%${conversion.cookedItemName}%`)
+      .limit(1)
+      .maybeSingle();
+
+    let cookedItemId = cookedItem?.id;
+    if (cookedItem) {
+      await supabase
+        .from('inventory_items')
+        .update({ on_hand: (parseFloat(cookedItem.on_hand) || 0) + cookedGramsProduced })
+        .eq('id', cookedItem.id);
+    } else {
+      const { data: newCooked } = await supabase.from('inventory_items').insert([{
+        name: conversion.cookedItemName,
+        item_type: 'raw_material',
+        unit_of_measure: 'grams',
+        on_hand: cookedGramsProduced,
+        reorder_point: 500
+      }]).select().single();
+      cookedItemId = newCooked?.id;
+    }
+
+    await supabase.from('inventory_movement_logs').insert([{
+      item_id: cookedItemId,
+      item_name: conversion.cookedItemName,
+      change_type: 'ADD',
+      quantity_changed: cookedGramsProduced,
+      employee_name: staffName
+    }]);
+
+    return res.json({
+      status: 'success',
+      message: `Batch cooked successfully: -${numQty} raw deducted, +${cookedGramsProduced}g cooked base ready.`,
+      gramsProduced: cookedGramsProduced
+    });
+
+  } catch (error) {
+    console.error('[cook-batch error]:', error.message);
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Production planning
 router.get('/production-supervisor/production-planning', async (req, res) => {
   try {
     if (!supabase) return noDb(res);
@@ -2240,7 +2384,7 @@ router.get('/production-supervisor/production-planning', async (req, res) => {
     try {
       const { data: rRows, error: rErr } = await supabase.from('recipes').select('id, flavor_name, yield_servings').order('flavor_name', { ascending: true });
       if (!rErr) recipesList = rRows || [];
-    } catch { /* table missing */ }
+    } catch {}
 
     const { data: todayPlans } = await supabase.from('production_orders').select('*').eq('due_date', todayStr).order('schedule_time', { ascending: true });
     const { data: tomorrowPlans } = await supabase.from('production_orders').select('*').eq('due_date', tomorrowStr).order('schedule_time', { ascending: true });

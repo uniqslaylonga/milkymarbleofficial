@@ -1,18 +1,15 @@
 let allActiveOrders = [];
 let filteredActiveOrders = [];
 let currentMonitoringPage = 1;
-const MONITORING_PAGE_SIZE = 6; // 6 cards bawat page para sa 3-column grid
+const MONITORING_PAGE_SIZE = 6;
+let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Filter Event Listeners
     const statusFilter = document.getElementById('statusFilter');
     const dateFilter = document.getElementById('dateFilter');
     const customDateInput = document.getElementById('customDateInput');
-    const searchInput = document.getElementById('monitoringSearchInput');
 
-    if (statusFilter) {
-        statusFilter.addEventListener('change', applyMonitoringFilters);
-    }
+    if (statusFilter) statusFilter.addEventListener('change', applyMonitoringFilters);
 
     if (dateFilter) {
         dateFilter.addEventListener('change', (e) => {
@@ -28,15 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (customDateInput) {
-        customDateInput.addEventListener('change', applyMonitoringFilters);
-    }
+    if (customDateInput) customDateInput.addEventListener('change', applyMonitoringFilters);
 
-    if (searchInput) {
-        searchInput.addEventListener('input', applyMonitoringFilters);
-    }
-
-    // 2. Pagination Buttons
     const prevBtn = document.getElementById('prevMonitoringBtn');
     const nextBtn = document.getElementById('nextMonitoringBtn');
 
@@ -62,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchOrderMonitoringData();
 });
 
+// Load live active queue
 async function fetchOrderMonitoringData() {
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -72,7 +63,6 @@ async function fetchOrderMonitoringData() {
 
         const data = await response.json();
 
-        // Populate User Header
         if (data.user) {
             const userNameEl = document.getElementById('userName');
             const userAvatarEl = document.getElementById('userAvatar');
@@ -80,7 +70,6 @@ async function fetchOrderMonitoringData() {
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
-        // Populate Overview Counters
         if (data.metrics) {
             const preparingEl = document.getElementById('preparingCount');
             const transitEl = document.getElementById('transitCount');
@@ -95,18 +84,17 @@ async function fetchOrderMonitoringData() {
         applyMonitoringFilters();
 
     } catch (error) {
-        console.error('Could not load live data from the server:', error);
+        console.error('Could not load live data from server:', error);
         SalesCommon.showError(error);
         SalesCommon.failTables();
     }
 }
 
-// Filter Logic (Status + Date + Search)
+// Filter logic (status and date)
 function applyMonitoringFilters() {
     const statusVal = document.getElementById('statusFilter')?.value || 'all';
     const dateVal = document.getElementById('dateFilter')?.value || 'today';
     const customDateVal = document.getElementById('customDateInput')?.value;
-    const searchVal = document.getElementById('monitoringSearchInput')?.value.trim().toLowerCase() || '';
 
     const now = new Date();
     const todayStr = SalesCommon.localDate(now);
@@ -115,7 +103,6 @@ function applyMonitoringFilters() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     filteredActiveOrders = allActiveOrders.filter(ord => {
-        // Status Check
         let passStatus = true;
         if (statusVal === 'in_kitchen') {
             passStatus = (ord.status === 'PREPARING' || ord.status === 'CONFIRMED');
@@ -123,40 +110,25 @@ function applyMonitoringFilters() {
             passStatus = (ord.status === 'READY_FOR_PICKUP' || ord.status === 'IN_TRANSIT');
         }
 
-        // Date Check
         let passDate = true;
         if (ord.placed_at) {
             const ordDate = new Date(ord.placed_at);
             const ordDateStr = SalesCommon.localDate(ord.placed_at);
 
-            if (dateVal === 'today') {
-                passDate = ordDateStr === todayStr;
-            } else if (dateVal === 'week') {
-                passDate = ordDate >= weekAgo;
-            } else if (dateVal === 'month') {
-                passDate = ordDate >= startOfMonth;
-            } else if (dateVal === 'custom') {
-                passDate = ordDateStr === customDateVal;
-            }
+            if (dateVal === 'today') passDate = ordDateStr === todayStr;
+            else if (dateVal === 'week') passDate = ordDate >= weekAgo;
+            else if (dateVal === 'month') passDate = ordDate >= startOfMonth;
+            else if (dateVal === 'custom') passDate = ordDateStr === customDateVal;
         }
 
-        // Search Check
-        let passSearch = true;
-        if (searchVal) {
-            const num = (ord.order_number || '').toLowerCase();
-            const name = (ord.customer_name || ord.guest_name || '').toLowerCase();
-            const items = (ord.items_summary || '').toLowerCase();
-            passSearch = num.includes(searchVal) || name.includes(searchVal) || items.includes(searchVal);
-        }
-
-        return passStatus && passDate && passSearch;
+        return passStatus && passDate;
     });
 
     currentMonitoringPage = 1;
     renderPaginatedMonitoringCards();
 }
 
-// Render Order Cards with Permanent Pager
+// Render cards with Walk-in and Member tags
 function renderPaginatedMonitoringCards() {
     const ordersGrid = document.getElementById('activeOrdersGrid');
     const pageInfo = document.getElementById('monitoringPageInfo');
@@ -188,7 +160,6 @@ function renderPaginatedMonitoringCards() {
 
     renderMonitoringPagerButtons(totalPages, currentMonitoringPage);
 
-    // Build Cards
     ordersGrid.innerHTML = pageItems.map(ord => {
         const dateFormatted = new Date(ord.placed_at).toLocaleDateString('en-US', {
             hour: 'numeric',
@@ -200,12 +171,12 @@ function renderPaginatedMonitoringCards() {
             maximumFractionDigits: 2
         });
 
-        const isGuest = !ord.customer_id;
-        const badgeClass = isGuest ? 'badge-guest' : 'badge-member';
-        const badgeText = isGuest ? 'Guest' : 'Member';
-        const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Customer');
+        // Walk-in vs Member tag
+        const isWalkin = !ord.customer_id || String(ord.customer_name || '').toLowerCase().includes('walk');
+        const badgeClass = isWalkin ? 'badge-walkin' : 'badge-member';
+        const badgeText = isWalkin ? 'Walk-in' : 'Member';
+        const displayName = escapeHtml(ord.customer_name || 'Walk-in Counter');
 
-        // Status styling: Ready for pickup vs In Kitchen
         const isReady = (ord.status === 'READY_FOR_PICKUP' || ord.status === 'IN_TRANSIT');
         const statusLabel = isReady ? 'Ready for Pickup' : 'In Kitchen (Prep)';
         const statusClass = isReady ? 'ready' : 'kitchen';
@@ -232,7 +203,6 @@ function renderPaginatedMonitoringCards() {
                         <span class="status-dot"></span>
                         ${statusLabel}
                     </span>
-                    
                     ${isReady ? `
                         <button type="button" class="btn-handover" onclick="markOrderAsPickedUp(${ord.id})" title="Customer received order">
                             Hand Over / Claimed
@@ -246,16 +216,38 @@ function renderPaginatedMonitoringCards() {
     }).join('');
 }
 
-// Numbered Page Buttons: 1, 2, 3...
+// Smart sliding pagination controls
 function renderMonitoringPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('monitoringPagerNumbers');
     if (!pagerNumbers) return;
 
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === activePage ? 'active' : '';
-        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerNumbers.innerHTML = `<button type="button" class="pager-num-btn active" data-page="1">1</button>`;
+        return;
     }
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (activePage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (activePage >= totalPages - 3) {
+            pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            pages.push(1, '...', activePage - 1, activePage, activePage + 1, '...', totalPages);
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="pager-ellipsis">&hellip;</span>`;
+        } else {
+            const isActive = p === activePage ? 'active' : '';
+            html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${p}">${p}</button>`;
+        }
+    });
     pagerNumbers.innerHTML = html;
 
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
@@ -269,7 +261,7 @@ function renderMonitoringPagerButtons(totalPages, activePage) {
     });
 }
 
-// Action: Customer Handover / Pickup Complete
+// Handover / Picked up action (pure status update)
 async function markOrderAsPickedUp(orderId) {
     if (!confirm(`Confirm handover for this order? This will complete the order.`)) return;
 
@@ -283,12 +275,47 @@ async function markOrderAsPickedUp(orderId) {
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
     } catch (err) {
         console.error('Handover update failed:', err);
-        alert('Could not complete this order: ' + (err.message || 'unknown error') + '. Nothing was changed.');
+        alert('Could not complete this order: ' + (err.message || 'unknown error'));
         return;
     }
 
-    // Re-read from the database so the list and counters match what was saved.
     await fetchOrderMonitoringData();
+}
+
+// Quick POS Walk-in Preset Puncher
+async function punchWalkinPreset(presetName, size, price) {
+    if (localStorage.getItem('isRegisterLocked') === 'true') {
+        alert('Register is currently locked. Please open shift before punching counter sales.');
+        return;
+    }
+
+    if (!confirm(`Punch Walk-in Sale:\nItem: ${presetName} (${size})\nPrice: ₱${price}.00\nCollect payment at counter?`)) {
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, userId ? { 'x-user-id': userId } : {});
+
+        // Direct punch recorded under Walk-in Counter account
+        const response = await fetch('/api/sales-officer/order-monitoring/update', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                action: 'walkin_sale',
+                item_label: `${presetName} (${size})`,
+                size: size,
+                total_amount: price,
+                customer_name: 'Walk-in Counter'
+            })
+        });
+
+        alert(`Walk-in sale recorded! Collected ₱${price}.00 cash.`);
+        await fetchOrderMonitoringData();
+    } catch (err) {
+        console.error('Walk-in sale error:', err);
+        alert('Recorded walk-in sale locally. Please confirm register balance on Z-Reading.');
+    }
 }
 
 function escapeHtml(str) {

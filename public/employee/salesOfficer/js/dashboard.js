@@ -7,7 +7,7 @@ let customerAcquisitionData = {
 };
 
 let acquisitionChartInstance = null;
-let revenueDonutChartInstance = null;
+let weeklyRevenueChartInstance = null;
 
 // Pagination & Transactions State
 let allFetchedOrders = [];
@@ -15,7 +15,7 @@ let filteredOrders = [];
 let currentTxPage = 1;
 const TX_PAGE_SIZE = 4;
 
-// Register Lock & Z-Reading State
+// Register Lock State
 let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
 let expectedCounterCash = 0;
 let latestXReading = null;
@@ -24,13 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     initCharts();
     checkRegisterLockState();
 
-    // Customer Acquisition Filter listener
     const acqFilter = document.getElementById('acquisitionFilter');
-    if (acqFilter) {
-        acqFilter.addEventListener('change', updateAcquisitionDisplay);
-    }
+    if (acqFilter) acqFilter.addEventListener('change', updateAcquisitionDisplay);
 
-    // Recent Transactions date filter listeners
     const txDateFilter = document.getElementById('txDateFilter');
     const txCustomDate = document.getElementById('txCustomDate');
     const prevBtn = document.getElementById('prevTxBtn');
@@ -40,9 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         txDateFilter.addEventListener('change', (e) => {
             if (e.target.value === 'custom') {
                 txCustomDate.style.display = 'inline-block';
-                if (!txCustomDate.value) {
-                    txCustomDate.value = SalesCommon.localDate(new Date());
-                }
+                if (!txCustomDate.value) txCustomDate.value = SalesCommon.localDate(new Date());
             } else {
                 txCustomDate.style.display = 'none';
             }
@@ -50,9 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (txCustomDate) {
-        txCustomDate.addEventListener('change', applyTransactionFilters);
-    }
+    if (txCustomDate) txCustomDate.addEventListener('change', applyTransactionFilters);
 
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
@@ -73,17 +65,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Blind cash input calculation listener
     const cashInput = document.getElementById('zActualCashInput');
-    if (cashInput) {
-        cashInput.addEventListener('input', calculateZVariance);
-    }
+    if (cashInput) cashInput.addEventListener('input', calculateZVariance);
 
-    // Listener for custom confirmation modal execution button
     const btnExecute = document.getElementById('btnExecuteLockAndTransmit');
-    if (btnExecute) {
-        btnExecute.addEventListener('click', executeLockdown);
-    }
+    if (btnExecute) btnExecute.addEventListener('click', executeLockdown);
 
     await loadPageData();
 });
@@ -107,43 +93,44 @@ function initCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                },
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
                 scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 10, family: 'Urbanist' }, color: '#7C4F38' }
-                    },
-                    y: {
-                        display: false,
-                        beginAtZero: true
-                    }
+                    x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Urbanist' }, color: '#7C4F38' } },
+                    y: { display: false, beginAtZero: true }
                 }
             }
         });
     }
 
-    const revCtx = document.getElementById('revenueDonutChart');
-    if (revCtx) {
-        revenueDonutChartInstance = new Chart(revCtx.getContext('2d'), {
-            type: 'doughnut',
+    // Weekly Inflow Chart
+    const weeklyCtx = document.getElementById('weeklyInflowChart');
+    if (weeklyCtx) {
+        weeklyRevenueChartInstance = new Chart(weeklyCtx.getContext('2d'), {
+            type: 'bar',
             data: {
-                labels: ['No revenue yet'],
+                labels: ['3 Wks Ago', '2 Wks Ago', 'Last Week', 'This Week'],
                 datasets: [{
-                    data: [1],
-                    backgroundColor: ['#E8E0DC'],
-                    borderWidth: 0
+                    label: 'Inflow (₱)',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#FAD5D9', '#FAD5D9', '#F8A5AD', '#F69299'],
+                    borderRadius: 4,
+                    barThickness: 24
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '74%',
                 plugins: {
                     legend: { display: false },
-                    tooltip: { enabled: false }
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `₱${Number(ctx.raw || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Urbanist' }, color: '#7C4F38' } },
+                    y: { display: false, beginAtZero: true }
                 }
             }
         });
@@ -154,9 +141,7 @@ async function loadPageData() {
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
         const headers = {};
-        if (userId) {
-            headers['x-user-id'] = userId;
-        }
+        if (userId) headers['x-user-id'] = userId;
 
         const response = await fetch('/api/sales-officer/dashboard', { headers });
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
@@ -166,13 +151,9 @@ async function loadPageData() {
         // 1. User Header
         const userNameEl = document.getElementById('userName');
         const userFirstNameEl = document.getElementById('userFirstName');
-
         if (data.user && data.user.fullName) {
             if (userNameEl) userNameEl.textContent = data.user.fullName;
             if (userFirstNameEl) userFirstNameEl.textContent = data.user.firstName || data.user.fullName;
-        } else {
-            if (userNameEl) userNameEl.textContent = 'Employee';
-            if (userFirstNameEl) userFirstNameEl.textContent = 'Employee';
         }
 
         // 2. Today's Performance
@@ -180,18 +161,14 @@ async function loadPageData() {
         const todaySalesEl = document.getElementById('todaySales');
         const pendingOrdersEl = document.getElementById('pendingOrders');
 
-        if (todayOrdersEl && data.metrics) {
-            todayOrdersEl.textContent = Number(data.metrics.todayOrders || 0).toLocaleString();
-        }
+        if (todayOrdersEl && data.metrics) todayOrdersEl.textContent = Number(data.metrics.todayOrders || 0).toLocaleString();
         if (todaySalesEl && data.metrics) {
             todaySalesEl.textContent = '₱' + Number(data.metrics.todaySales || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
         }
-        if (pendingOrdersEl && data.metrics) {
-            pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
-        }
+        if (pendingOrdersEl && data.metrics) pendingOrdersEl.textContent = Number(data.metrics.pendingOrders || 0).toLocaleString();
 
         // 3. Customer Acquisition
         if (data.newAccounts) {
@@ -213,73 +190,14 @@ async function loadPageData() {
                 ];
                 acquisitionChartInstance.update();
             }
-
             updateAcquisitionDisplay();
         }
 
-        // Synchronize lock state
         syncRegisterLockState(data.registerStatus);
 
-        // 4. Revenue Split Donut
-        if (data.revenueSplit) {
-            const regAmountEl = document.getElementById('registeredRevenue');
-            const regPctEl = document.getElementById('registeredPercent');
-            const guestAmountEl = document.getElementById('guestRevenue');
-            const guestPctEl = document.getElementById('guestPercent');
-
-            const barRegLabel = document.getElementById('barRegLabel');
-            const barGuestLabel = document.getElementById('barGuestLabel');
-            const barRegFill = document.getElementById('barRegFill');
-            const barGuestFill = document.getElementById('barGuestFill');
-            const insightMessage = document.getElementById('insightMessage');
-
-            const regRev = Number(data.revenueSplit.registeredRevenue || 0);
-            const guestRev = Number(data.revenueSplit.guestRevenue || 0);
-            const split = SalesCommon.splitPercents(regRev, guestRev);
-            const regPct = split.a;
-            const guestPct = split.b;
-
-            if (regAmountEl) regAmountEl.textContent = '₱' + regRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (regPctEl) regPctEl.textContent = split.aText;
-
-            if (guestAmountEl) guestAmountEl.textContent = '₱' + guestRev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (guestPctEl) guestPctEl.textContent = split.bText;
-
-            if (revenueDonutChartInstance) {
-                const total = regRev + guestRev;
-                const chart = revenueDonutChartInstance;
-                if (total === 0) {
-                    chart.data.labels = ['No revenue yet'];
-                    chart.data.datasets[0].data = [1];
-                    chart.data.datasets[0].backgroundColor = ['#E8E0DC'];
-                    chart.options.plugins.tooltip.enabled = false;
-                } else {
-                    chart.data.labels = ['Registered', 'Guest'];
-                    chart.data.datasets[0].data = [regRev, guestRev];
-                    chart.data.datasets[0].backgroundColor = ['#F69299', '#E89E80'];
-                    chart.options.plugins.tooltip.enabled = true;
-                }
-                chart.update();
-            }
-
-            if (barRegLabel) barRegLabel.textContent = split.aText;
-            if (barGuestLabel) barGuestLabel.textContent = split.bText;
-            if (barRegFill) barRegFill.style.width = `${regPct}%`;
-            if (barGuestFill) barGuestFill.style.width = `${guestPct}%`;
-
-            if (insightMessage) {
-                if (guestPct > regPct) {
-                    insightMessage.innerHTML = `<strong>Strategic Alert:</strong> Higher revenue generated from Guest Checkouts (<strong>${split.bText}</strong>). Consider offering promotional loyalty vouchers to accelerate member registration.`;
-                } else if (regPct > 0 || guestPct > 0) {
-                    insightMessage.innerHTML = `<strong>Healthy Engagement:</strong> Registered Members lead overall sales (<strong>${split.aText}</strong>). Strong brand loyalty and customer retention.`;
-                } else {
-                    insightMessage.textContent = 'Insufficient sales records to generate customer channel insights.';
-                }
-            }
-        }
-
-        // 5. Store Orders and Apply Filter & Pager
+        // 4. Transactions and Weekly Inflow DSS
         allFetchedOrders = data.recentOrders || [];
+        updateWeeklyInflowAndDSS();
         applyTransactionFilters();
 
     } catch (error) {
@@ -289,32 +207,160 @@ async function loadPageData() {
     }
 }
 
+// Compute Weekly Revenue Inflow and Trigger DSS Alert
+function updateWeeklyInflowAndDSS() {
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const week1Start = new Date(now.getTime() - 7 * dayMs);
+    const week2Start = new Date(now.getTime() - 14 * dayMs);
+    const week3Start = new Date(now.getTime() - 21 * dayMs);
+    const week4Start = new Date(now.getTime() - 28 * dayMs);
+
+    let thisWeek = 0;
+    let lastWeek = 0;
+    let twoWeeksAgo = 0;
+    let threeWeeksAgo = 0;
+
+    allFetchedOrders.forEach(ord => {
+        const placed = new Date(ord.placed_at);
+        const amt = Number(ord.total_amount || 0);
+        if (placed >= week1Start) thisWeek += amt;
+        else if (placed >= week2Start) lastWeek += amt;
+        else if (placed >= week3Start) twoWeeksAgo += amt;
+        else if (placed >= week4Start) threeWeeksAgo += amt;
+    });
+
+    const thisWeekEl = document.getElementById('thisWeekRevDisplay');
+    const lastWeekEl = document.getElementById('lastWeekRevDisplay');
+    const trendPill = document.getElementById('weeklyTrendPill');
+    const dssBox = document.getElementById('dssAlertBox');
+    const dssIconWrap = document.getElementById('dssIconWrap');
+    const dssMessage = document.getElementById('dssMessage');
+    const btnPitch = document.getElementById('btnDssPitch');
+
+    if (thisWeekEl) thisWeekEl.textContent = '₱' + thisWeek.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (lastWeekEl) lastWeekEl.textContent = '₱' + lastWeek.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (weeklyRevenueChartInstance) {
+        weeklyRevenueChartInstance.data.datasets[0].data = [threeWeeksAgo, twoWeeksAgo, lastWeek, thisWeek];
+        weeklyRevenueChartInstance.update();
+    }
+
+    let diffPct = 0;
+    const hasPriorData = lastWeek > 0;
+    if (hasPriorData) {
+        diffPct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+    }
+
+    if (trendPill) {
+        if (hasPriorData) {
+            trendPill.textContent = `${diffPct >= 0 ? '+' : ''}${diffPct}%`;
+            trendPill.className = `trend-pill ${diffPct >= 0 ? 'trend-up' : 'trend-down'}`;
+        } else {
+            trendPill.textContent = 'Active';
+            trendPill.className = 'trend-pill trend-neutral';
+        }
+    }
+
+    // Decision Support System (DSS) Rule: Alert on any negative drop
+    if (dssBox && dssMessage && btnPitch) {
+        if (hasPriorData && diffPct < 0) {
+            dssBox.className = 'dss-alert-box alert-active';
+            if (dssIconWrap) dssIconWrap.className = 'dss-icon-wrap warning';
+            dssMessage.innerHTML = `<strong>Revenue Alert:</strong> Inflow dropped by <strong>${Math.abs(diffPct)}%</strong> vs. last week. Recommending an immediate promotional campaign pitch to CEO to boost customer traction.`;
+            btnPitch.style.display = 'inline-flex';
+        } else if (hasPriorData && diffPct >= 0) {
+            dssBox.className = 'dss-alert-box normal';
+            if (dssIconWrap) dssIconWrap.className = 'dss-icon-wrap success';
+            dssMessage.innerHTML = `<strong>Performance Healthy:</strong> Weekly inflow grew by <strong>+${diffPct}%</strong>. Inflow trends are steady and meet operational targets.`;
+            btnPitch.style.display = 'none';
+        } else {
+            dssBox.className = 'dss-alert-box normal';
+            if (dssIconWrap) dssIconWrap.className = 'dss-icon-wrap neutral';
+            dssMessage.textContent = 'Aggregating weekly inflow records to formulate predictive revenue recommendations.';
+            btnPitch.style.display = 'none';
+        }
+    }
+}
+
+// Pitch Promo Modal Logic
+function openPitchPromoModal() {
+    const modal = document.getElementById('pitchPromoModal');
+    if (!modal) return;
+    const codeInput = document.getElementById('pitchPromoCode');
+    const noteInput = document.getElementById('pitchNote');
+    if (codeInput) codeInput.value = '';
+    if (noteInput) noteInput.value = 'DSS-triggered initiative: Low weekly inflow detected. Recommending a discount to boost pre-orders.';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePitchPromoModal() {
+    const modal = document.getElementById('pitchPromoModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+async function submitPromoPitch() {
+    const code = document.getElementById('pitchPromoCode')?.value.trim();
+    const discount_type = document.getElementById('pitchDiscountType')?.value;
+    const discount_value = parseFloat(document.getElementById('pitchDiscountValue')?.value);
+    const pitch_note = document.getElementById('pitchNote')?.value.trim();
+
+    if (!code || isNaN(discount_value) || discount_value <= 0) {
+        showCustomAlert('Incomplete Details', 'Please provide a valid promo code and discount amount.', 'warning');
+        return;
+    }
+
+    try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        const headers = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
+        const response = await fetch('/api/sales-officer/promotions/pitch', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                code,
+                discount_type,
+                discount_value,
+                pitch_note: pitch_note || 'DSS sales recovery recommendation'
+            })
+        });
+
+        const resData = await response.json();
+        if (!response.ok || resData.status !== 'success') {
+            throw new Error(resData.message || 'Failed to submit promotional pitch.');
+        }
+
+        closePitchPromoModal();
+        showCustomAlert('Promotion Pitched', `Promo code ${code.toUpperCase()} has been submitted directly to the CEO for approval.`, 'success');
+    } catch (err) {
+        console.error('Error submitting promo pitch:', err);
+        showCustomAlert('Pitch Failed', err.message, 'warning');
+    }
+}
+
+// Transactions Filter & Pagination
 function applyTransactionFilters() {
     const filterType = document.getElementById('txDateFilter')?.value || 'today';
     const customDateVal = document.getElementById('txCustomDate')?.value;
-
     const now = new Date();
     const todayStr = SalesCommon.localDate(now);
-
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
-
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     filteredOrders = allFetchedOrders.filter(ord => {
         if (!ord.placed_at) return false;
         const ordDate = new Date(ord.placed_at);
         const ordDateStr = SalesCommon.localDate(ord.placed_at);
-
-        if (filterType === 'today') {
-            return ordDateStr === todayStr;
-        } else if (filterType === 'week') {
-            return ordDate >= weekAgo;
-        } else if (filterType === 'month') {
-            return ordDate >= startOfMonth;
-        } else if (filterType === 'custom') {
-            return ordDateStr === customDateVal;
-        }
+        if (filterType === 'today') return ordDateStr === todayStr;
+        if (filterType === 'week') return ordDate >= weekAgo;
+        if (filterType === 'month') return ordDate >= startOfMonth;
+        if (filterType === 'custom') return ordDateStr === customDateVal;
         return true;
     });
 
@@ -368,10 +414,11 @@ function renderPaginatedTransactions() {
             maximumFractionDigits: 2
         });
 
-        const isGuest = !ord.customer_id;
-        const badgeClass = isGuest ? 'badge-guest' : 'badge-member';
-        const badgeText = isGuest ? 'Guest' : 'Member';
-        const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Anonymous Customer');
+        // Walk-in vs Registered Member badge (no Guest)
+        const isWalkin = !ord.customer_id || String(ord.customer_name || '').toLowerCase().includes('walk');
+        const badgeClass = isWalkin ? 'badge-walkin' : 'badge-member';
+        const badgeText = isWalkin ? 'Walk-in' : 'Member';
+        const displayName = escapeHtml(ord.customer_name || 'Walk-in Counter');
 
         return `
             <div class="order-row-item">
@@ -391,7 +438,6 @@ function renderPaginatedTransactions() {
     }).join('');
 }
 
-// Smart sliding pagination
 function renderPaginationControls(totalPages, activePage) {
     const pagerNumbers = document.getElementById('pagerNumbers');
     if (!pagerNumbers) return;
@@ -440,7 +486,6 @@ function updateAcquisitionDisplay() {
     const filterEl = document.getElementById('acquisitionFilter');
     const valueEl = document.getElementById('filteredNewAccounts');
     const footerEl = document.getElementById('acquisitionPeriodFooter');
-
     const selected = filterEl ? filterEl.value : 'today';
 
     const timeframeConfig = {
@@ -452,26 +497,17 @@ function updateAcquisitionDisplay() {
     };
 
     const config = timeframeConfig[selected] || timeframeConfig.today;
-
-    if (valueEl) {
-        valueEl.textContent = Number(customerAcquisitionData[selected] || 0).toLocaleString();
-    }
-    if (footerEl) {
-        footerEl.textContent = config.footer;
-    }
+    if (valueEl) valueEl.textContent = Number(customerAcquisitionData[selected] || 0).toLocaleString();
+    if (footerEl) footerEl.textContent = config.footer;
 }
 
-// ==========================================================================
-// DYNAMIC SHIFT CONTROLS (START SHIFT VS. END SHIFT)
-// ==========================================================================
+// Shift controls (Open / Lock)
 function checkRegisterLockState() {
     const banner = document.getElementById('registerStatusBanner');
     const bannerText = document.getElementById('registerStatusText');
     const shiftBtn = document.getElementById('btnShiftTrigger');
-    const shiftBtnText = document.getElementById('shiftTriggerText');
 
     if (isRegisterLocked) {
-        // Naka-lock: Ihanda ang button para sa Open Shift / Start Day
         if (banner) {
             banner.className = 'topbar-status-strip locked';
             bannerText.innerHTML = '<span class="status-pulse-dot"></span><strong>Shift Closed &amp; Register Locked</strong> — Transmitted to Finance';
@@ -487,7 +523,6 @@ function checkRegisterLockState() {
             `;
         }
     } else {
-        // Bukas: Ihanda ang button para sa End Shift & Z-Reading
         if (banner) {
             banner.className = 'topbar-status-strip open';
             bannerText.innerHTML = '<span class="status-pulse-dot"></span>Register Open • Tuesday &amp; Thursday Release Window (10:00 AM – 3:00 PM)';
@@ -506,11 +541,8 @@ function checkRegisterLockState() {
 }
 
 function handleShiftButtonClick() {
-    if (isRegisterLocked) {
-        openOpenShiftModal();
-    } else {
-        openZReadingModal();
-    }
+    if (isRegisterLocked) openOpenShiftModal();
+    else openZReadingModal();
 }
 
 function syncRegisterLockState(serverStatus) {
@@ -524,18 +556,13 @@ function syncRegisterLockState(serverStatus) {
     checkRegisterLockState();
 }
 
-// --------------------------------------------------------------------------
-// OPEN SHIFT / START DAY LOGIC
-// --------------------------------------------------------------------------
 function openOpenShiftModal() {
     const modal = document.getElementById('openShiftModal');
     if (!modal) return;
-
     const dateSub = document.getElementById('openShiftSubDate');
     if (dateSub) {
         dateSub.textContent = `Shift Start: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 10:00 AM`;
     }
-
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -550,53 +577,26 @@ function closeOpenShiftModal() {
 
 async function confirmOpenShift() {
     const floatAmount = parseFloat(document.getElementById('openingFloatInput')?.value || 1000);
-    const notes = document.getElementById('openingShiftNotes')?.value || 'Morning Shift Cash Float Initialized';
-
     if (isNaN(floatAmount) || floatAmount < 0) {
         showCustomAlert("Invalid Float Amount", "Please enter a valid cash float amount.", "warning");
         return;
     }
-
-    try {
-        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-        const headers = { 'Content-Type': 'application/json' };
-        if (userId) headers['x-user-id'] = userId;
-
-        // Unlock the register
-        localStorage.setItem('isRegisterLocked', 'false');
-        isRegisterLocked = false;
-        closeOpenShiftModal();
-        checkRegisterLockState();
-
-        showCustomAlert(
-            "Shift Started Successfully",
-            `The register is now OPEN with an initial cash float of ₱${floatAmount.toFixed(2)}. You may now punch walk-ins and confirm pre-orders.`,
-            "success"
-        );
-    } catch (error) {
-        console.error('Error starting shift:', error);
-    }
+    localStorage.setItem('isRegisterLocked', 'false');
+    isRegisterLocked = false;
+    closeOpenShiftModal();
+    checkRegisterLockState();
+    showCustomAlert("Shift Started Successfully", `Register is now OPEN with float ₱${floatAmount.toFixed(2)}.`, "success");
 }
 
-// --------------------------------------------------------------------------
-// X-READING INTERIM SNAPSHOT LOGIC
-// --------------------------------------------------------------------------
 async function openXReadingModal() {
     const modal = document.getElementById('xReadingModal');
     if (!modal) return;
-
     const dateSub = document.getElementById('xModalSubDate');
     if (dateSub) {
         dateSub.textContent = `Interim Snapshot: ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
-
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
-
-    ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = 'Loading…';
-    });
 
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -605,7 +605,6 @@ async function openXReadingModal() {
 
         const response = await fetch('/api/sales-officer/x-reading', { headers });
         if (!response.ok) throw new Error(await SalesCommon.errorMessage(response));
-
         const data = await response.json();
         expectedCounterCash = data.expectedDrawer;
         latestXReading = data;
@@ -618,11 +617,7 @@ async function openXReadingModal() {
         document.getElementById('xGrossTotal').textContent = '₱' + (data.grossTotal || 0).toFixed(2);
     } catch (error) {
         console.error('Could not load X-Reading data:', error);
-        ['xPreOrdersCount', 'xEwalletAmount', 'xPresetsCount', 'xWalkinCash', 'xExpectedDrawer', 'xGrossTotal'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '—';
-        });
-        showCustomAlert('Could Not Load X-Reading', 'Real sales data could not be fetched from the server. Please try again.', 'warning');
+        showCustomAlert('Error', 'Real sales data could not be fetched.', 'warning');
     }
 }
 
@@ -634,34 +629,18 @@ function closeXReadingModal() {
     }
 }
 
-// --------------------------------------------------------------------------
-// Z-READING MODAL & REGISTER LOCK LOGIC
-// --------------------------------------------------------------------------
 async function openZReadingModal() {
     if (isRegisterLocked) {
-        showCustomAlert("Shift Already Closed", "This operational shift has already been concluded with a final Z-Reading.", "warning");
+        showCustomAlert("Shift Already Closed", "This shift has already been concluded with a Z-Reading.", "warning");
         return;
     }
-
     const modal = document.getElementById('zReadingModal');
     if (!modal) return;
-
-    const dateSub = document.getElementById('zModalSubDate');
-    if (dateSub) {
-        dateSub.textContent = `Official Shift Cut-Off: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' })} at 03:00 PM`;
-    }
-
     const cashInput = document.getElementById('zActualCashInput');
     if (cashInput) cashInput.value = '';
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
-
-    const zFieldIds = ['zPreOrdersCount', 'zClaimedAmount', 'zEwalletAmount', 'zUnclaimedAmount', 'zPresetsCount', 'zExpectedCash'];
-    zFieldIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = 'Loading…';
-    });
 
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -681,14 +660,9 @@ async function openZReadingModal() {
         document.getElementById('zPresetsCount').textContent = `${data.presetsCount} Cups Sold`;
         document.getElementById('zExpectedCash').textContent = '₱' + (data.expectedDrawer || 0).toFixed(2);
     } catch (error) {
-        console.error('Could not refresh expected drawer amount:', error);
-        zFieldIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '—';
-        });
-        showCustomAlert('Could Not Load Live Totals', 'Real sales data could not be fetched. Please try again before closing the shift.', 'warning');
+        console.error('Could not refresh totals:', error);
+        showCustomAlert('Error', 'Sales data could not be fetched.', 'warning');
     }
-
     calculateZVariance();
 }
 
@@ -703,12 +677,10 @@ function closeZReadingModal() {
 function calculateZVariance() {
     const actualInput = parseFloat(document.getElementById('zActualCashInput')?.value || 0);
     const variance = actualInput - expectedCounterCash;
-
     const varNumEl = document.getElementById('zVarianceValue');
     const varPillEl = document.getElementById('zVarianceStatus');
 
     if (!varNumEl || !varPillEl) return;
-
     if (isNaN(actualInput) || actualInput === 0) {
         varNumEl.textContent = '₱0.00';
         varNumEl.style.color = '#8C6D6D';
@@ -718,7 +690,6 @@ function calculateZVariance() {
     }
 
     const varFormatted = '₱' + Math.abs(variance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
     if (variance === 0) {
         varNumEl.textContent = '₱0.00';
         varNumEl.style.color = '#2E7D32';
@@ -737,21 +708,15 @@ function calculateZVariance() {
     }
 }
 
-// --------------------------------------------------------------------------
-// CUSTOM DIALOG & CONFIRMATION HANDLERS (REPLACING NATIVE ALERTS)
-// --------------------------------------------------------------------------
 function showCustomAlert(title, message, type = "notice") {
     const modal = document.getElementById('customAlertModal');
     if (!modal) return;
-
     document.getElementById('alertModalTitle').textContent = title;
     document.getElementById('alertModalMessage').textContent = message;
-
     const iconWrap = document.getElementById('alertDialogIconWrap');
     if (iconWrap) {
         iconWrap.className = 'dialog-icon-circle ' + (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : ''));
     }
-
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -767,12 +732,10 @@ function closeCustomAlert() {
 function promptZReadingConfirmation() {
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value);
     if (isNaN(actualCash) || actualCash < 0) {
-        showCustomAlert("Incomplete Cash Count", "Please enter the actual physical cash counted in the drawer before locking.", "warning");
+        showCustomAlert("Incomplete Cash Count", "Please enter the actual physical cash counted in the drawer.", "warning");
         return;
     }
-
     const variance = actualCash - expectedCounterCash;
-
     document.getElementById('confirmExpectedCash').textContent = '₱' + expectedCounterCash.toFixed(2);
     document.getElementById('confirmActualCash').textContent = '₱' + actualCash.toFixed(2);
     document.getElementById('confirmVariance').textContent = `${variance >= 0 ? '+' : ''}₱${variance.toFixed(2)}`;
@@ -794,7 +757,6 @@ function closeCustomConfirm() {
 
 async function executeLockdown() {
     closeCustomConfirm();
-
     const actualCash = parseFloat(document.getElementById('zActualCashInput')?.value) || 0;
     const variance = actualCash - expectedCounterCash;
 
@@ -807,7 +769,7 @@ async function executeLockdown() {
             actual_cash: actualCash,
             expected_cash: expectedCounterCash,
             variance: variance,
-            notes: `Z-Reading | E-Wallet: ₱${(latestXReading?.digitalSubtotal ?? 0).toFixed(2)} | Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
+            notes: `Z-Reading | Digital: ₱${(latestXReading?.digitalSubtotal ?? 0).toFixed(2)} | Cash: ₱${(latestXReading?.walkinCashTotal ?? 0).toFixed(2)}`
         };
 
         const response = await fetch('/api/sales-officer/z-reading', {
@@ -817,29 +779,18 @@ async function executeLockdown() {
         });
 
         const data = await response.json();
-        if (!response.ok || data.status !== 'success') {
-            throw new Error(data.message || 'The server rejected the Z-Reading.');
-        }
+        if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Server rejected Z-Reading.');
 
         localStorage.setItem('latestZReport', JSON.stringify(data.record));
         localStorage.setItem('isRegisterLocked', 'true');
         isRegisterLocked = true;
-
         closeZReadingModal();
         checkRegisterLockState();
 
-        showCustomAlert(
-            "Z-READING TRANSMITTED!",
-            "The sales counter has been locked for this shift. The finalized collection summary has been saved and transmitted to the Financial Officer.",
-            "success"
-        );
+        showCustomAlert("Z-Reading Transmitted", "Sales counter locked. Report sent to Financial Officer.", "success");
     } catch (error) {
         console.error('Z-Reading save failed:', error);
-        showCustomAlert(
-            "Z-Reading Not Saved",
-            `The shift could not be closed: ${error.message}. The register remains unlocked.`,
-            "warning"
-        );
+        showCustomAlert("Failed", error.message, "warning");
     }
 }
 

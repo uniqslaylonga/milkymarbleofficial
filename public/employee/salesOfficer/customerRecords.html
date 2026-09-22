@@ -1,421 +1,318 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milky Marble — Customer Records</title>
-    <link rel="stylesheet" href="css/customerRecords.css">
-    <link rel="icon" type="image/png" href="/customer/images/logo.png">
-</head>
-
-<body>
-    <div class="app-container">
-
-        <!-- STICKY SIDEBAR -->
-        <aside class="sidebar">
-            <div class="brand-section">
-                <div class="brand-logo-wrap">
-                    <img src="/customer/images/logo.png" alt="Milky Marble Logo" class="brand-logo-img">
-                </div>
-                <h1 class="brand-title">Milky Marble</h1>
-            </div>
-
-            <nav class="nav-menu">
-                <!-- 1. Dashboard -->
-                <a href="dashboard.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
-
-                <!-- 2. Order Confirmation -->
-                <a href="orderConfirmation.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 11l3 3L22 4" />
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                    </svg>
-                    <span>Order Confirmation</span>
-                </a>
-
-                <!-- 3. Order Monitoring -->
-                <a href="orderMonitoring.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="4" width="20" height="16" rx="3" />
-                        <path d="M7 15h10M7 9h10" />
-                    </svg>
-                    <span>Order Monitoring</span>
-                </a>
-
-                <!-- 4. Customer Records (Active) -->
-                <a href="customerRecords.html" class="nav-link active">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                        <path d="M16 3.13a4 4 0 010 7.75" />
-                    </svg>
-                    <span>Customer Records</span>
-                </a>
-
-                <!-- 5. Promotions -->
-                <a href="promotions.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
-                        <line x1="7" y1="7" x2="7.01" y2="7" />
-                    </svg>
-                    <span>Promotions</span>
-                </a>
-
-                <!-- 6. Sales Target -->
-                <a href="salesTarget.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9" />
-                        <circle cx="12" cy="12" r="5" />
-                        <circle cx="12" cy="12" r="1" />
-                    </svg>
-                    <span>Sales Target</span>
-                </a>
-
-                <!-- 7. Reports & Records -->
-                <a href="salesReports&Records.html" class="nav-link">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 3v18h18" />
-                        <path d="M7 15l4-6 3 3 5-7" />
-                    </svg>
-                    <span>Reports & Records</span>
-                </a>
-            </nav>
-
-            <div class="sidebar-bottom">
-                <a href="../login.html" class="nav-link logout-btn">
-                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-                    </svg>
-                    <span>Log out</span>
-                </a>
-            </div>
-        </aside>
-
-        <!-- MAIN CONTENT -->
-        <main class="main-content">
-            <!-- TOPBAR -->
-            <header class="topbar">
-                <div class="search-box">
-                    <input type="text" id="customerSearchInput" placeholder="Search customer name, email, phone, or ID...">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="M21 21l-4.35-4.35" />
-                    </svg>
-                </div>
-
-                <div class="topbar-right">
-                    <div class="user-profile">
-                        <div class="user-avatar">
-                            <img id="userAvatar" src="/customer/images/account.png" alt="User Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='/customer/images/account.png';">
-                        </div>
-                        <span id="userName" class="user-name">Loading...</span>
-                    </div>
-                </div>
-            </header>
-
-            <div class="page-eyebrow">Customer Records Desk</div>
-
-            <!-- SECTION 1: CLEAN OVERVIEW CARDS (NO EMBEDDED DROPDOWNS) -->
-            <section class="section">
-                <h2 class="section-title">Today's Customer Snapshot</h2>
-                <div class="overview-grid four-col-grid">
-
-                    <!-- Total Registered -->
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Total Registered</span></div>
-                        <div class="stat-body">
-                            <span id="totalRegistered" class="stat-value">0</span>
-                        </div>
-                        <div id="totalRegisteredGrowth" class="stat-footer">+0% vs last month</div>
-                    </div>
-
-                    <!-- New Sign-ups Today (Clean card without dropdown) -->
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">New Sign-ups Today</span></div>
-                        <div class="stat-body">
-                            <span id="todayNewAccounts" class="stat-value">0</span>
-                        </div>
-                        <div class="stat-footer">Registered today</div>
-                    </div>
-
-                    <!-- Active Buyers Today -->
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Active Buyers Today</span></div>
-                        <div class="stat-body">
-                            <span id="activeBuyersToday" class="stat-value">0</span>
-                        </div>
-                        <div class="stat-footer">Members who placed orders today</div>
-                    </div>
-
-                    <!-- Repeat Rate -->
-                    <div class="stat-card">
-                        <div class="stat-header"><span class="stat-title">Repeat Customer Rate</span></div>
-                        <div class="stat-body">
-                            <span id="repeatRate" class="stat-value">0%</span>
-                        </div>
-                        <div class="stat-footer">High loyalty segment</div>
-                    </div>
-
-                </div>
-            </section>
-
-            <!-- SECTION 2: DEDICATED ACQUISITION & GROWTH ANALYTICS (WITH TIMEFRAME FILTER) -->
-            <section class="section">
-                <div class="section-head-bar">
-                    <div class="title-with-subtitle">
-                        <h2 class="section-title">Customer Acquisition &amp; Growth Analytics</h2>
-                        <span class="section-badge-pink">Sign-up &amp; Registration Trends</span>
-                    </div>
-
-                    <!-- Acquisition Filter Controls -->
-                    <div class="filter-wrapper">
-                        <span class="filter-label">Acquisition Timeframe:</span>
-                        <select id="acquisitionPeriodSelect" class="custom-select-sm">
-                            <option value="today">Today</option>
-                            <option value="week" selected>This Week</option>
-                            <option value="month">This Month</option>
-                            <option value="last3Months">Past 90 Days</option>
-                            <option value="last6Months">Past 180 Days</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="growth-panel-card">
-                    <div class="growth-metric-row">
-                        <div class="growth-stat-item">
-                            <span class="growth-stat-label">Sign-ups in Selected Period</span>
-                            <div class="growth-stat-val-row">
-                                <strong id="periodSignupsCount" class="growth-stat-number">0</strong>
-                                <span class="growth-subtag" id="periodSignupsFooter">Registered this week</span>
-                            </div>
-                        </div>
-
-                        <div class="growth-stat-item">
-                            <span class="growth-stat-label">Average Daily Acquisitions</span>
-                            <div class="growth-stat-val-row">
-                                <strong id="dailyAvgAcquisition" class="growth-stat-number">0.0</strong>
-                                <span class="growth-subtag">sign-ups / day</span>
-                            </div>
-                        </div>
-
-                        <div class="growth-stat-item">
-                            <span class="growth-stat-label">Acquisition Velocity</span>
-                            <div class="growth-stat-val-row">
-                                <strong id="acquisitionPaceText" class="growth-stat-number status-pace-good">Stable</strong>
-                                <span class="growth-subtag" id="acquisitionPaceDesc">Consistent member growth</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION 3: GUEST VS. REGISTERED SEGMENTATION CARD -->
-            <section class="section">
-                <div class="section-head-bar">
-                    <div class="title-with-subtitle">
-                        <h2 class="section-title">Customer Segmentation: Guest vs. Registered</h2>
-                        <span class="section-badge-pink">Conversion &amp; Engagement Intelligence</span>
-                    </div>
-                </div>
-
-                <div class="segment-analysis-card">
-                    <div class="segment-grid">
-                        <div class="segment-subcard">
-                            <span class="segment-title">Registered Members</span>
-                            <div class="segment-metrics-row">
-                                <strong id="memberCountDisplay">0 customers</strong>
-                                <span class="highlight-pill" id="memberRevenuePercent">0% Revenue</span>
-                            </div>
-                            <span class="segment-subtext" id="memberOrdersTotal">0 orders</span>
-                        </div>
-
-                        <div class="segment-subcard">
-                            <span class="segment-title">Guest Checkouts</span>
-                            <div class="segment-metrics-row">
-                                <strong id="guestCountDisplay">0 guests</strong>
-                                <span class="highlight-pill highlight-alt" id="guestRevenuePercent">0% Revenue</span>
-                            </div>
-                            <span class="segment-subtext" id="guestOrdersTotal">0 walk-in / guest orders</span>
-                        </div>
-                    </div>
-
-                    <!-- Ratio Bar -->
-                    <div class="ratio-bar-wrap">
-                        <div class="ratio-track">
-                            <div id="barMemberFill" class="ratio-fill-reg" style="width: 50%;"></div>
-                            <div id="barGuestFill" class="ratio-fill-guest" style="width: 50%;"></div>
-                        </div>
-                        <div class="ratio-legend-row">
-                            <span>Registered Share: <strong id="barMemberLabel">50%</strong></span>
-                            <span>Guest Share: <strong id="barGuestLabel">50%</strong></span>
-                        </div>
-                    </div>
-
-                    <!-- Actionable Strategic Recommendation (English) -->
-                    <div class="insight-box-sm">
-                        <span class="insight-icon"></span>
-                        <p class="insight-text" id="decisionInsightMessage">
-                            Analyzing customer conversion metrics to advise promotional actions...
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION 4: CUSTOMER DIRECTORY TABLE -->
-            <section class="section">
-                <div class="section-head-bar">
-                    <div class="dir-header-group">
-                        <h2 class="section-title">Customer Directory</h2>
-                        <!-- Tabs Filter: All / Members / Guests -->
-                        <div class="dir-tabs">
-                            <button type="button" class="tab-btn active" data-type="all">All <span id="countAllBadge" class="tab-badge">0</span></button>
-                            <button type="button" class="tab-btn" data-type="registered">Members <span id="countMemberBadge" class="tab-badge">0</span></button>
-                            <button type="button" class="tab-btn" data-type="guest">Guests <span id="countGuestBadge" class="tab-badge">0</span></button>
-                        </div>
-                    </div>
-
-                    <!-- Date Filter Controls -->
-                    <div class="filter-wrapper">
-                        <span class="filter-label">Order Activity:</span>
-                        <select id="customerDateFilter" class="custom-select-sm">
-                            <option value="all" selected>All Dates</option>
-                            <option value="today">Ordered Today</option>
-                            <option value="week">Past 7 Days</option>
-                            <option value="month">This Month</option>
-                            <option value="custom">Pick Date...</option>
-                        </select>
-                        <input type="date" id="customerCustomDate" class="custom-date-input" style="display: none;" />
-                    </div>
-                </div>
-
-                <div class="directory-card">
-                    <div class="table-container">
-                        <table class="cust-table">
-                            <thead>
-                                <tr>
-                                    <th>Customer &amp; Account Type</th>
-                                    <th>Contact Information</th>
-                                    <th>Total Orders</th>
-                                    <th>Total Spent</th>
-                                    <th>Preferred Payment</th>
-                                    <th style="text-align: center;">Quick Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customerTableBody">
-                                <tr>
-                                    <td colspan="6" class="loading-state-text">Loading customer records...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- PERMANENT PAGINATION BAR -->
-                    <div class="tx-pagination-bar" id="customerPaginationBar">
-                        <span class="tx-page-info" id="customerPageInfo">Showing 0 of 0 customers</span>
-                        <div class="tx-pager-buttons">
-                            <button type="button" class="pager-btn" id="prevCustomerBtn" title="Previous Page" disabled>
-                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
-                            </button>
-                            <div class="pager-numbers" id="customerPagerNumbers">
-                                <button type="button" class="pager-num-btn active" disabled>1</button>
-                            </div>
-                            <button type="button" class="pager-btn" id="nextCustomerBtn" title="Next Page" disabled>
-                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- CENTERED CUSTOMER SUMMARY MODAL (READ-ONLY ORDER & CONTACT SUPPORT) -->
-        <div class="modal-overlay" id="profileModalOverlay">
-            <div class="profile-modal">
-
-                <div class="modal-header">
-                    <h3 class="modal-title">Customer Summary &amp; History</h3>
-                    <button class="modal-close" id="modalCloseBtn" title="Close">✕</button>
-                </div>
-
-                <div class="modal-body">
-                    <!-- User Summary Card -->
-                    <div class="modal-user-card">
-                        <div class="modal-avatar">
-                            <img id="modalAvatar" src="/customer/images/account.png" alt="Customer Avatar" class="modal-avatar-img" onerror="this.onerror=null; this.src='/customer/images/account.png';">
-                        </div>
-                        <h4 id="modalName" class="modal-name">---</h4>
-                        <p id="modalSub" class="modal-email">--- • ---</p>
-
-                        <!-- Communication Shortcuts (Support & Counter Pickup Calls) -->
-                        <div class="comm-shortcuts">
-                            <a id="modalCallBtn" href="#" class="comm-btn" title="Call Customer">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
-                                </svg>
-                                <span>Call</span>
-                            </a>
-                            <a id="modalSmsBtn" href="#" class="comm-btn" title="Send SMS">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                </svg>
-                                <span>SMS</span>
-                            </a>
-                            <button type="button" class="comm-btn" title="Quick Message" onclick="alert('Order pickup alert notification dispatched.')">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-                                </svg>
-                                <span>Notify</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Preferred Payment & Address -->
-                    <div class="modal-section">
-                        <div class="modal-label">Default Delivery / Pickup Address</div>
-                        <div class="address-box">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                                <circle cx="12" cy="10" r="3" />
-                            </svg>
-                            <p id="modalAddress">No default address specified</p>
-                        </div>
-                    </div>
-
-                    <div class="modal-section">
-                        <div class="modal-label">Preferred Payment Method</div>
-                        <div class="payment-badge-box" id="modalPaymentBox">
-                            <span class="method-pill gcash">GCash</span>
-                        </div>
-                    </div>
-
-                    <!-- Recent Orders History -->
-                    <div class="modal-section">
-                        <div class="modal-label">Past Orders History</div>
-                        <div class="modal-history-list" id="modalHistoryList">
-                            <div class="history-item">
-                                <div>No past orders found.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script src="js/salesCommon.js"></script>
-    <script src="js/customerRecords.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milky Marble — Customer Records</title>
+    <link rel="stylesheet" href="css/customerRecords.css">
+    <link rel="icon" type="image/png" href="/customer/images/logo.png">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sticky Sidebar -->
+        <aside class="sidebar">
+            <div class="brand-section">
+                <div class="brand-logo-wrap">
+                    <img src="/customer/images/logo.png" alt="Milky Marble Logo" class="brand-logo-img">
+                </div>
+                <h1 class="brand-title">Milky Marble</h1>
+            </div>
+            <nav class="nav-menu">
+                <a href="dashboard.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="orderConfirmation.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                    </svg>
+                    <span>Order Confirmation</span>
+                </a>
+                <a href="orderMonitoring.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="4" width="20" height="16" rx="3" />
+                        <path d="M7 15h10M7 9h10" />
+                    </svg>
+                    <span>Order Monitoring</span>
+                </a>
+                <a href="customerRecords.html" class="nav-link active">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                        <path d="M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                    <span>Customer Records</span>
+                </a>
+                <a href="promotions.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+                        <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    <span>Promotions</span>
+                </a>
+                <a href="salesTarget.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9" />
+                        <circle cx="12" cy="12" r="5" />
+                        <circle cx="12" cy="12" r="1" />
+                    </svg>
+                    <span>Sales Target</span>
+                </a>
+                <a href="salesReports&Records.html" class="nav-link">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18" />
+                        <path d="M7 15l4-6 3 3 5-7" />
+                    </svg>
+                    <span>Reports &amp; Records</span>
+                </a>
+            </nav>
+            <div class="sidebar-bottom">
+                <a href="../login.html" class="nav-link logout-btn">
+                    <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                    </svg>
+                    <span>Log out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-status-strip">
+                    <span class="status-pulse-dot"></span>
+                    <span>Customer Membership Registry &amp; Retention Hub</span>
+                </div>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <img id="userAvatar" src="/customer/images/account.png" alt="User Avatar" class="user-avatar-img" onerror="this.onerror=null; this.src='/customer/images/account.png';">
+                        </div>
+                        <span id="userName" class="user-name">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="page-eyebrow">Customer Records Desk</div>
+
+            <!-- Overview Snapshot -->
+            <section class="section">
+                <h2 class="section-title">Today's Customer Snapshot</h2>
+                <div class="overview-grid four-col-grid">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Total Registered</span></div>
+                        <div class="stat-body">
+                            <span id="totalRegistered" class="stat-value">0</span>
+                        </div>
+                        <div id="totalRegisteredGrowth" class="stat-footer">+0% vs last month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">New Sign-ups Today</span></div>
+                        <div class="stat-body">
+                            <span id="todayNewAccounts" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-footer">Registered today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Active Buyers Today</span></div>
+                        <div class="stat-body">
+                            <span id="activeBuyersToday" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-footer">Members who placed orders today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">Repeat Customer Rate</span></div>
+                        <div class="stat-body">
+                            <span id="repeatRate" class="stat-value">0%</span>
+                        </div>
+                        <div class="stat-footer">High loyalty segment</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Growth Analytics -->
+            <section class="section">
+                <div class="section-head-bar">
+                    <div class="title-with-subtitle">
+                        <h2 class="section-title">Customer Acquisition &amp; Growth Analytics</h2>
+                        <span class="section-badge-pink">Registration Trends</span>
+                    </div>
+                    <div class="filter-wrapper">
+                        <span class="filter-label">Acquisition Timeframe:</span>
+                        <select id="acquisitionPeriodSelect" class="custom-select-sm">
+                            <option value="today">Today</option>
+                            <option value="week" selected>This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="last3Months">Past 90 Days</option>
+                            <option value="last6Months">Past 180 Days</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="growth-panel-card">
+                    <div class="growth-metric-row">
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Sign-ups in Selected Period</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="periodSignupsCount" class="growth-stat-number">0</strong>
+                                <span class="growth-subtag" id="periodSignupsFooter">Registered this week</span>
+                            </div>
+                        </div>
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Average Daily Acquisitions</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="dailyAvgAcquisition" class="growth-stat-number">0.0</strong>
+                                <span class="growth-subtag">sign-ups / day</span>
+                            </div>
+                        </div>
+                        <div class="growth-stat-item">
+                            <span class="growth-stat-label">Acquisition Velocity</span>
+                            <div class="growth-stat-val-row">
+                                <strong id="acquisitionPaceText" class="growth-stat-number status-pace-good">Stable</strong>
+                                <span class="growth-subtag" id="acquisitionPaceDesc">Consistent member growth</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Member Directory Section -->
+            <section class="section">
+                <div class="section-head-bar">
+                    <div class="dir-header-group">
+                        <h2 class="section-title">Registered Member Directory</h2>
+                        <div class="filter-wrapper">
+                            <span class="filter-label">Sort By:</span>
+                            <select id="customerSortSelect" class="custom-select-sm">
+                                <option value="name_asc">Name (A-Z)</option>
+                                <option value="orders_desc" selected>Most Orders</option>
+                                <option value="spent_desc">Highest Spent</option>
+                                <option value="recent">Recently Active</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-wrapper">
+                        <span class="filter-label">Order Activity:</span>
+                        <select id="customerDateFilter" class="custom-select-sm">
+                            <option value="all" selected>All Dates</option>
+                            <option value="today">Ordered Today</option>
+                            <option value="week">Past 7 Days</option>
+                            <option value="month">This Month</option>
+                            <option value="custom">Pick Date...</option>
+                        </select>
+                        <input type="date" id="customerCustomDate" class="custom-date-input" style="display: none;" />
+                    </div>
+                </div>
+                <div class="directory-card">
+                    <div class="table-container">
+                        <table class="cust-table">
+                            <thead>
+                                <tr>
+                                    <th>Member &amp; Loyalty Status</th>
+                                    <th>Contact Information</th>
+                                    <th>Total Orders</th>
+                                    <th>Total Spent</th>
+                                    <th>Preferred Payment</th>
+                                    <th style="text-align: center;">Quick Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerTableBody">
+                                <tr>
+                                    <td colspan="6" class="loading-state-text">Loading registered member records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Permanent Pagination Bar -->
+                    <div class="tx-pagination-bar" id="customerPaginationBar">
+                        <span class="tx-page-info" id="customerPageInfo">Showing 0 of 0 members</span>
+                        <div class="tx-pager-buttons">
+                            <button type="button" class="pager-btn" id="prevCustomerBtn" title="Previous Page" disabled>
+                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <div class="pager-numbers" id="customerPagerNumbers">
+                                <button type="button" class="pager-num-btn active" disabled>1</button>
+                            </div>
+                            <button type="button" class="pager-btn" id="nextCustomerBtn" title="Next Page" disabled>
+                                <svg viewBox="0 0 24 24" class="pager-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Customer Summary Modal -->
+        <div class="modal-overlay" id="profileModalOverlay">
+            <div class="profile-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Member Summary &amp; History</h3>
+                    <button class="modal-close" id="modalCloseBtn" title="Close">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-user-card">
+                        <div class="modal-avatar">
+                            <img id="modalAvatar" src="/customer/images/account.png" alt="Customer Avatar" class="modal-avatar-img" onerror="this.onerror=null; this.src='/customer/images/account.png';">
+                        </div>
+                        <h4 id="modalName" class="modal-name">---</h4>
+                        <p id="modalSub" class="modal-email">--- • ---</p>
+                        <div class="comm-shortcuts">
+                            <a id="modalCallBtn" href="#" class="comm-btn" title="Call Customer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+                                </svg>
+                                <span>Call</span>
+                            </a>
+                            <a id="modalSmsBtn" href="#" class="comm-btn" title="Send SMS">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                                </svg>
+                                <span>SMS</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-label">Default Pickup / Counter Note</div>
+                        <div class="address-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                            <p id="modalAddress">Counter Pick-Up Customer</p>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-label">Preferred Payment Method</div>
+                        <div class="payment-badge-box" id="modalPaymentBox">
+                            <span class="method-pill">GCash</span>
+                        </div>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-label">Recent Order History</div>
+                        <div class="modal-history-list" id="modalHistoryList">
+                            <div class="history-item">
+                                <div>No past orders found.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/salesCommon.js"></script>
+    <script src="js/customerRecords.js"></script>
     <script src="/shared/js/avatarUpload.js"></script>
-</body>
-
+</body>
 </html>

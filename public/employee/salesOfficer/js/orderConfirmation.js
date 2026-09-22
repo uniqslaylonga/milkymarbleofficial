@@ -1,14 +1,13 @@
-// Global State para sa Confirmation Desk
+// Confirmation desk state
 let allPendingOrders = [];
 let filteredPendingOrders = [];
 let currentOrderPage = 1;
-const ORDERS_PAGE_SIZE = 5; // 5 orders bawat page
+const ORDERS_PAGE_SIZE = 5;
+let isRegisterLocked = localStorage.getItem('isRegisterLocked') === 'true';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Date Filter Listeners
     const filterSelect = document.getElementById('orderDateFilter');
     const customDateInput = document.getElementById('orderCustomDate');
-    const searchInput = document.getElementById('orderSearchInput');
 
     if (filterSelect) {
         filterSelect.addEventListener('change', (e) => {
@@ -24,15 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (customDateInput) {
-        customDateInput.addEventListener('change', applyOrderFilters);
-    }
+    if (customDateInput) customDateInput.addEventListener('change', applyOrderFilters);
 
-    if (searchInput) {
-        searchInput.addEventListener('input', applyOrderFilters);
-    }
-
-    // 2. Pagination Buttons
     const prevBtn = document.getElementById('prevOrderBtn');
     const nextBtn = document.getElementById('nextOrderBtn');
 
@@ -58,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadOrderConfirmationData();
 });
 
-// Fetch Data mula sa Backend API
+// Load pending queue from API
 async function loadOrderConfirmationData() {
     try {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -69,7 +61,6 @@ async function loadOrderConfirmationData() {
 
         const data = await response.json();
 
-        // 1. User Header Details
         if (data.user) {
             const userNameEl = document.getElementById('userName');
             const userAvatarEl = document.getElementById('userAvatar');
@@ -77,7 +68,6 @@ async function loadOrderConfirmationData() {
             if (userAvatarEl && data.user.avatarSrc) userAvatarEl.src = data.user.avatarSrc;
         }
 
-        // 2. Metrics Counters
         if (data.metrics) {
             const pendingEl = document.getElementById('pendingCount');
             const confirmedEl = document.getElementById('confirmedCount');
@@ -92,61 +82,40 @@ async function loadOrderConfirmationData() {
         applyOrderFilters();
 
     } catch (error) {
-        console.error('Could not load live data from the server:', error);
+        console.error('Could not load live data from server:', error);
         SalesCommon.showError(error);
         SalesCommon.failTables();
     }
 }
 
-// Filter Logic: Date + Search Query
+// Date filters
 function applyOrderFilters() {
     const filterType = document.getElementById('orderDateFilter')?.value || 'today';
     const customDateVal = document.getElementById('orderCustomDate')?.value;
-    const searchVal = document.getElementById('orderSearchInput')?.value.trim().toLowerCase() || '';
 
     const now = new Date();
     const todayStr = SalesCommon.localDate(now);
-
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
-
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     filteredPendingOrders = allPendingOrders.filter(ord => {
-        // Date Check
-        let passDate = true;
-        if (ord.placed_at) {
-            const ordDate = new Date(ord.placed_at);
-            const ordDateStr = SalesCommon.localDate(ord.placed_at);
+        if (!ord.placed_at) return true;
+        const ordDate = new Date(ord.placed_at);
+        const ordDateStr = SalesCommon.localDate(ord.placed_at);
 
-            if (filterType === 'today') {
-                passDate = ordDateStr === todayStr;
-            } else if (filterType === 'week') {
-                passDate = ordDate >= weekAgo;
-            } else if (filterType === 'month') {
-                passDate = ordDate >= startOfMonth;
-            } else if (filterType === 'custom') {
-                passDate = ordDateStr === customDateVal;
-            }
-        }
-
-        // Search Check
-        let passSearch = true;
-        if (searchVal) {
-            const orderNum = (ord.order_number || '').toLowerCase();
-            const custName = (ord.customer_name || ord.guest_name || '').toLowerCase();
-            const items = (ord.items_summary || '').toLowerCase();
-            passSearch = orderNum.includes(searchVal) || custName.includes(searchVal) || items.includes(searchVal);
-        }
-
-        return passDate && passSearch;
+        if (filterType === 'today') return ordDateStr === todayStr;
+        if (filterType === 'week') return ordDate >= weekAgo;
+        if (filterType === 'month') return ordDate >= startOfMonth;
+        if (filterType === 'custom') return ordDateStr === customDateVal;
+        return true;
     });
 
     currentOrderPage = 1;
     renderPaginatedOrders();
 }
 
-// Render ng Rows at Pagination
+// Render order list with member/walkin tags
 function renderPaginatedOrders() {
     const tableBody = document.getElementById('confirmationTableBody');
     const pageInfo = document.getElementById('orderPageInfo');
@@ -172,7 +141,6 @@ function renderPaginatedOrders() {
     const startIndex = (currentOrderPage - 1) * ORDERS_PAGE_SIZE;
     const pageItems = filteredPendingOrders.slice(startIndex, startIndex + ORDERS_PAGE_SIZE);
 
-    // Update Pagination Text
     if (pageInfo) {
         const startNum = startIndex + 1;
         const endNum = Math.min(startIndex + ORDERS_PAGE_SIZE, filteredPendingOrders.length);
@@ -183,7 +151,6 @@ function renderPaginatedOrders() {
 
     renderPagerButtons(totalPages, currentOrderPage);
 
-    // Build Table Rows
     tableBody.innerHTML = pageItems.map(ord => {
         const dateFormatted = new Date(ord.placed_at).toLocaleDateString('en-US', {
             month: 'short',
@@ -197,10 +164,11 @@ function renderPaginatedOrders() {
             maximumFractionDigits: 2
         });
 
-        const isGuest = !ord.customer_id;
-        const badgeClass = isGuest ? 'badge-guest' : 'badge-member';
-        const badgeText = isGuest ? 'Guest' : 'Member';
-        const displayName = escapeHtml(ord.customer_name || ord.guest_name || 'Customer');
+        // Registered Member or Walk-in Counter tag
+        const isWalkin = !ord.customer_id || String(ord.customer_name || '').toLowerCase().includes('walk');
+        const badgeClass = isWalkin ? 'badge-walkin' : 'badge-member';
+        const badgeText = isWalkin ? 'Walk-in' : 'Member';
+        const displayName = escapeHtml(ord.customer_name || 'Walk-in Counter');
 
         return `
             <tr id="order-row-${ord.id}">
@@ -234,16 +202,38 @@ function renderPaginatedOrders() {
     }).join('');
 }
 
-// Numbered Page Buttons: 1, 2, 3...
+// Smart sliding pagination controls
 function renderPagerButtons(totalPages, activePage) {
     const pagerNumbers = document.getElementById('orderPagerNumbers');
     if (!pagerNumbers) return;
 
-    let html = '';
-    for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === activePage ? 'active' : '';
-        html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${i}">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerNumbers.innerHTML = `<button type="button" class="pager-num-btn active" data-page="1">1</button>`;
+        return;
     }
+
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (activePage <= 4) {
+            pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (activePage >= totalPages - 3) {
+            pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            pages.push(1, '...', activePage - 1, activePage, activePage + 1, '...', totalPages);
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span class="pager-ellipsis">&hellip;</span>`;
+        } else {
+            const isActive = p === activePage ? 'active' : '';
+            html += `<button type="button" class="pager-num-btn ${isActive}" data-page="${p}">${p}</button>`;
+        }
+    });
     pagerNumbers.innerHTML = html;
 
     pagerNumbers.querySelectorAll('.pager-num-btn').forEach(btn => {
@@ -257,12 +247,13 @@ function renderPagerButtons(totalPages, activePage) {
     });
 }
 
-// Action: Confirm Order (Ipapasa sa Kusina)
-// Moves the order to PREPARING - the real, validated endpoint for changing an
-// order's status lives in orderRoutes.js at /api/orders/:id/status (it also
-// sends the customer their status-update email). There is no separate
-// /api/sales-officer/orders/:id/status route - calling that 404s silently.
+// Push to kitchen with register-lock guard
 async function confirmOrder(orderId) {
+    if (isRegisterLocked) {
+        alert('The sales counter register is currently locked. Orders cannot be confirmed.');
+        return;
+    }
+
     if (!confirm(`Are you sure you want to confirm Order #${orderId}? It will be queued to production.`)) return;
 
     try {
@@ -273,14 +264,10 @@ async function confirmOrder(orderId) {
         });
 
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(result.message || 'Failed to confirm order.');
-        }
+        if (!response.ok) throw new Error(result.message || 'Failed to confirm order.');
 
-        // Alisin sa listahan ng pending
         allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
 
-        // I-update ang counters
         const pendingEl = document.getElementById('pendingCount');
         const confirmedEl = document.getElementById('confirmedCount');
         if (pendingEl) pendingEl.textContent = allPendingOrders.length;
@@ -289,14 +276,14 @@ async function confirmOrder(orderId) {
         applyOrderFilters();
     } catch (err) {
         console.error('Error confirming order:', err);
-        alert(err.message || 'Could not confirm this order. Please try again.');
+        alert(err.message || 'Could not confirm order.');
     }
 }
 
-// Action: Reject Order (Kanselahin)
+// Reject order
 async function rejectOrder(orderId) {
     const reason = prompt('Please enter reason for rejecting this order (optional):');
-    if (reason === null) return; // kinansela ng user ang prompt
+    if (reason === null) return;
 
     try {
         const response = await fetch(`/api/orders/${orderId}/status`, {
@@ -306,9 +293,7 @@ async function rejectOrder(orderId) {
         });
 
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(result.message || 'Failed to reject order.');
-        }
+        if (!response.ok) throw new Error(result.message || 'Failed to reject order.');
 
         allPendingOrders = allPendingOrders.filter(o => o.id !== orderId);
 
@@ -320,7 +305,7 @@ async function rejectOrder(orderId) {
         applyOrderFilters();
     } catch (err) {
         console.error('Error rejecting order:', err);
-        alert(err.message || 'Could not reject this order. Please try again.');
+        alert(err.message || 'Could not reject order.');
     }
 }
 
